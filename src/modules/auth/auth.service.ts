@@ -166,6 +166,18 @@ export class AuthService {
     return safeUser;
   }
 
+  // No profile-edit endpoint existed anywhere — phone+OTP accounts
+  // (customer/vendor/delivery_partner) never had a way to add an email at
+  // all. Added as a Phase 7 prerequisite: email notifications (receipts,
+  // KYC status) need somewhere real to send to for these roles, not just
+  // admin's email+password login.
+  async updateEmail(userId: string, email: string) {
+    const [user] = await this.db.update(users).set({ email }).where(eq(users.id, userId)).returning();
+    if (!user) throw new UnauthorizedException('User no longer exists');
+    const { passwordHash: _passwordHash, ...safeUser } = user;
+    return safeUser;
+  }
+
   private async findOrCreateByPhone(phone: string, role: OtpRole) {
     const [existing] = await this.db
       .select()

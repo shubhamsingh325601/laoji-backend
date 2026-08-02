@@ -337,6 +337,11 @@ export const groceryOrders = pgTable('grocery_orders', {
   subtotal: doublePrecision('subtotal').notNull(),
   deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
   platformCommission: doublePrecision('platform_commission').notNull().default(0),
+  // Phase 8: the *rate* that produced platform_commission above, snapshotted
+  // at order-creation time alongside the already-existing computed amount —
+  // revenue_config resolution happens once, here, and never again; a later
+  // rule change must never retroactively alter an already-placed order.
+  commissionPct: doublePrecision('commission_pct').notNull().default(0),
   total: doublePrecision('total').notNull(),
   // Simple string for now — Payment module (Phase 6) owns the real
   // provider-backed payment_status lifecycle behind PaymentProvider.
@@ -389,6 +394,7 @@ export const foodOrders = pgTable('food_orders', {
   subtotal: doublePrecision('subtotal').notNull(),
   deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
   platformCommission: doublePrecision('platform_commission').notNull().default(0),
+  commissionPct: doublePrecision('commission_pct').notNull().default(0),
   total: doublePrecision('total').notNull(),
   paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
   restaurantId: uuid('restaurant_id')
@@ -468,6 +474,155 @@ export const deliveryAssignments = pgTable(
   (table) => [
     check(
       'delivery_assignments_exactly_one_order_ref',
+      sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
+    ),
+  ],
+);
+
+// Phase 6 (Payments). `grocery_orders`/`food_orders.payment_status` (a plain
+// varchar since Phase 1) stays as a denormalized read-model column kept in
+// sync by PaymentService — cheap for every existing consumer (vendor app's
+// PAYMENT_MAP, admin's PaymentBadge) that already reads it as a string. This
+// table is the actual source of truth: provider, amount, the UPI deep link
+// itself, and reconciliation metadata for the "no reliable UPI webhook"
+// manual-reconcile path (TRD Section 4 — treated as a real MVP requirement,
+// not an edge case).
+export const paymentProviderEnum = pgEnum('payment_provider', ['upi_deeplink', 'cod', 'razorpay']);
+
+// pending: UPI initiated, not yet confirmed either way.
+// paid: customer self-confirmed ("I've paid") or admin reconciled as paid.
+// failed: admin reconciled as failed (no gateway to auto-detect this at MVP).
+// pending_cod / collected: COD's own two-state lifecycle, collected flips
+// automatically when Delivery's OTP-verify (Phase 5) completes a COD order.
+// refund_pending / refunded: set automatically when an already-`paid` UPI
+// order gets rejected/allocation-failed/delivery-failed after the fact — the
+// money left the customer's account, so it isn't just "failed", it's owed
+// back. No gateway to auto-refund through (same reason `verify()` doesn't
+// exist), so `refunded` is only ever reached via admin's manual queue,
+// exactly like the `pending` -> `paid`/`failed` reconciliation flow.
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',
+  'paid',
+  'failed',
+  'pending_cod',
+  'collected',
+  'refund_pending',
+  'refunded',
+]);
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    groceryOrderId: uuid('grocery_order_id').references(() => groceryOrders.id, { onDelete: 'cascade' }),
+    foodOrderId: uuid('food_order_id').references(() => foodOrders.id, { onDelete: 'cascade' }),
+    provider: paymentProviderEnum('provider').notNull(),
+    status: paymentStatusEnum('status').notNull().default('pending'),
+    amount: doublePrecision('amount').notNull(),
+    upiDeepLink: text('upi_deep_link'),
+    // Order id used as the UPI `tr=` reference today; would hold a real
+    // gateway payment id once Razorpay (Phase 2, stubbed not implemented)
+    // lands for real.
+    providerRef: varchar('provider_ref', { length: 100 }),
+    reconciledBy: uuid('reconciled_by').references(() => users.id),
+    reconciledAt: timestamp('reconciled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'payments_exactly_one_order_ref',
+      sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
+    ),
+  ],
+);
+
+// Phase 7 (Notifications). Matches TRD Section 3.7 exactly: device_tokens
+// keyed by user_id + platform (one current token per device type per user
+// — a fresh login replaces the old token for that platform rather than
+// accumulating stale ones), notification_log as the append-only record of
+// every dispatch attempt (channel/template/payload/status), regardless of
+// whether the underlying provider is a real send or a dev-mode stub.
+export const devicePlatformEnum = pgEnum('device_platform', ['ios', 'android', 'web']);
+
+export const deviceTokens = pgTable(
+  'device_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    fcmToken: text('fcm_token').notNull(),
+    platform: devicePlatformEnum('platform').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('device_tokens_user_platform_idx').on(table.userId, table.platform)],
+);
+
+export const notificationChannelEnum = pgEnum('notification_channel', ['push', 'email']);
+export const notificationStatusEnum = pgEnum('notification_status', ['queued', 'sent', 'failed']);
+
+export const notificationLog = pgTable('notification_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  channel: notificationChannelEnum('channel').notNull(),
+  template: varchar('template', { length: 60 }).notNull(),
+  payloadJson: jsonb('payload_json').notNull(),
+  status: notificationStatusEnum('status').notNull().default('queued'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Phase 8 (Revenue Config & Settlements). Rules are immutable once created
+// — a "change" is always a new row with its own effective_from, never an
+// UPDATE to an existing one. That's deliberate: it's both the enforcement
+// mechanism for "never retroactive" (resolution always picks the winning
+// row as of a given order's creation time) and the change-history audit
+// trail simultaneously, with no separate history table needed.
+export const revenueConfigScopeEnum = pgEnum('revenue_config_scope', ['global', 'category', 'vendor']);
+
+export const revenueConfig = pgTable('revenue_config', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  scope: revenueConfigScopeEnum('scope').notNull(),
+  // Vendor id (scope='vendor') or category id (scope='category'); null for
+  // scope='global'. Not a real FK on purpose — a single column has to
+  // point at two different tables depending on scope, and Postgres has no
+  // clean way to express "FK to A or B" without a lot of extra machinery
+  // this MVP doesn't need.
+  scopeRefId: uuid('scope_ref_id'),
+  commissionPct: doublePrecision('commission_pct').notNull(),
+  // Flat fee only — matches the single hardcoded FLAT_DELIVERY_FEE this
+  // replaces. A distance/tiered delivery-fee rule isn't implemented (small
+  // single-city MVP scope); flagged, not silently modeled as if it existed.
+  deliveryFeeFlat: doublePrecision('delivery_fee_flat').notNull(),
+  // Max order total eligible for COD; null = no cap.
+  codThreshold: doublePrecision('cod_threshold'),
+  // Free-text "why this rule exists" — surfaced in Admin's version-history
+  // view. Added when the admin UI was reconciled with a separately
+  // generated shell that modeled this as a real field.
+  notes: text('notes'),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const settlements = pgTable(
+  'settlements',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    groceryOrderId: uuid('grocery_order_id').references(() => groceryOrders.id, { onDelete: 'cascade' }),
+    foodOrderId: uuid('food_order_id').references(() => foodOrders.id, { onDelete: 'cascade' }),
+    vendorPayout: doublePrecision('vendor_payout').notNull(),
+    deliveryPayout: doublePrecision('delivery_payout').notNull(),
+    platformShare: doublePrecision('platform_share').notNull(),
+    commissionPctSnapshot: doublePrecision('commission_pct_snapshot').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'settlements_exactly_one_order_ref',
       sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
     ),
   ],

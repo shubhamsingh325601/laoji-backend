@@ -1,0 +1,1 @@
+ALTER TABLE "revenue_config" ADD COLUMN "notes" text;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -7,6 +7,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { UploadsService } from './uploads.service';
 import { SignatureRequestDto } from './dto/signature-request.dto';
 import { SaveKycDocumentDto } from './dto/save-kyc-document.dto';
+import { ReviewKycDocumentDto } from './dto/review-kyc-document.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('uploads')
@@ -33,5 +34,12 @@ export class UploadsController {
   @Get('kyc-documents')
   allKycDocuments(@Query('status') status?: 'pending' | 'verified' | 'rejected') {
     return this.uploads.listAllKycDocuments(status);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @Patch('kyc-documents/:id/review')
+  reviewKycDocument(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string, @Body() dto: ReviewKycDocumentDto) {
+    return this.uploads.reviewKycDocument(user.sub, id, dto.status, dto.rejectionReason);
   }
 }

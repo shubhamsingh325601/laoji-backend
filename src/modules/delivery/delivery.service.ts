@@ -25,6 +25,16 @@ import {
 } from '../../../drizzle/schema';
 import { haversineKm } from '../catalog/catalog.types';
 import { JobQueueService } from '../allocation/job-queue.service';
+import { PaymentService } from '../payment/payment.service';
+import { NotificationService } from '../notification/notification.service';
+import { assignmentOfferedPartnerPush } from '../notification/templates/push/ready-for-pickup';
+import { deliveryAssignedCustomerPush } from '../notification/templates/push/delivery-assigned';
+import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
+import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
+import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
+import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
+import { SettlementService } from '../revenue/settlement.service';
+import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
 import { DELIVERY_SLA_SECONDS, MAX_DELIVERY_ASSIGNMENT_ATTEMPTS } from './delivery.constants';
 
 type OrderType = 'grocery' | 'food';
@@ -38,7 +48,29 @@ export class DeliveryService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly jobQueue: JobQueueService,
+    private readonly payments: PaymentService,
+    private readonly notifications: NotificationService,
+    private readonly settlements: SettlementService,
   ) {}
+
+  private orderCode(orderId: string): string {
+    return orderId.slice(0, 8).toUpperCase();
+  }
+
+  private async vendorUserIdForOrder(type: OrderType, orderId: string): Promise<string | null> {
+    let vendorId: string | undefined;
+    if (type === 'grocery') {
+      const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, orderId)).limit(1);
+      vendorId = order?.vendorId ?? undefined;
+    } else {
+      const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
+      const [restaurant] = order ? await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1) : [];
+      vendorId = restaurant?.vendorId;
+    }
+    if (!vendorId) return null;
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    return vendor?.userId ?? null;
+  }
 
   // ---------- Partner profile ----------
 
@@ -152,6 +184,16 @@ export class DeliveryService {
       .returning();
 
     this.jobQueue.schedule(assignment.id, DELIVERY_SLA_SECONDS * 1000, () => this.handleTimeout(assignment.id));
+
+    // Matrix's "Order ready for pickup" row, Delivery Partner cell
+    // ("Assignment push") — the partner being offered this pending
+    // assignment, not the vendor marking the order ready itself.
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, partnerId)).limit(1);
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (partner && order) {
+      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee));
+    }
     return assignment;
   }
 
@@ -167,6 +209,15 @@ export class DeliveryService {
   private async reassign(previous: typeof deliveryAssignments.$inferSelect) {
     const type: OrderType = previous.groceryOrderId ? 'grocery' : 'food';
     const orderId = (previous.groceryOrderId ?? previous.foodOrderId)!;
+
+    // Admin can now cancel an order (Phase 4/7 housekeeping) while a
+    // delivery-assignment timer is still pending — without this check, a
+    // stale timeout would keep re-offering (or fail-mark over top of) an
+    // order that's already moved on. Mirrors AllocationService.reallocate's
+    // existing "order.status !== 'placed' -> return" guard.
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order || order.status === 'cancelled' || order.status === 'failed') return;
 
     if (previous.attemptNo >= MAX_DELIVERY_ASSIGNMENT_ATTEMPTS) {
       await this.markDeliveryFailed(type, orderId);
@@ -194,12 +245,26 @@ export class DeliveryService {
 
   private async markDeliveryFailed(type: OrderType, orderId: string) {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
-    await this.db.update(table).set({ status: 'failed' }).where(eq(table.id, orderId));
+    const [updated] = await this.db.update(table).set({ status: 'failed' }).where(eq(table.id, orderId)).returning();
     await this.db.insert(orderStatusHistory).values({
       ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
       status: 'failed',
       actorRole: 'system',
     });
+    // This happens post-handed_over, i.e. after the payment gate already
+    // required paid/COD — a UPI order failing here really did take the
+    // customer's money with nothing delivered. COD is a no-op (nothing was
+    // ever collected).
+    await this.payments.markRefundPendingIfPaid(type, orderId);
+
+    // Matrix's "Order cancelled" row. No delivery partner is ever formally
+    // "assigned" (accepted) by the time this fires — every prior offer
+    // either rejected or timed out, or none existed at all — so the
+    // partner-alert cell ("if assigned") never applies here.
+    const orderCode = this.orderCode(orderId);
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
   }
 
   // ---------- Delivery partner: order actions ----------
@@ -332,16 +397,18 @@ export class DeliveryService {
 
     const otp = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const table = type === 'grocery' ? groceryOrders : foodOrders;
-    await this.db
+    const [updated] = await this.db
       .update(table)
       .set({ status: 'delivery_assigned', deliveryPartnerId: partner.id, deliveryOtp: otp })
-      .where(eq(table.id, orderId));
+      .where(eq(table.id, orderId))
+      .returning();
     await this.db.insert(orderStatusHistory).values({
       ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
       status: 'delivery_assigned',
       actorRole: 'delivery_partner',
       changedBy: userId,
     });
+    this.notifications.notifyPush(updated.customerId, 'delivery_assigned', deliveryAssignedCustomerPush(this.orderCode(orderId)));
     return { ok: true };
   }
 
@@ -381,6 +448,15 @@ export class DeliveryService {
       actorRole: 'delivery_partner',
       changedBy: userId,
     });
+
+    const orderCode = this.orderCode(orderId);
+    if (status === 'picked_up') {
+      this.notifications.notifyPush(order.customerId, 'picked_up', pickedUpCustomerPush(orderCode));
+      const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
+      if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'picked_up', pickedUpVendorPush(orderCode));
+    } else {
+      this.notifications.notifyPush(order.customerId, 'out_for_delivery', outForDeliveryCustomerPush(orderCode));
+    }
     return { ok: true };
   }
 
@@ -402,6 +478,29 @@ export class DeliveryService {
       actorRole: 'delivery_partner',
       changedBy: userId,
     });
+    // COD's only resolution point (Phase 6) — no-ops for online-paid orders.
+    await this.payments.markCodCollected(type, orderId);
+    // Settlement generation (Phase 8) — same "hook the existing delivered
+    // transition" pattern as the two lines above it.
+    const settlement = await this.settlements.generateForDeliveredOrder(type, orderId);
+
+    const orderCode = this.orderCode(orderId);
+    this.notifications.notifyPush(order.customerId, 'delivered', deliveredCustomerPush(orderCode));
+    const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
+    if (vendorUserId) {
+      this.notifications.notifyPush(vendorUserId, 'delivered', deliveredVendorPush(orderCode));
+      // Wires the template Phase 7 left unwired — one email per settlement
+      // rather than a real weekly digest (no cron/aggregation job exists
+      // yet), "period" is honestly labelled as the single order it covers.
+      if (settlement) {
+        this.notifications.notifyEmail(
+          vendorUserId,
+          'settlement_summary',
+          settlementSummaryEmail(`Order ${orderCode}`, order.subtotal, settlement.platformShare, settlement.vendorPayout),
+        );
+      }
+    }
+    this.notifications.notifyPush(userId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee));
     return { ok: true };
   }
 

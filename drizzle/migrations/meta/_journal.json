@@ -43,6 +43,41 @@
       "when": 1785638581160,
       "tag": "0005_bright_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785681833665,
+      "tag": "0006_amusing_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785683666766,
+      "tag": "0007_calm_goblin_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785684944542,
+      "tag": "0008_daily_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785687769935,
+      "tag": "0009_concerned_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785690356893,
+      "tag": "0010_new_sabra",
+      "breakpoints": true
     }
   ]
 }

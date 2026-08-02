@@ -11,6 +11,7 @@ import { DRIZZLE } from '../../config/database.module';
 import {
   addresses,
   allocationAttempts,
+  deliveryPartners,
   foodOrderItems,
   foodOrders,
   groceryOrderItems,
@@ -20,6 +21,7 @@ import {
   menuItemVariants,
   menuItems,
   orderStatusHistory,
+  products,
   restaurants,
   users,
   vendors,
@@ -27,15 +29,15 @@ import {
 import { AllocationService } from '../allocation/allocation.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { DeliveryService } from '../delivery/delivery.service';
+import { PaymentService } from '../payment/payment.service';
+import { NotificationService } from '../notification/notification.service';
+import { orderPlacedCustomerPush, orderPlacedVendorPush } from '../notification/templates/push/order-placed';
+import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
+import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
+import { RevenueConfigService } from '../revenue/revenue-config.service';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
-
-// Placeholders until Revenue Configuration (Phase 8) builds the real,
-// admin-editable version behind revenue_config — flagged, not silently
-// hardcoded forever.
-const FLAT_DELIVERY_FEE = 30;
-const COMMISSION_RATE = 0.1;
 
 const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'] as const;
 
@@ -46,7 +48,14 @@ export class OrderService {
     private readonly allocation: AllocationService,
     private readonly catalog: CatalogService,
     private readonly delivery: DeliveryService,
+    private readonly payments: PaymentService,
+    private readonly notifications: NotificationService,
+    private readonly revenueConfig: RevenueConfigService,
   ) {}
+
+  private orderCode(orderId: string): string {
+    return orderId.slice(0, 8).toUpperCase();
+  }
 
   // ---------- Customer: checkout ----------
 
@@ -69,7 +78,19 @@ export class OrderService {
       (sum, line) => sum + (candidate.unitPrices.get(line.productId) ?? 0) * line.qty,
       0,
     );
-    const total = subtotal + FLAT_DELIVERY_FEE;
+
+    // Resolved and snapshotted once, here, at order-creation time — never
+    // re-derived later (TRD Section 3.5: a later revenue_config change
+    // must never retroactively alter an already-placed order). Category
+    // scope uses the first line's product category as a pragmatic
+    // simplification — a cart can span categories within one vendor, and
+    // there's no single "the" category to resolve against otherwise;
+    // flagged in CLAUDE.md, not silently assumed correct for every cart.
+    const [firstProduct] = await this.db.select().from(products).where(eq(products.id, dto.items[0].productId)).limit(1);
+    const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
+    const deliveryFee = revenue.deliveryFeeFlat;
+    const commissionPct = revenue.commissionPct;
+    const total = subtotal + deliveryFee;
 
     const [order] = await this.db
       .insert(groceryOrders)
@@ -77,8 +98,9 @@ export class OrderService {
         customerId,
         status: 'placed',
         subtotal,
-        deliveryFee: FLAT_DELIVERY_FEE,
-        platformCommission: subtotal * COMMISSION_RATE,
+        deliveryFee,
+        platformCommission: subtotal * commissionPct,
+        commissionPct,
         total,
         vendorId: candidate.vendorId,
         deliveryAddressId: dto.deliveryAddressId,
@@ -102,6 +124,12 @@ export class OrderService {
     });
 
     await this.allocation.createAttempt(order.id, candidate.vendorId, 1);
+
+    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
+    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, candidate.vendorId)).limit(1);
+    if (vendorRow) {
+      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
+    }
 
     return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
   }
@@ -169,15 +197,23 @@ export class OrderService {
       };
     });
 
-    const total = subtotal + FLAT_DELIVERY_FEE;
+    // No category-scope resolution for food — menu items use restaurants'
+    // own `menu_categories`, a different table from the `categories`
+    // product-catalog uses that revenue_config's category scope refers
+    // to; vendor-scope (falling back to global) is what applies here.
+    const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
+    const deliveryFee = revenue.deliveryFeeFlat;
+    const commissionPct = revenue.commissionPct;
+    const total = subtotal + deliveryFee;
     const [order] = await this.db
       .insert(foodOrders)
       .values({
         customerId,
         status: 'placed',
         subtotal,
-        deliveryFee: FLAT_DELIVERY_FEE,
-        platformCommission: subtotal * COMMISSION_RATE,
+        deliveryFee,
+        platformCommission: subtotal * commissionPct,
+        commissionPct,
         total,
         restaurantId: dto.restaurantId,
         deliveryAddressId: dto.deliveryAddressId,
@@ -192,6 +228,12 @@ export class OrderService {
       actorRole: 'customer',
       changedBy: customerId,
     });
+
+    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
+    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+    if (vendorRow) {
+      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
+    }
 
     return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
   }
@@ -402,15 +444,21 @@ export class OrderService {
   async acceptGroceryOrder(userId: string, orderId: string) {
     const vendor = await this.catalog.requireVendor(userId);
     const attempt = await this.requirePendingAttempt(orderId, vendor.id);
+    await this.requirePaymentSatisfied('grocery', orderId);
 
     await this.allocation.handleAcceptance(attempt.id);
-    await this.db.update(groceryOrders).set({ status: 'vendor_accepted' }).where(eq(groceryOrders.id, orderId));
+    const [updated] = await this.db
+      .update(groceryOrders)
+      .set({ status: 'vendor_accepted' })
+      .where(eq(groceryOrders.id, orderId))
+      .returning();
     await this.db.insert(orderStatusHistory).values({
       groceryOrderId: orderId,
       status: 'vendor_accepted',
       actorRole: 'vendor',
       changedBy: userId,
     });
+    this.notifications.notifyPush(updated.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
     return this.getGroceryOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -437,6 +485,19 @@ export class OrderService {
       .limit(1);
     if (!attempt) throw new NotFoundException('No pending allocation for this order and vendor');
     return attempt;
+  }
+
+  // Phase 6: an order can only reach vendor-accepted ("confirmed") once
+  // payment is resolved one way or another — paid online, or COD (which is
+  // always immediately fine, collected only at delivery). Reads the
+  // denormalized paymentStatus column directly rather than round-tripping
+  // through PaymentService, since OrderService already has the order row.
+  private async requirePaymentSatisfied(type: 'grocery' | 'food', orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order || !this.payments.isSatisfied(order.paymentStatus)) {
+      throw new BadRequestException('Payment has not been confirmed for this order yet');
+    }
   }
 
   async advanceGroceryOrder(userId: string, orderId: string, dto: AdvanceStatusDto) {
@@ -528,6 +589,7 @@ export class OrderService {
     const vendor = await this.catalog.requireVendor(userId);
     const order = await this.requireOwnFoodOrder(orderId, vendor.id);
     if (order.status !== 'placed') throw new BadRequestException('Order already responded to');
+    await this.requirePaymentSatisfied('food', orderId);
 
     await this.db.update(foodOrders).set({ status: 'vendor_accepted' }).where(eq(foodOrders.id, orderId));
     await this.db.insert(orderStatusHistory).values({
@@ -536,6 +598,7 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
+    this.notifications.notifyPush(order.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -553,6 +616,19 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
+    // A vendor can reject before or after the customer already paid via
+    // UPI (the payment gate only blocks *accept*, not the reject path) —
+    // a no-op if payment never got past `pending`, or for COD.
+    await this.payments.markRefundPendingIfPaid('food', orderId);
+    // Matrix's "Order cancelled" row — mapped onto this real 'failed'
+    // transition since no dedicated cancel endpoint exists (flagged in
+    // CLAUDE.md). No delivery partner is ever assigned pre-accept, so
+    // there's no partner-alert cell to fire here. The vendor cell fires
+    // even though the vendor caused it themselves (rejecting is the only
+    // real 'cancelled' trigger this row can attach to) — harmless, just a
+    // same-action confirmation rather than a true third-party alert.
+    this.notifications.notifyPush(order.customerId, 'order_cancelled', orderCancelledCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId)));
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -643,5 +719,60 @@ export class OrderService {
     return type === 'grocery'
       ? this.getGroceryOrder(id, { userId: '', role: 'admin' })
       : this.getFoodOrder(id, { userId: '', role: 'admin' });
+  }
+
+  // Real "cancel order" (Phase 4 originally called for this, never built —
+  // closed as housekeeping before Phase 8). Admin-triggered only; customer
+  // self-service cancel isn't wired up here (flagged, not silently
+  // skipped — would need its own eligibility rules, e.g. "only before
+  // vendor_accepted", that nothing today defines). Any non-terminal order
+  // can be cancelled; a delivery partner formally accepting an order is
+  // the practical point past which cancelling stops making sense, but
+  // there's no explicit business rule requiring that cutoff either, so
+  // it's left to the admin's judgement rather than enforced here.
+  async cancelOrder(adminUserId: string, type: 'grocery' | 'food', orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (['delivered', 'failed', 'cancelled'].includes(order.status)) {
+      throw new BadRequestException(`Order is already "${order.status}" — nothing to cancel`);
+    }
+
+    const [updated] = await this.db.update(table).set({ status: 'cancelled' }).where(eq(table.id, orderId)).returning();
+    await this.db.insert(orderStatusHistory).values({
+      ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+      status: 'cancelled',
+      actorRole: 'admin',
+      changedBy: adminUserId,
+    });
+
+    // Same refund-pending hook Phase 6's housekeeping wired into every
+    // other real 'failed' transition — a cancelled order that was already
+    // paid via UPI owes the customer a refund exactly the same way.
+    await this.payments.markRefundPendingIfPaid(type, orderId);
+
+    const orderCode = this.orderCode(orderId);
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (updated.deliveryPartnerId) {
+      const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
+      if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode));
+    }
+
+    return type === 'grocery'
+      ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+      : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+  }
+
+  private async vendorUserIdForOrder(type: 'grocery' | 'food', order: { vendorId?: string | null; restaurantId?: string }): Promise<string | null> {
+    let vendorId = type === 'grocery' ? order.vendorId : undefined;
+    if (type === 'food' && order.restaurantId) {
+      const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
+      vendorId = restaurant?.vendorId;
+    }
+    if (!vendorId) return null;
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    return vendor?.userId ?? null;
   }
 }

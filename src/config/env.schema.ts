@@ -23,6 +23,8 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().default(''),
 
   PAYMENT_PROVIDER: z.enum(['upi_deeplink', 'razorpay']).default('upi_deeplink'),
+  UPI_VPA: z.string().default('laoji@upi'),
+  UPI_PAYEE_NAME: z.string().default('Laoji'),
 
   GOOGLE_MAPS_API_KEY: z.string().default(''),
 });

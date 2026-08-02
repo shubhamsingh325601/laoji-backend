@@ -10,6 +10,9 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { AllocationModule } from './modules/allocation/allocation.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { RevenueModule } from './modules/revenue/revenue.module';
 import { OrderModule } from './modules/order/order.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -39,6 +42,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     CatalogModule,
     AllocationModule,
     DeliveryModule,
+    PaymentModule,
+    NotificationModule,
+    RevenueModule,
     OrderModule,
   ],
   providers: [

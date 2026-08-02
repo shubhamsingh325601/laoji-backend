@@ -13,6 +13,10 @@ import {
 } from '../../../drizzle/schema';
 import { haversineKm } from '../catalog/catalog.types';
 import { JobQueueService } from './job-queue.service';
+import { PaymentService } from '../payment/payment.service';
+import { NotificationService } from '../notification/notification.service';
+import { allocationFailedAdminEmail } from '../notification/templates/email/allocation-failed-admin';
+import { orderCancelledCustomerPush } from '../notification/templates/push/order-cancelled';
 import { ALLOCATION_SLA_SECONDS, MAX_ALLOCATION_ATTEMPTS } from './allocation.constants';
 
 export interface CartLine {
@@ -32,6 +36,8 @@ export class AllocationService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly jobQueue: JobQueueService,
+    private readonly payments: PaymentService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -187,11 +193,29 @@ export class AllocationService {
   }
 
   private async markFailed(groceryOrderId: string) {
-    await this.db.update(groceryOrders).set({ status: 'failed' }).where(eq(groceryOrders.id, groceryOrderId));
+    const [updated] = await this.db
+      .update(groceryOrders)
+      .set({ status: 'failed' })
+      .where(eq(groceryOrders.id, groceryOrderId))
+      .returning();
     await this.db.insert(orderStatusHistory).values({
       groceryOrderId,
       status: 'failed',
       actorRole: 'system',
     });
+    // Allocation can exhaust while the customer already paid via UPI
+    // (payment and vendor-matching are independent — nothing stops a
+    // customer confirming payment while every vendor is still
+    // rejecting/timing out). No-op if payment never got past `pending`.
+    await this.payments.markRefundPendingIfPaid('grocery', groceryOrderId);
+
+    // Matrix's "Order cancelled" (customer) and "Vendor allocation failed /
+    // reallocated" (admin ops alert) rows — both fire from this single
+    // real terminal point, since silent per-attempt reallocation itself
+    // has no customer/vendor-facing notification per the matrix (only the
+    // final exhaustion is visible, to the customer and to admin).
+    const orderCode = groceryOrderId.slice(0, 8).toUpperCase();
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    await this.notifications.notifyAllAdminsEmail('allocation_failed', allocationFailedAdminEmail(orderCode));
   }
 }

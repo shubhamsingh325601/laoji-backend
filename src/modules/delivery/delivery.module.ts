@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { AllocationModule } from '../allocation/allocation.module';
+import { PaymentModule } from '../payment/payment.module';
+import { NotificationModule } from '../notification/notification.module';
+import { RevenueModule } from '../revenue/revenue.module';
 import { DeliveryService } from './delivery.service';
 import { DeliveryPartnerController } from './delivery-partner.controller';
 import { DeliveryOrderController } from './delivery-order.controller';
 import { AdminDeliveryController } from './admin-delivery.controller';
 
 @Module({
-  imports: [AllocationModule],
+  imports: [AllocationModule, PaymentModule, NotificationModule, RevenueModule],
   controllers: [DeliveryPartnerController, DeliveryOrderController, AdminDeliveryController],
   providers: [DeliveryService],
   exports: [DeliveryService],
