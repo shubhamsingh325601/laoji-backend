@@ -413,14 +413,13 @@ needs them (Cloudinary, Firebase, Resend keys are stubbed/blank until Phase 2+).
   ("if assigned") never fires from `markDeliveryFailed` specifically,
   since by the time that path runs, no partner has ever formally accepted
   (every prior offer either rejected, timed out, or none existed).
-- **Two templates are written but deliberately not wired**:
-  `product_suggestion_approved/rejected` (no `product_suggestions` backend
-  exists — entirely frontend-mocked today, building it is its own
-  catalog-adjacent feature, not Notifications work) and
+- **One template was written but deliberately not wired here**:
   `settlement_summary_email` (Phase 8 dependency — no real settlement
-  computation exists yet to put numbers in it). Both exist purely so the
-  Notification Matrix is fully covered in code and ready to wire the
-  moment their real backends land.
+  computation existed yet to put numbers in it). Exists purely so the
+  Notification Matrix is fully covered in code, ready to wire once Phase 8
+  lands. `product_suggestion_approved/rejected` was the other — now wired
+  for real in Phase 9 (`CatalogService.approveProductSuggestion` /
+  `rejectProductSuggestion`).
 - **Frontend**: all three RN apps (`laoji-user`/`laoji-vendor`/
   `laoji-delivery`) register a real device token on auth (foreground
   permission request → `getDevicePushTokenAsync()` → `POST
@@ -556,3 +555,201 @@ needs them (Cloudinary, Firebase, Resend keys are stubbed/blank until Phase 2+).
   settlement visible to vendor, delivery partner, and admin with correct
   payout math and the correct order-creation-time commission rate
   snapshotted onto it.
+
+## Admin Dashboard & Reports (Phase 10) notes
+
+- **Pure read/aggregate layer, no new tables** — exactly per TRD §9.4. A new
+  `DashboardModule` (`src/modules/dashboard/`) owns `GET /dashboard/stats`,
+  `GET /dashboard/attention`, `GET /reports/series`,
+  `GET /reports/vendor-performance`, `GET /reports/cancellations` — all
+  admin-only, all pure queries over tables Phases 1–9 already built and
+  populate. Same "fetch rows, compute in JS" style as `CatalogService`'s
+  Haversine filtering (MVP scale, no SQL aggregate functions needed yet).
+- **Stuck-order detection reuses TRD §9.4's own worked example as the
+  threshold table** (`STUCK_SLA_MINUTES` in `dashboard.service.ts`):
+  `placed`: 5m, `vendor_accepted`: 20m (the TRD's literal example),
+  `preparing`: 30m, `ready`: 15m, `handed_over`/`delivery_assigned`/
+  `picked_up`/`out_for_delivery`: 45m (one shared bucket, mirroring how the
+  admin UI's own status rail already collapses those four onto a single
+  "picked up" stage). Distinct from `ALLOCATION_SLA_SECONDS`/
+  `DELIVERY_SLA_SECONDS` (Phase 4/5, 120s) — those cover the *automated*
+  vendor/delivery-partner matching windows; this covers the *manual*
+  vendor-progression stages the TRD explicitly says those don't reach. It's
+  a plain query over `order_status_history` (latest row per open order vs.
+  now), not a new monitoring system.
+- **`AttentionItem.kind` drops the mock UI's `expiring_kyc`** — the real
+  `kyc_documents` table has no expiry-date column (Phase 2 never modeled
+  document expiry), so there's nothing real to compute that signal from.
+  Only `stuck_order` and `failed_allocation` are implemented; flagged
+  rather than faked. `laoji-admin`'s copy referencing "expiring documents"
+  was trimmed to match (a factual correction, not a restyle).
+- **`failed_allocation` items only cover grocery, not food** — grocery's
+  `status='failed'` is genuinely a fulfillment gap (allocation exhausted or
+  delivery-partner matching exhausted, both logged with `actor_role:
+  'system'`); food's `status='failed'` is a direct vendor rejection
+  (`actor_role: 'vendor'`), which is a different signal (surfaced instead
+  in `getCancellations()`'s `vendor` bucket, not as a live ops alert).
+- **Cancellation-cause taxonomy is derived straight from
+  `order_status_history.actor_role`**, not a new column: `status='failed'
+  actor_role='vendor'` → `vendor` (food pre-accept reject);
+  `status='failed' actor_role='system'` → `no_fulfillment` (allocation or
+  delivery-matching exhausted, Phase 4/5); `status='cancelled'
+  actor_role='admin'` → `customer` — **flagged assumption**: no
+  customer-self-service-cancel endpoint exists anywhere yet (see the
+  housekeeping section above), so every real `cancelled` row today is
+  admin-initiated, and in practice that's an admin acting on a customer's
+  request. If a real customer-cancel endpoint is ever added, it should get
+  its own `actor_role` branch here rather than continuing to share the
+  `admin` bucket.
+- **"Revenue" (reports/series) is narrower than "GMV" (dashboard/stats) on
+  purpose**: GMV counts every order placed today regardless of outcome
+  (same population as the orders-today count); revenue sums
+  `platform_commission` (Phase 8's snapshotted rate/amount) only for
+  orders that actually reached `delivered` — money that was never
+  actually earned on a failed/cancelled order isn't counted as revenue.
+  Both are bucketed by the order's own `created_at` date, not a later
+  delivery timestamp (a small simplification, flagged rather than silently
+  assumed).
+- **Vendor performance's acceptance rate uses two different real signals**
+  depending on order type, both already captured by earlier phases:
+  grocery uses `allocation_attempts.outcome` (captures every vendor
+  offered the order, including ones who rejected/timed out before another
+  vendor accepted — more precise than `order_status_history` alone, which
+  only ever sees the vendor who eventually accepted); food has no
+  allocation waterfall, so it uses `order_status_history` directly
+  (`vendor_accepted` reached = accepted, `status='failed'` with
+  `actor_role='vendor'` = rejected). Avg prep time is
+  `ready.changed_at - vendor_accepted.changed_at` per order, averaged per
+  vendor, straight from `order_status_history`'s own timestamps — no new
+  tracking, per TRD §9.4's third bullet.
+- **Verified end-to-end** against the real dev database (not just that the
+  query compiles): placed a real grocery order, paid COD, had the vendor
+  accept it (writes a real `order_status_history` row), then backdated
+  that row's `changed_at` in Postgres to 25 minutes ago (simulating the
+  20-minute `vendor_accepted` SLA actually elapsing, since waiting 20 real
+  minutes isn't practical for a verification run) — `GET
+  /dashboard/attention` correctly surfaced it: `"stuck at vendor accepted
+  ... no movement for 25 min (SLA 20 min)"`, severity `warning`. Also
+  confirmed `/dashboard/stats`, `/reports/series`,
+  `/reports/vendor-performance`, and `/reports/cancellations` all return
+  real, non-zero numbers computed from the accumulated residual test data
+  left behind by Phases 4–9's own E2E verification runs (dozens of real
+  vendors/orders/allocation attempts already in the dev DB) — not just the
+  one order created for this phase's own test.
+- **`laoji-admin`'s `DashboardPage`/`ReportsPage`** (previously reading
+  from the mock transport via `@/api/services`) now call a new
+  `src/api/dashboardAdmin.ts` (same `realRequest`-via-`realClient.ts`
+  pattern as `productSuggestionsAdmin.ts`/`ordersAdmin.ts`). Dashboard's
+  "Latest orders" widget, which previously used the mock `ordersQuery`,
+  now reuses the same real `listAdminOrders` + `adaptOrderSummary`
+  pipeline `OrdersPage` already wires up (Phase 4), so there's exactly one
+  real orders data path in the app, not two.
+
+## Hardening & Launch Readiness (Phase 11) notes
+
+This phase was run as a checklist against the already-built system, not a
+build sprint — most items below are either "confirmed OK," a small real fix,
+or an explicit flag for a decision only the product owner can make. Nothing
+here was guessed at silently.
+
+**Security — fixed:**
+- **Rate limiting had a real gap**: the global `ThrottlerModule` default
+  (100 req/min/IP, `app.module.ts`) covered every route, but three
+  abuse-prone write endpoints — order creation (`POST orders/grocery`,
+  `POST orders/food`), payment initiation (`POST payments/:type/:orderId
+  /initiate`), and product-suggestion submission (`POST
+  vendor/product-suggestions`) — had no tighter per-route limit, unlike
+  `otp/request`/`otp/verify`/`admin/login` from Phase 1. Added three more
+  named throttlers (`orderCreate` 10/min, `paymentInitiate` 10/min,
+  `productSuggestion` 5/min), same pattern as the existing auth ones
+  (named separately per the Phase 5 shared-bucket bug, not reused).
+- **Postgres was running the app as its own owner role** — `laoji`
+  (`docker-compose.yml`'s `POSTGRES_USER`) owns `laoji_dev` outright, full
+  DDL/DROP included, and the running app connected as that same role.
+  Added `scripts/init-db/01-create-app-role.sql` (mounted into
+  `docker-entrypoint-initdb.d`, and applied by hand to the existing local
+  dev volume via `docker exec ... psql < ...`) creating `laoji_app`: DML
+  only (SELECT/INSERT/UPDATE/DELETE) via `ALTER DEFAULT PRIVILEGES`
+  covering future migrations too, explicit `REVOKE CREATE` on both schema
+  and database. `.env`/`.env.example` now split `DATABASE_URL` (runtime,
+  `laoji_app`) from `MIGRATIONS_DATABASE_URL` (schema owner, `laoji` —
+  used only by `drizzle.config.ts` and `scripts/seed-admin.ts`).
+  **Verified end-to-end**: booted the app on the restricted role, `GET
+  /health` reported `db: connected`, `POST /auth/otp/request` (a real
+  INSERT into `auth_tokens`) succeeded, `npm run db:migrate` still applies
+  cleanly against the owner role, and `laoji_app` was directly confirmed
+  to get `permission denied for schema public` on `CREATE TABLE` and
+  `must be owner of table users` on `DROP TABLE` — the restriction is
+  real, not just configured and untested.
+
+**Security — confirmed OK, no change:**
+- **CORS**: `main.ts`'s `enableCors` reads `CORS_ORIGIN` into an explicit
+  origin array (defaulting to `laoji-admin`'s dev port), never `*`,
+  `credentials: true` scoped to that list — not wider than Phase 1 left
+  it.
+- **HTTPS**: no HSTS/redirect middleware exists in `main.ts`, and none was
+  added — deliberately deferred to whichever hosting/reverse-proxy layer
+  gets chosen (see below), consistent with TRD Section 1 leaving hosting
+  open. Once hosting is picked, add `helmet()` + `trust proxy` then (the
+  latter also matters for `ThrottlerGuard`'s IP-keying behind a proxy).
+
+**Compliance — real gaps, flagged rather than guessed at:**
+- **GST-compliant invoicing does not exist.** The only receipt-shaped
+  artifact anywhere is `notification/templates/email/order-receipt.ts` —
+  a plain HTML email with item rows and a total. No invoice number
+  sequence, no GSTIN (buyer or seller), no tax breakdown (CGST/SGST/IGST
+  — pricing is currently treated as flat/tax-inclusive with no tax field
+  at all), no HSN/SAC codes, no buyer legal name/address (orders still
+  only have a phone number standing in for customer identity, per Phase
+  4's note), no seller registered address. No PDF generation library is
+  even installed. This was flagged as MVP-critical and not deferrable in
+  the PRD (Section 12) — **this needs a real scoping decision from the
+  product owner** (what GST registration status Laoji itself has, which
+  categories/city trigger which tax treatment, whether line-item tax needs
+  to be itemized per product or platform-level) before any code gets
+  written here; guessing at Indian tax-compliance details would create
+  real legal exposure, not just a UX gap.
+- **No ToS/Privacy Policy exists anywhere.** The only mention across all 5
+  repos is a static, non-interactive caption in `laoji-user/app
+  /onboarding.tsx` ("By continuing you agree to our Terms & Privacy
+  Policy") — plain text, not a link, routes nowhere. No actual document,
+  screen, or static page exists in any of the 4 apps or the backend.
+  Flagged as an outstanding item rather than drafted here — this is legal
+  copy, not something to author without review.
+- **Location-tracking copy audited, no mismatch found.** Only
+  `laoji-delivery` calls any location API, and only the documented
+  periodic ~75s foreground-only pattern (`Location
+  .requestForegroundPermissionsAsync` + `setInterval`) — no custom
+  permission-rationale strings exist anywhere near it (bare OS dialog), so
+  there's no copy to misrepresent. `laoji-user`/`laoji-vendor`'s only
+  location-adjacent code is one-time address/pickup-point capture, not
+  tracking. Confirmed clean, nothing to fix.
+
+**Hosting — deliberately not chosen here, see decision list below.**
+
+**Release readiness — cross-checked PRD Section 5's MVP table against the
+real code, not just against which implementation-plan phase was marked
+closed. Two real gaps found, plus one partial:**
+- **Ratings (Food) — not built.** `restaurants.ratingAvg` exists in the
+  schema but is a hardcoded `.default(0)` with no write path anywhere;
+  `DeliveryService` even has a code comment noting "no ratings system." No
+  rating-submission endpoint, no rate/review UI in `laoji-user`. This is
+  listed as MVP scope in PRD Section 5's Food row, not Phase 2 — a genuine
+  gap, not a documentation oversight.
+- **Business Hours (Vendor) — not built server-side.** The backend only
+  has a manual boolean `vendors.isOpen`/`restaurants.isOpen` toggle, no
+  weekly-schedule columns at all. `laoji-vendor`'s `BusinessHoursScreen`
+  (weekly open/close editor) is a fully client-local Zustand mock
+  (`vendorStore.ts`'s `setSchedule`) with no API call to persist or read
+  it — real-looking UI over nothing real.
+- **Customer Support (contact/help) — partial.** `laoji-user`'s Profile
+  screen "Help & support" row is a static hardcoded alert referencing a
+  placeholder `contact@onspace.ai` email, not a real screen or
+  backend-backed flow. PRD Section 5 scopes this as "basic
+  (contact/help)," so a real static contact screen with Laoji's own
+  details would clear the bar — what exists today doesn't.
+- Every other MVP-table row (Grocery allocation/reallocation/Product
+  Suggestions, single-restaurant cart + menu management, the rest of
+  Customer/Vendor/Delivery/Admin app screens, UPI+COD payments,
+  order-status notifications) was confirmed genuinely built and wired end
+  to end, not just phase-closed on paper.

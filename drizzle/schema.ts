@@ -612,6 +612,37 @@ export const revenueConfig = pgTable('revenue_config', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Phase 9 (Product Suggestions, TRD Section 3.2). Vendor-submitted SKUs
+// awaiting an Admin catalog decision. `productId` is null until approved —
+// set once, pointing at the real row Admin's approval creates via the same
+// `CatalogService.createProduct` path Phase 3 built (not a duplicate
+// insert), so a suggestion's history stays linked to the product it became.
+export const productSuggestionStatusEnum = pgEnum('product_suggestion_status', [
+  'pending',
+  'approved',
+  'rejected',
+]);
+
+export const productSuggestions = pgTable('product_suggestions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id')
+    .notNull()
+    .references(() => vendors.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 200 }).notNull(),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.id),
+  unit: varchar('unit', { length: 50 }).notNull(),
+  size: varchar('size', { length: 50 }),
+  imageUrl: text('image_url'),
+  status: productSuggestionStatusEnum('status').notNull().default('pending'),
+  rejectionReason: text('rejection_reason'),
+  productId: uuid('product_id').references(() => products.id),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const settlements = pgTable(
   'settlements',
   {

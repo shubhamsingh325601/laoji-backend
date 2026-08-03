@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -14,6 +15,7 @@ import { CreateFoodOrderDto } from './dto/create-food-order.dto';
 export class CustomerOrderController {
   constructor(private readonly orders: OrderService) {}
 
+  @Throttle({ orderCreate: { limit: 10, ttl: 60_000 } })
   @Post('grocery')
   createGrocery(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateGroceryOrderDto) {
     return this.orders.createGroceryOrder(user.sub, dto);
@@ -29,6 +31,7 @@ export class CustomerOrderController {
     return this.orders.getGroceryOrder(id, { userId: user.sub, role: user.role });
   }
 
+  @Throttle({ orderCreate: { limit: 10, ttl: 60_000 } })
   @Post('food')
   createFood(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateFoodOrderDto) {
     return this.orders.createFoodOrder(user.sub, dto);

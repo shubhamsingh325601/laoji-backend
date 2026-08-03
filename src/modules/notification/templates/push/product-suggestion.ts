@@ -1,10 +1,7 @@
 import type { PushMessage } from '../../notification.types';
 
-// Template-only — `product_suggestions` has no real backend yet (entirely
-// frontend-mocked today), so nothing calls these. Written so the
-// Notification Matrix is fully covered in code and ready to wire the
-// moment that feature gets a real table/endpoints (deferred, flagged in
-// CLAUDE.md — out of scope for a Notifications phase to build alone).
+// Wired in Phase 9 (Product Suggestions) — see CatalogService.approveProductSuggestion
+// / rejectProductSuggestion.
 export function productSuggestionApprovedVendorPush(productName: string): PushMessage {
   return {
     title: 'Suggestion approved',

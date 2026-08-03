@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -7,6 +8,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('vendor')
@@ -55,5 +57,18 @@ export class VendorCatalogController {
   async deleteListing(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
     const vendor = await this.catalog.requireVendor(user.sub);
     return this.catalog.deleteVendorProduct(vendor.id, id);
+  }
+
+  @Throttle({ productSuggestion: { limit: 5, ttl: 60_000 } })
+  @Post('vendor/product-suggestions')
+  async submitSuggestion(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateProductSuggestionDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createProductSuggestion(vendor.id, dto);
+  }
+
+  @Get('vendor/product-suggestions')
+  async myProductSuggestions(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.listMyProductSuggestions(vendor.id);
   }
 }

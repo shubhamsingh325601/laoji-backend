@@ -14,6 +14,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { RevenueModule } from './modules/revenue/revenue.module';
 import { OrderModule } from './modules/order/order.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -33,6 +34,13 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
         { name: 'otpRequest', ttl: 60_000, limit: 3 },
         { name: 'otpVerify', ttl: 60_000, limit: 10 },
         { name: 'adminLogin', ttl: 60_000, limit: 10 },
+        // Phase 11 hardening: the 100/min 'default' bucket is a fine
+        // baseline for reads, but too loose for these specific
+        // abuse-prone writes (fake orders, payment-init spam, suggestion
+        // spam) — same named-throttler pattern as the auth routes above.
+        { name: 'orderCreate', ttl: 60_000, limit: 10 },
+        { name: 'paymentInitiate', ttl: 60_000, limit: 10 },
+        { name: 'productSuggestion', ttl: 60_000, limit: 5 },
       ],
     }),
     HealthModule,
@@ -46,6 +54,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     NotificationModule,
     RevenueModule,
     OrderModule,
+    DashboardModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

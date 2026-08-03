@@ -1,10 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -68,5 +71,24 @@ export class AdminCatalogController {
   @Get('menu-items')
   listMenuItems() {
     return this.catalog.listMenuItemsBasic();
+  }
+
+  @Get('product-suggestions')
+  listProductSuggestions(@Query('status') status?: 'pending' | 'approved' | 'rejected') {
+    return this.catalog.listProductSuggestions(status);
+  }
+
+  @Post('product-suggestions/:id/approve')
+  approveProductSuggestion(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+    return this.catalog.approveProductSuggestion(user.sub, id);
+  }
+
+  @Post('product-suggestions/:id/reject')
+  rejectProductSuggestion(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body() dto: RejectProductSuggestionDto,
+  ) {
+    return this.catalog.rejectProductSuggestion(user.sub, id, dto.reason);
   }
 }

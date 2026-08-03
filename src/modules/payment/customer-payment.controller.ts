@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -13,6 +14,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 export class CustomerPaymentController {
   constructor(private readonly payments: PaymentService) {}
 
+  @Throttle({ paymentInitiate: { limit: 10, ttl: 60_000 } })
   @Post(':type/:orderId/initiate')
   initiate(
     @CurrentUser() user: JwtAccessPayload,

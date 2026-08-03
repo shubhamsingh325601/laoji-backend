@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -8,6 +8,7 @@ import {
   menuItemAddons,
   menuItems,
   menuItemVariants,
+  productSuggestions,
   products,
   restaurants,
   vendorProducts,
@@ -16,6 +17,7 @@ import {
 import { haversineKm } from './catalog.types';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
@@ -27,10 +29,18 @@ import type {
   UpdateMenuCategoryDto,
   UpdateMenuItemDto,
 } from './dto/menu.dto';
+import { NotificationService } from '../notification/notification.service';
+import {
+  productSuggestionApprovedVendorPush,
+  productSuggestionRejectedVendorPush,
+} from '../notification/templates/push/product-suggestion';
 
 @Injectable()
 export class CatalogService {
-  constructor(@Inject(DRIZZLE) private readonly db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Db,
+    private readonly notifications: NotificationService,
+  ) {}
 
   // ---------- Vendor profile ----------
 
@@ -514,5 +524,107 @@ export class CatalogService {
         })),
       )
       .returning();
+  }
+
+  // ---------- Vendor + Admin: product suggestions ----------
+
+  async createProductSuggestion(vendorId: string, dto: CreateProductSuggestionDto) {
+    const [row] = await this.db
+      .insert(productSuggestions)
+      .values({
+        vendorId,
+        name: dto.name,
+        categoryId: dto.categoryId,
+        unit: dto.unit,
+        size: dto.size,
+        imageUrl: dto.imageUrl,
+      })
+      .returning();
+    return row;
+  }
+
+  listMyProductSuggestions(vendorId: string) {
+    return this.db
+      .select()
+      .from(productSuggestions)
+      .where(eq(productSuggestions.vendorId, vendorId))
+      .orderBy(desc(productSuggestions.createdAt));
+  }
+
+  async listProductSuggestions(status?: 'pending' | 'approved' | 'rejected') {
+    const rows = await this.db
+      .select({ suggestion: productSuggestions, vendor: vendors, category: categories })
+      .from(productSuggestions)
+      .innerJoin(vendors, eq(productSuggestions.vendorId, vendors.id))
+      .innerJoin(categories, eq(productSuggestions.categoryId, categories.id))
+      .where(status ? eq(productSuggestions.status, status) : undefined)
+      .orderBy(desc(productSuggestions.createdAt));
+
+    return rows.map(({ suggestion, vendor, category }) => ({
+      ...suggestion,
+      vendorName: vendor.businessName,
+      categoryName: category.name,
+    }));
+  }
+
+  private async requirePendingSuggestion(id: string) {
+    const [row] = await this.db.select().from(productSuggestions).where(eq(productSuggestions.id, id)).limit(1);
+    if (!row) throw new NotFoundException('Suggestion not found');
+    if (row.status !== 'pending') throw new ConflictException('Suggestion has already been reviewed');
+    return row;
+  }
+
+  // Reuses `createProduct` (Phase 3's real product-creation path) rather
+  // than a second insert — an approved suggestion becomes a genuine,
+  // browsable catalog product, not a parallel record that happens to look
+  // like one.
+  async approveProductSuggestion(adminUserId: string, id: string) {
+    const suggestion = await this.requirePendingSuggestion(id);
+
+    const product = await this.createProduct({
+      categoryId: suggestion.categoryId,
+      name: suggestion.name,
+      unit: suggestion.unit,
+      size: suggestion.size ?? undefined,
+      imageUrl: suggestion.imageUrl ?? undefined,
+    });
+
+    const [updated] = await this.db
+      .update(productSuggestions)
+      .set({ status: 'approved', productId: product.id, reviewedBy: adminUserId, reviewedAt: new Date() })
+      .where(eq(productSuggestions.id, id))
+      .returning();
+
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, suggestion.vendorId)).limit(1);
+    if (vendor) {
+      this.notifications.notifyPush(
+        vendor.userId,
+        'product_suggestion_approved',
+        productSuggestionApprovedVendorPush(suggestion.name),
+      );
+    }
+
+    return { ...updated, product };
+  }
+
+  async rejectProductSuggestion(adminUserId: string, id: string, reason: string) {
+    const suggestion = await this.requirePendingSuggestion(id);
+
+    const [updated] = await this.db
+      .update(productSuggestions)
+      .set({ status: 'rejected', rejectionReason: reason, reviewedBy: adminUserId, reviewedAt: new Date() })
+      .where(eq(productSuggestions.id, id))
+      .returning();
+
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, suggestion.vendorId)).limit(1);
+    if (vendor) {
+      this.notifications.notifyPush(
+        vendor.userId,
+        'product_suggestion_rejected',
+        productSuggestionRejectedVendorPush(suggestion.name),
+      );
+    }
+
+    return updated;
   }
 }

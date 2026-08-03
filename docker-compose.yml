@@ -13,6 +13,10 @@ services:
       - "5433:5432"
     volumes:
       - laoji-postgres-data:/var/lib/postgresql/data
+      # Least-privilege app role (Phase 11 hardening) — only applied on a
+      # fresh volume; see scripts/init-db/01-create-app-role.sql for how to
+      # apply it to an existing local dev volume.
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
 
 volumes:
   laoji-postgres-data:
