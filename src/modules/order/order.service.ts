@@ -13,6 +13,7 @@ import {
   allocationAttempts,
   deliveryPartners,
   foodOrderItems,
+  foodOrderRatings,
   foodOrders,
   groceryOrderItems,
   groceryOrders,
@@ -35,6 +36,7 @@ import { orderPlacedCustomerPush, orderPlacedVendorPush } from '../notification/
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { isVendorOpenNow } from '../catalog/catalog.types';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -143,7 +145,15 @@ export class OrderService {
     if (!address) throw new BadRequestException('Delivery address not found');
 
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, dto.restaurantId)).limit(1);
-    if (!restaurant || !restaurant.isOpen) throw new BadRequestException('Restaurant not available');
+    if (!restaurant) throw new BadRequestException('Restaurant not available');
+    // Post-Phase-11 MVP-completion pass (Business Hours) — restaurant.isOpen
+    // alone can go stale against the real weekly schedule (it's only
+    // manually toggled), so the vendor's actual current status decides
+    // whether checkout is allowed, not just the stored column.
+    const [restaurantVendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+    if (!restaurant.isOpen || !restaurantVendor || !isVendorOpenNow(restaurantVendor)) {
+      throw new BadRequestException('Restaurant not available');
+    }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
     const items = await this.db.select().from(menuItems).where(inArray(menuItems.id, menuItemIds));
@@ -280,7 +290,40 @@ export class OrderService {
       .where(eq(orderStatusHistory.foodOrderId, id))
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
-    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer }, requester);
+    const [rating] = await this.db.select().from(foodOrderRatings).where(eq(foodOrderRatings.foodOrderId, id)).limit(1);
+    return this.withOtpVisibility(
+      { ...order, items, history: await this.enrichHistory(history), customer, myRating: rating ?? null },
+      requester,
+    );
+  }
+
+  // Post-Phase-11 MVP-completion pass (Ratings). Only the customer who
+  // placed the order can rate it, only once it's genuinely `delivered`
+  // (not e.g. right after placing), and only once ever — food only, per
+  // PRD Section 5's "Food: ... ratings" row (grocery has no ratings
+  // concept anywhere in the PRD/TRD).
+  async rateFoodOrder(customerId: string, foodOrderId: string, dto: { rating: number; comment?: string }) {
+    const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, foodOrderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.customerId !== customerId) throw new ForbiddenException('Not your order');
+    if (order.status !== 'delivered') throw new BadRequestException('Order has not been delivered yet');
+
+    const [existing] = await this.db.select().from(foodOrderRatings).where(eq(foodOrderRatings.foodOrderId, foodOrderId)).limit(1);
+    if (existing) throw new BadRequestException('Order already rated');
+
+    const [row] = await this.db
+      .insert(foodOrderRatings)
+      .values({
+        foodOrderId,
+        customerId,
+        restaurantId: order.restaurantId,
+        rating: dto.rating,
+        comment: dto.comment,
+      })
+      .returning();
+
+    await this.catalog.recalcRestaurantRating(order.restaurantId);
+    return row;
   }
 
   // The delivery OTP is a doorstep-verification secret the customer reads

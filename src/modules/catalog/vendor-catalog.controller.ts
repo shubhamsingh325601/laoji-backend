@@ -7,6 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
+import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 
@@ -24,6 +25,11 @@ export class VendorCatalogController {
   @Get('vendors/me')
   async myProfile(@CurrentUser() user: JwtAccessPayload) {
     return this.catalog.getVendorByUserId(user.sub);
+  }
+
+  @Patch('vendors/me/business-hours')
+  async updateBusinessHours(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdateBusinessHoursDto) {
+    return this.catalog.updateBusinessHours(user.sub, dto);
   }
 
   @Get('vendor/catalog/products')

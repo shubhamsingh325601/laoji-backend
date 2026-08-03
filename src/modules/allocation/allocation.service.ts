@@ -11,7 +11,7 @@ import {
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
-import { haversineKm } from '../catalog/catalog.types';
+import { haversineKm, isVendorOpenNow } from '../catalog/catalog.types';
 import { JobQueueService } from './job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
@@ -66,6 +66,10 @@ export class AllocationService {
       (v) =>
         v.type !== 'restaurant' &&
         !excludeVendorIds.includes(v.id) &&
+        // Post-Phase-11 MVP-completion pass (Business Hours) — a vendor
+        // marked closed (manually, or outside their configured weekly
+        // schedule) must never be offered an allocation.
+        isVendorOpenNow(v) &&
         haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
     );
     if (inRadius.length === 0) return null;

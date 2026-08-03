@@ -155,7 +155,21 @@ export const vendors = pgTable('vendors', {
   pickupLat: doublePrecision('pickup_lat').notNull(),
   pickupLng: doublePrecision('pickup_lng').notNull(),
   radiusKm: doublePrecision('radius_km').notNull().default(5),
+  // Manual master switch — vendor can force-close any time (holiday, out of
+  // stock, etc.) regardless of what the weekly schedule below says.
   isOpen: boolean('is_open').notNull().default(true),
+  // Post-Phase-11 MVP-completion pass: real weekly business-hours schedule,
+  // closing the gap the Phase 11 report flagged (laoji-vendor's
+  // BusinessHoursScreen was a fully client-local Zustand mock with no
+  // backend persistence). One schedule per vendor account (not per
+  // grocery/restaurant mode) — matches the single settings screen the
+  // vendor app already has. Null = no schedule configured yet, in which
+  // case `isOpen` alone decides open/closed (see
+  // `catalog.types.ts#isVendorOpenNow`). Shape:
+  // { day: 0-6 (0=Sun), isOpen: boolean, openTime: "HH:mm", closeTime: "HH:mm" }[]
+  businessHours: jsonb('business_hours').$type<
+    { day: number; isOpen: boolean; openTime: string; closeTime: string }[]
+  >(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -661,4 +675,33 @@ export const settlements = pgTable(
       sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
     ),
   ],
+);
+
+// Post-Phase-11 MVP-completion pass: Ratings (Food). PRD Section 5 scopes
+// this as MVP for Food, not Phase 2. `restaurants.ratingAvg` existed since
+// Phase 3 but had no write path — this table is that write path. Grocery
+// has no ratings concept anywhere in the PRD/TRD, so this is food-only
+// (mirrors the food-only asymmetry Phase 4 already established for
+// allocation/SLA). One rating per food order, only once it's reached
+// `delivered`, enforced at the service layer (not a DB constraint, same
+// style as the rest of this codebase's business-rule enforcement).
+export const foodOrderRatings = pgTable(
+  'food_order_ratings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    foodOrderId: uuid('food_order_id')
+      .notNull()
+      .unique()
+      .references(() => foodOrders.id, { onDelete: 'cascade' }),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => users.id),
+    restaurantId: uuid('restaurant_id')
+      .notNull()
+      .references(() => restaurants.id, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(),
+    comment: text('comment'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('food_order_ratings_rating_range', sql`${table.rating} between 1 and 5`)],
 );

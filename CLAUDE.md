@@ -753,3 +753,265 @@ closed. Two real gaps found, plus one partial:**
   Customer/Vendor/Delivery/Admin app screens, UPI+COD payments,
   order-status notifications) was confirmed genuinely built and wired end
   to end, not just phase-closed on paper.
+
+## Post-Phase-11 MVP-Completion Pass notes
+
+Closes the three real MVP-scope gaps Phase 11 flagged (Ratings, Business
+Hours, Customer Support), plus a full API-binding sweep across
+`laoji-user`/`laoji-vendor`/`laoji-delivery` for anything else still on
+mock data. `laoji-admin` and hosting/deployment were explicitly out of
+scope for this pass.
+
+**Re-audit (Step 1) confirmed all three known gaps exactly as Phase 11
+found them** — no fourth thing in the same category was missed. The
+sweep did surface additional smaller items (small mock-data fixes, plus
+two bigger-decision items flagged and confirmed with the product owner
+before building): vendor KYC verification was a "Simulate
+approval/rejection" demo (no real Admin-driven read), and `laoji-user`'s
+address book was fully local/mock with checkout silently creating a new
+throwaway backend address row per order.
+
+**Ratings (Food):**
+- **`food_order_ratings` table added** (`drizzle/schema.ts`) — `rating`
+  (1-5, DB `CHECK`), optional `comment`, unique on `food_order_id` (one
+  rating per order, DB-enforced as well as service-enforced).
+  `OrderService.rateFoodOrder` gates on: caller is the order's own
+  customer, order status is genuinely `delivered` (not just "paid" or
+  any earlier stage), and no existing rating — then
+  `CatalogService.recalcRestaurantRating` re-aggregates
+  `restaurants.ratingAvg` from all of that restaurant's real ratings
+  (plain re-aggregate, not a running sum — no drift risk at MVP scale).
+  `POST /orders/food/:id/rating`; `GET /orders/food/:id` now also
+  returns `myRating` (null until rated) so the client knows whether to
+  show the prompt or the submitted rating.
+- **Grocery has no ratings concept** — PRD Section 5 only lists ratings
+  under the Food row; not built for grocery, not an oversight.
+- **`laoji-user`**: no existing (even mocked) rating UI was found
+  anywhere in the app to reuse — built a new minimal `RatingPrompt`
+  component (star picker + optional comment) from the app's own design
+  tokens/components, wired into the order-tracking screen
+  (`app/order/[id].tsx`) once a food order reaches `Delivered`.
+  `restaurant/[id].tsx` already displayed `rating`/`ratingCount` — no
+  change needed there beyond the real `ratingAvg` now actually moving.
+
+**Business Hours (Vendor):**
+- **`vendors.businessHours` jsonb column added** — a 7-entry
+  `{day, isOpen, openTime, closeTime}[]` weekly schedule. The pre-existing
+  `vendors.isOpen` boolean is kept as the manual master switch (vendor can
+  force-close any time regardless of the schedule); a vendor with no
+  schedule configured yet just uses `isOpen` alone, so nothing that
+  predates this feature changes behavior. `isVendorOpenNow()`
+  (`catalog.types.ts`) computes the real open/closed status at query
+  time — same "fetch rows, compute in JS" style as the rest of this
+  codebase (Haversine filtering, dashboard stuck-order detection) —
+  rather than trying to keep a stored boolean in sync with wall-clock
+  time via a cron job that doesn't exist (TRD Section 8: no background
+  scheduler beyond in-process `setTimeout`). Evaluated in Asia/Kolkata
+  regardless of server timezone; same-day windows only (no
+  overnight-crossing hours — flagged, not silently handled).
+- **`PATCH /vendors/me/business-hours`** (vendor-only) saves `isOpen` +
+  `schedule` together in one call, matching the vendor app's one
+  settings screen that edits both.
+- **Wired into both places the master prompt named**: `AllocationService
+  .findBestVendor` now excludes closed vendors from the grocery waterfall
+  entirely (never offered as a candidate — same as the existing
+  radius/type filters). `CatalogService`'s customer-facing browse
+  (`publicListProducts`, `publicListRestaurants`, via the shared private
+  `vendorsInRadius`) excludes closed vendors too. `OrderService
+  .createFoodOrder`'s existing `restaurant.isOpen` gate was upgraded to
+  also check the vendor's real computed status (the stored
+  `restaurants.isOpen` column can go stale against the weekly schedule —
+  it's a second, independently-toggleable flag from an earlier phase,
+  left in place but no longer trusted alone for gating).
+  `publicGetRestaurant` (detail view) recomputes and returns the true
+  `isOpen` even though the list endpoint already filtered on it, since
+  the detail page is shown even when closed (so the customer sees why
+  ordering is blocked).
+- **`laoji-vendor`**: `BusinessHoursScreen`/`vendorStore.ts`'s
+  `toggleOpen`/`setSchedule` were fully local Zustand with no backend
+  call at all (confirmed exactly as Phase 11 found it) — now call the
+  real endpoint via a new `businessHoursService.ts` (translates between
+  this app's day-name-string `DaySchedule` shape and the backend's
+  day-index/HH:mm shape). Hydrated once on auth
+  (`app/_layout.tsx`) so Dashboard's "Open now" toggle and the Business
+  Hours screen share the same real state. A pre-existing, unrelated bug
+  was also fixed in passing: `BusinessHoursScreen.tsx` used `<Pressable>`
+  without importing it from `react-native` — the time-picker buttons
+  would have crashed at runtime.
+- **`laoji-user`**: `services/catalog.ts`'s `ApiRestaurant.isOpen` was
+  fetched but silently dropped in `toRestaurant()` (confirmed exactly as
+  Phase 11 found it) — now mapped through; `restaurant/[id].tsx` shows a
+  "Closed now" badge when applicable. The list/browse screens need no
+  change since the backend now excludes closed restaurants from those
+  responses entirely.
+
+**Customer Support:**
+- **`POST /notifications/support`** (any authenticated role) — reuses
+  the exact Phase 7 Resend integration via
+  `NotificationService.notifyAllAdminsEmail`, same broadcast-to-every-admin
+  pattern as the allocation-failed alert. No ticket table, no admin
+  inbox UI — PRD Section 5 scopes support as "basic (contact/help)," not
+  a ticketing system. Named throttler `supportContact` (5/min), same
+  pattern as the other abuse-prone write endpoints from Phase 11.
+- **All three apps had the same placeholder pattern**: `laoji-user`'s
+  Profile "Help & support" row (`showAlert('Support', 'Reach us at
+  contact@onspace.ai')`) was the originally-flagged gap;
+  `laoji-vendor`'s Profile screen had an identical
+  `Linking.openURL('mailto:contact@onspace.ai')`; `laoji-delivery` was
+  further behind still — "Contact support" buttons in onboarding's
+  `pending.tsx`/`rejected.tsx` and a Home quick-action were wired to
+  `onPress={() => {}}`, and the Profile screen's six settings rows
+  (including "Help & support") had no `onPress` at all. A placeholder
+  contact **email address** was deliberately not invented for any of
+  the three — no real Laoji support address exists anywhere in this
+  project, and a `mailto:`/WhatsApp link to a fabricated one would be
+  just as dead as what it replaced. Instead all three now have a small
+  "send us a message" form (`laoji-user`/`laoji-vendor` reuse each app's
+  existing modal primitive — `PromptModal` in `laoji-vendor`, a new
+  small `SupportModal` in `laoji-user`; `laoji-delivery` had no
+  text-input modal primitive at all, so a minimal one was added) that
+  posts straight to the new endpoint.
+
+**Full API-binding sweep (Step 3) — additional small fixes, beyond the
+three known gaps:**
+- **`laoji-vendor`**: vendor KYC verification (`VerificationScreen.tsx`)
+  had "Simulate approval/rejection" demo buttons instead of ever reading
+  the real backend `kycStatus` Admin's review flow (Phase 7) already
+  sets — replaced with a 15s poll of `GET /vendors/me` while pending, no
+  backend change needed (the real endpoint already existed).
+- **`laoji-user`**: addresses (`addresses.tsx`/`address-edit.tsx`) were
+  fully local/mock (flagged, not built, in Phase 4) with checkout
+  creating a fresh throwaway backend address row on every single order
+  via `ensureBackendAddress`. Now a real CRUD resource end to end — new
+  `lib/addresses.ts` wraps the already-existing `AddressController`
+  (Phase 4) GET/POST/PATCH/DELETE `/addresses`, `store/appStore.ts`'s
+  `addAddress`/`updateAddress` now hit the backend and a new
+  `deleteAddress` was added (with a delete affordance added to
+  `addresses.tsx`, guarded against deleting the last remaining address).
+  `hydrateAddresses()` runs once on auth: loads the real list, or — for
+  a brand-new account with nothing saved yet — creates the local seed
+  address as a real backend row so checkout always has something valid
+  to use. `checkout.tsx` now uses `address.id` directly instead of
+  `ensureBackendAddress`; that helper and its file are deleted.
+  `address-edit.tsx`'s "Detect my location" was mocked (jittering random
+  coordinates around a hardcoded city centre) — now uses the device's
+  real foreground GPS fix plus `expo-location`'s on-device
+  `reverseGeocodeAsync` (native, no Google Maps API call, same
+  entry-time-only geocoding rule the backend already follows) to
+  prefill the address fields.
+- **`laoji-user`**: `services/catalog.ts`'s `toMenuItem()` hardcoded
+  `variants: []` regardless of what the backend returned, even though
+  menu item variants have persisted for real since Phase 3 — a mapping
+  bug, not a spec gap. Fixed (converts the backend's price-*delta* shape
+  to this app's absolute-price `MenuVariant` shape).
+  `store/appStore.ts`'s seed address was hardcoded to an Indore
+  coordinate while the rest of the app's fallback location (and every
+  seeded vendor/restaurant) is Kolhapur — a real city mismatch, not a
+  design choice; fixed to match.
+- **`laoji-delivery`**: the Home tab (`app/(tabs)/index.tsx`) was the one
+  screen in this app still reading `mockPartner`/`todayTotals()`
+  (hardcoded name "Rohit Deshmukh", rating 4.87) instead of the real
+  `deliveryApi` calls every other screen already used — now real
+  `getProfile()`/`getEarnings()` queries; the rating pill is hidden
+  rather than faked when null (the backend genuinely has no delivery
+  ratings system — confirmed, not a gap to build). The "Call
+  vendor"/"Call customer" buttons on the active-delivery screen
+  (`app/delivery.tsx`) had no `onPress` at all despite the phone numbers
+  already being fetchable — `OrderDetailForPartner` never actually
+  returned a vendor phone, only `dropoffPhone` (customer), so
+  `DeliveryService.assembleAssignmentView` gained a `pickupPhone` field
+  (the vendor account's own phone, same reuse-the-account-phone pattern
+  as `dropoffPhone`) and the buttons now open `tel:` links. "Message"
+  stays unwired — no chat feature exists anywhere in the backend, and
+  inventing one wasn't in scope.
+- **Dead code removed across all three apps**: hardcoded mock data
+  arrays that had become unreachable as real data sources took over —
+  `laoji-user/services/mockData.ts` (groceryCategories/products/
+  restaurants/menuItems — every consumer only ever imported the *types*
+  from this file), `laoji-vendor/src/data/mockData.ts` (every seed array
+  except `seedSchedule`, which is still genuinely used as the pre-hydration
+  default), `laoji-delivery/src/services/mockData.ts` and the now-orphaned
+  `AssignmentCard.tsx` component that only existed to consume it.
+
+**Verified end-to-end** (three real backend-only test scripts against
+the dev DB — not per-endpoint claims):
+- **Ratings**: registered a fresh customer/vendor/delivery-partner triad,
+  built a real restaurant + menu item, placed a food order, confirmed
+  rating a non-delivered order is rejected, walked the order through
+  accept → preparing → ready → handed_over → (real delivery-partner
+  assignment/accept/picked_up/out_for_delivery) → OTP-verified delivered,
+  then rated it — confirmed `restaurants.ratingAvg` recomputed to the
+  real submitted value, a second rating attempt on the same order is
+  rejected, and `GET /orders/food/:id` exposes the real `myRating`.
+- **Business hours**: for both a restaurant vendor and a grocery vendor,
+  confirmed the product/restaurant is visible while open, marked the
+  vendor closed via the real endpoint, confirmed it disappears from the
+  real customer catalog/restaurant browse, confirmed a fresh order
+  attempt fails cleanly (food: "Restaurant not available"; grocery:
+  allocation waterfall correctly reports "No vendor can currently
+  fulfill this cart" once its one vendor is excluded), and confirmed the
+  weekly schedule round-trips through save → reload. (First pass at this
+  test gave misleading failures — used a shared master-catalog product
+  also sold by other pre-existing test vendors in radius, so excluding
+  one vendor correctly fell through to another; redone against a
+  product exclusive to the one test vendor to actually isolate the
+  behavior.) Also confirmed leftover `is_online=true` delivery partners
+  from earlier phases' own residual test data can cause exact-tie
+  Haversine matches in `findNearestOnlinePartner` — not a bug in this
+  pass's code, but worth knowing if a future E2E script gets a
+  surprising partner match at the same coordinate.
+- **Support**: posted a real message via `POST /notifications/support`
+  and confirmed a `notification_log` row was created with
+  `template='support_message'`, `status='sent'` (dev-stub Resend, no API
+  key configured in this environment — same honest-stub proof standard
+  Phase 7 established: a correctly-dispatched send, not a landed email).
+- Full `npx tsc --noEmit -p .` on the backend: 0 errors both before and
+  after this pass's changes.
+
+## Pre-manual-testing fixes (backend-untouched)
+
+Two small follow-ups from the pass above, requested before manual testing
+started. Both confined to `laoji-vendor`/`laoji-delivery`; no backend,
+`laoji-user`, or `laoji-admin` changes.
+
+- **Missing `@tanstack/react-query` dependency**: both apps used it
+  throughout pre-existing code but never declared it in `package.json` —
+  it only ever resolved because `node_modules` happened to already have it
+  from an earlier install; a fresh clone would have broken immediately.
+  Added `"@tanstack/react-query": "^5.101.4"` to both, confirmed via
+  `pnpm install` + `npm ls` that `5.101.4` is what actually resolves in
+  each app's `node_modules` (identical version in both). Fixing this also
+  surfaced the exact same bug for a second package —
+  `@expo-google-fonts/sora` (used in both apps' `app/_layout.tsx` for font
+  loading, alongside the already-declared sibling
+  `@expo-google-fonts/inter`) was undeclared too; added at `^0.4.1`,
+  matching the sibling's version.
+- **Clean `tsc --noEmit` after both fixes**: every error attributable to
+  the missing dependencies is gone in both apps (the "Cannot find module"
+  errors, plus the large cascade of implicit-`any` errors the unresolved
+  `useQuery`/`useMutation` generics were causing throughout
+  `hooks/useGrocery.ts`, `useMenu.ts`, `useOrders.ts`, `DashboardScreen.tsx`,
+  etc.). What's left (47 errors in `laoji-vendor`, ~14 in `laoji-delivery`)
+  is a separate, pre-existing, unrelated issue: `.expo/types/router.d.ts`
+  (expo-router's generated typed-routes manifest) is stale in both apps —
+  it only recognizes ~4 routes (`/(tabs)`, `/`, `/_sitemap`, `/+not-found`)
+  in apps with dozens of real screens, so every `router.push`/`.replace`
+  string literal fails to typecheck. This is a compile-time-only strictness
+  gap (the file-based router still resolves these paths correctly at
+  runtime regardless of the manifest) normally regenerated by Metro during
+  `expo start`, not something a one-off `tsc` run or a missing-dependency
+  fix can produce — flagged rather than silently expanded into a much
+  larger, unrelated fix across every screen in both apps. A handful of
+  `.filter(Boolean)`-produced style-array typing quirks and one missing
+  `colors.white` token round out the remainder, same "pre-existing,
+  unrelated" category.
+- **`laoji-delivery`'s dead "Message" chat buttons removed** (not just
+  left disabled): `app/delivery.tsx`'s active-delivery screen had a
+  "Message" `ContactBtn` next to both "Call vendor" and "Call customer" —
+  always `disabled`, since no chat feature exists anywhere in the backend.
+  Same treatment as this pass's already-established rule for the
+  delivery-partner rating pill (hide what's genuinely not built, rather
+  than leave a permanently-inert control that reads as a bug during manual
+  testing). "Call vendor"/"Call customer" are unaffected — those are real
+  and already wired to `tel:` links against genuine backend phone-number
+  data.

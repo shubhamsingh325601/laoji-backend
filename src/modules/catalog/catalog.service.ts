@@ -4,6 +4,7 @@ import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
   categories,
+  foodOrderRatings,
   menuCategories,
   menuItemAddons,
   menuItems,
@@ -14,7 +15,8 @@ import {
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
-import { haversineKm } from './catalog.types';
+import { haversineKm, isVendorOpenNow } from './catalog.types';
+import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
@@ -85,6 +87,19 @@ export class CatalogService {
       })
       .returning();
     return created;
+  }
+
+  // Post-Phase-11 MVP-completion pass (Business Hours). Single call for the
+  // vendor app's one settings screen — updates the manual master switch and
+  // the weekly schedule together, since that screen saves both at once.
+  async updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto) {
+    const vendor = await this.requireVendor(userId);
+    const [updated] = await this.db
+      .update(vendors)
+      .set({ isOpen: dto.isOpen, businessHours: dto.schedule ?? null })
+      .where(eq(vendors.id, vendor.id))
+      .returning();
+    return updated;
   }
 
   async listVendorsBasic() {
@@ -240,10 +255,17 @@ export class CatalogService {
 
   // ---------- Public: customer browse (grocery) ----------
 
-  /** Vendor ids whose pickup point is within their own configured radius of (lat, lng). */
+  /**
+   * Vendor ids whose pickup point is within their own configured radius of
+   * (lat, lng) AND are currently open (Business Hours, post-Phase-11 pass)
+   * — a closed vendor must not appear in customer catalog/restaurant
+   * browse, same rule Allocation enforces on its own vendor query.
+   */
   private async vendorsInRadius(lat: number, lng: number) {
     const allVendors = await this.db.select().from(vendors);
-    return allVendors.filter((v) => haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
+    return allVendors.filter(
+      (v) => isVendorOpenNow(v) && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
+    );
   }
 
   async publicListProducts(lat: number, lng: number, categoryId?: string) {
@@ -326,6 +348,14 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, id)).limit(1);
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
+    // Detail page is shown even when closed (so the customer sees *why*
+    // ordering is blocked) — unlike the list/browse endpoints, which drop
+    // closed vendors entirely. `restaurant.isOpen` is a manually-toggled
+    // column that can go stale against the real weekly schedule, so this
+    // recomputes the true current status rather than trusting it.
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+    const openNow = restaurant.isOpen && (vendor ? isVendorOpenNow(vendor) : false);
+
     const cats = await this.db
       .select()
       .from(menuCategories)
@@ -353,6 +383,7 @@ export class CatalogService {
 
     return {
       ...restaurant,
+      isOpen: openNow,
       menuCategories: cats.map((cat) => ({
         ...cat,
         items: items
@@ -380,6 +411,23 @@ export class CatalogService {
 
     const [created] = await this.db.insert(restaurants).values({ vendorId, name: vendor.businessName }).returning();
     return created;
+  }
+
+  // Post-Phase-11 MVP-completion pass (Ratings). Recomputed from
+  // food_order_ratings on every new rating rather than incrementally
+  // averaged — one restaurant's rating count is small enough at MVP scale
+  // that a plain re-aggregate is simpler and can't drift from a running-sum
+  // bug. Called by OrderService.rateFoodOrder right after the insert.
+  async recalcRestaurantRating(restaurantId: string) {
+    const rows = await this.db
+      .select({ rating: foodOrderRatings.rating })
+      .from(foodOrderRatings)
+      .where(eq(foodOrderRatings.restaurantId, restaurantId));
+    const avg = rows.length ? rows.reduce((sum, r) => sum + r.rating, 0) / rows.length : 0;
+    await this.db
+      .update(restaurants)
+      .set({ ratingAvg: Math.round(avg * 10) / 10 })
+      .where(eq(restaurants.id, restaurantId));
   }
 
   async updateRestaurant(vendorId: string, dto: UpdateRestaurantDto) {

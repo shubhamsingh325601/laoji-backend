@@ -41,6 +41,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
         { name: 'orderCreate', ttl: 60_000, limit: 10 },
         { name: 'paymentInitiate', ttl: 60_000, limit: 10 },
         { name: 'productSuggestion', ttl: 60_000, limit: 5 },
+        // Post-Phase-11 MVP-completion pass: customer/vendor/delivery
+        // support-contact form, same abuse-prone-write reasoning as the
+        // other named throttlers above.
+        { name: 'supportContact', ttl: 60_000, limit: 5 },
       ],
     }),
     HealthModule,

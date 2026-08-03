@@ -8,6 +8,7 @@ import { JobQueueService } from '../allocation/job-queue.service';
 import { FcmPushProvider } from './providers/fcm-push.provider';
 import { ResendEmailProvider } from './providers/resend-email.provider';
 import type { EmailMessage, PushMessage } from './notification.types';
+import { supportMessageAdminEmail } from './templates/email/support-message';
 
 type Platform = 'ios' | 'android' | 'web';
 
@@ -101,6 +102,24 @@ export class NotificationService {
       status,
       sentAt: status === 'sent' ? new Date() : null,
     });
+  }
+
+  // Post-Phase-11 MVP-completion pass (Customer Support). Reuses the exact
+  // Resend path Phase 7 built and the notifyAllAdminsEmail broadcast
+  // AllocationService's admin-alert already relies on — no second email
+  // integration, no ticket table.
+  async sendSupportMessage(userId: string, role: string, subject: string, message: string) {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    await this.notifyAllAdminsEmail(
+      'support_message',
+      supportMessageAdminEmail({
+        fromRole: role,
+        fromPhone: user?.phone ?? null,
+        fromEmail: user?.email ?? null,
+        subject,
+        message,
+      }),
+    );
   }
 
   // ---------- Admin visibility ----------

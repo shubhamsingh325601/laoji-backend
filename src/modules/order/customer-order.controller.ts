@@ -8,6 +8,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { OrderService } from './order.service';
 import { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import { CreateFoodOrderDto } from './dto/create-food-order.dto';
+import { RateFoodOrderDto } from './dto/rate-food-order.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('customer')
@@ -45,5 +46,10 @@ export class CustomerOrderController {
   @Get('food/:id')
   foodOrder(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
     return this.orders.getFoodOrder(id, { userId: user.sub, role: user.role });
+  }
+
+  @Post('food/:id/rating')
+  rateFoodOrder(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string, @Body() dto: RateFoodOrderDto) {
+    return this.orders.rateFoodOrder(user.sub, id, dto);
   }
 }

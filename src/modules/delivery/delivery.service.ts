@@ -416,9 +416,10 @@ export class DeliveryService {
       const [vendor] = order.vendorId
         ? await this.db.select().from(vendors).where(eq(vendors.id, order.vendorId)).limit(1)
         : [];
+      const [vendorUser] = vendor ? await this.db.select().from(users).where(eq(users.id, vendor.userId)).limit(1) : [];
       const [address] = await this.db.select().from(addresses).where(eq(addresses.id, order.deliveryAddressId)).limit(1);
       const [customer] = await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1);
-      return this.assembleAssignmentView(order, type, items.length, vendor, address, customer, partner.id);
+      return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id);
     }
 
     const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
@@ -428,16 +429,23 @@ export class DeliveryService {
     const [vendor] = restaurant
       ? await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1)
       : [];
+    const [vendorUser] = vendor ? await this.db.select().from(users).where(eq(users.id, vendor.userId)).limit(1) : [];
     const [address] = await this.db.select().from(addresses).where(eq(addresses.id, order.deliveryAddressId)).limit(1);
     const [customer] = await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1);
-    return this.assembleAssignmentView(order, type, items.length, vendor, address, customer, partner.id, restaurant?.name);
+    return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, restaurant?.name);
   }
 
+  // Post-Phase-11 MVP-completion pass: `pickupPhone` added — laoji-delivery's
+  // active-delivery screen has always had a "Call vendor" button with no
+  // `onPress` wired at all, because there was nothing here to call. Reuses
+  // the vendor's own phone+OTP account phone number, same as dropoffPhone's
+  // reuse of the customer's account phone.
   private assembleAssignmentView(
     order: { id: string; status: string; deliveryFee: number; deliveryPartnerId: string | null },
     type: OrderType,
     itemCount: number,
     vendor: typeof vendors.$inferSelect | undefined,
+    vendorUser: typeof users.$inferSelect | undefined,
     address: typeof addresses.$inferSelect | undefined,
     customer: typeof users.$inferSelect | undefined,
     requestingPartnerId: string,
@@ -454,6 +462,7 @@ export class DeliveryService {
       itemCount,
       deliveryFee: order.deliveryFee,
       pickupName: restaurantName ?? vendor?.businessName ?? 'Pickup point',
+      pickupPhone: vendorUser?.phone ?? '',
       pickupLat: vendor?.pickupLat ?? null,
       pickupLng: vendor?.pickupLng ?? null,
       dropoffCustomer: customer?.phone ?? 'Customer',
