@@ -1,6 +1,21 @@
 # compiled output
 /dist
 /node_modules
+# `nest build`'s tsc invocation has no rootDir pinned (drizzle/schema.ts is
+# imported from outside src/, so pinning rootDir breaks the build) — as a
+# side effect it also emits stray .js/.d.ts/.js.map/.tsbuildinfo files
+# next to source files anywhere it compiles outside dist/. Harmless, but
+# never commit them.
+tsconfig.build.tsbuildinfo
+drizzle.config.js
+drizzle.config.d.ts
+drizzle.config.js.map
+drizzle/schema.js
+drizzle/schema.d.ts
+drizzle/schema.js.map
+scripts/*.js
+scripts/*.d.ts
+scripts/*.js.map
 
 # env
 .env
