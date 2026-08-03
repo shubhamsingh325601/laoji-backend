@@ -20,7 +20,7 @@ export class DeliveryPartnerController {
 
   @Get('me')
   myProfile(@CurrentUser() user: JwtAccessPayload) {
-    return this.delivery.getPartnerByUserId(user.sub);
+    return this.delivery.getEnrichedProfile(user.sub);
   }
 
   @Patch('me/online')

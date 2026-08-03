@@ -6,11 +6,12 @@ import { RevenueModule } from '../revenue/revenue.module';
 import { DeliveryService } from './delivery.service';
 import { DeliveryPartnerController } from './delivery-partner.controller';
 import { DeliveryOrderController } from './delivery-order.controller';
+import { DeliveryEarningsController } from './delivery-earnings.controller';
 import { AdminDeliveryController } from './admin-delivery.controller';
 
 @Module({
   imports: [AllocationModule, PaymentModule, NotificationModule, RevenueModule],
-  controllers: [DeliveryPartnerController, DeliveryOrderController, AdminDeliveryController],
+  controllers: [DeliveryPartnerController, DeliveryOrderController, DeliveryEarningsController, AdminDeliveryController],
   providers: [DeliveryService],
   exports: [DeliveryService],
 })

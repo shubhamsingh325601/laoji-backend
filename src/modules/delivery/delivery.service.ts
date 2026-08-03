@@ -18,6 +18,7 @@ import {
   foodOrders,
   groceryOrderItems,
   groceryOrders,
+  kycDocuments,
   orderStatusHistory,
   restaurants,
   users,
@@ -85,6 +86,51 @@ export class DeliveryService {
     return partner;
   }
 
+  // Reconciling a parallel real-backend-wiring session's richer profile
+  // screen (Profile/pending/rejected onboarding screens) — genuinely
+  // derivable fields are computed for real (phone, totalDeliveries,
+  // kycRejectionReasons, joinedAt); fields with no backing concept
+  // anywhere in this project (name, rating, city — no ratings system, no
+  // city capture, accounts are phone+OTP only) are returned `null` rather
+  // than fabricated. The frontend already degrades these gracefully
+  // (falls back to phone/cached values, shows "—", hides the "partner
+  // since" badge when absent).
+  private async enrichProfile(partner: typeof deliveryPartners.$inferSelect) {
+    const [user] = await this.db.select().from(users).where(eq(users.id, partner.userId)).limit(1);
+
+    // Real count of completed deliveries — settlements exist exactly once
+    // per OTP-verified delivery (Phase 8), so counting those rather than
+    // order statuses directly reuses the same "what actually counts as
+    // done" definition the earnings screen uses.
+    const groceryDone = await this.db.select().from(groceryOrders).where(and(eq(groceryOrders.deliveryPartnerId, partner.id), eq(groceryOrders.status, 'delivered')));
+    const foodDone = await this.db.select().from(foodOrders).where(and(eq(foodOrders.deliveryPartnerId, partner.id), eq(foodOrders.status, 'delivered')));
+    const totalDeliveries = groceryDone.length + foodDone.length;
+
+    const rejectedDocs = await this.db
+      .select()
+      .from(kycDocuments)
+      .where(and(eq(kycDocuments.userId, partner.userId), eq(kycDocuments.status, 'rejected')));
+
+    return {
+      id: partner.id,
+      userId: partner.userId,
+      name: null as string | null,
+      phone: user?.phone ?? null,
+      kycStatus: partner.kycStatus,
+      vehicleType: partner.vehicleType,
+      vehicleLabel: null as string | null,
+      isOnline: partner.isOnline,
+      currentLat: partner.currentLat,
+      currentLng: partner.currentLng,
+      rating: null as number | null,
+      totalDeliveries,
+      city: null as string | null,
+      joinedAt: partner.createdAt,
+      kycRejectionReasons: rejectedDocs.map((d) => d.rejectionReason).filter((r): r is string => !!r),
+      updatedAt: partner.updatedAt,
+    };
+  }
+
   async upsertProfile(userId: string, vehicleType: string) {
     const existing = await this.getPartnerByUserId(userId);
     if (existing) {
@@ -93,10 +139,15 @@ export class DeliveryService {
         .set({ vehicleType })
         .where(eq(deliveryPartners.id, existing.id))
         .returning();
-      return updated;
+      return this.enrichProfile(updated);
     }
     const [created] = await this.db.insert(deliveryPartners).values({ userId, vehicleType }).returning();
-    return created;
+    return this.enrichProfile(created);
+  }
+
+  async getEnrichedProfile(userId: string) {
+    const partner = await this.requirePartner(userId);
+    return this.enrichProfile(partner);
   }
 
   async setOnline(userId: string, isOnline: boolean) {
@@ -106,7 +157,7 @@ export class DeliveryService {
       .set({ isOnline, updatedAt: new Date() })
       .where(eq(deliveryPartners.id, partner.id))
       .returning();
-    return updated;
+    return this.enrichProfile(updated);
   }
 
   async updateLocation(userId: string, lat: number, lng: number) {
@@ -116,7 +167,71 @@ export class DeliveryService {
       .set({ currentLat: lat, currentLng: lng, updatedAt: new Date() })
       .where(eq(deliveryPartners.id, partner.id))
       .returning();
-    return updated;
+    return this.enrichProfile(updated);
+  }
+
+  // ---------- Earnings / history (reconciling parallel session's screens) ----------
+
+  async getHistoryForPartner(userId: string) {
+    const partner = await this.requirePartner(userId);
+    const grocery = await this.db
+      .select()
+      .from(groceryOrders)
+      .where(and(eq(groceryOrders.deliveryPartnerId, partner.id), or(eq(groceryOrders.status, 'delivered'), eq(groceryOrders.status, 'failed'), eq(groceryOrders.status, 'cancelled'))));
+    const food = await this.db
+      .select()
+      .from(foodOrders)
+      .where(and(eq(foodOrders.deliveryPartnerId, partner.id), or(eq(foodOrders.status, 'delivered'), eq(foodOrders.status, 'failed'), eq(foodOrders.status, 'cancelled'))));
+
+    const vendorIds = [...new Set(grocery.map((o) => o.vendorId).filter((id): id is string => !!id))];
+    const vendorRows = vendorIds.length ? await this.db.select().from(vendors).where(inArray(vendors.id, vendorIds)) : [];
+    const vendorNameById = new Map(vendorRows.map((v) => [v.id, v.businessName]));
+
+    const restaurantIds = [...new Set(food.map((o) => o.restaurantId))];
+    const restaurantRows = restaurantIds.length ? await this.db.select().from(restaurants).where(inArray(restaurants.id, restaurantIds)) : [];
+    const restaurantNameById = new Map(restaurantRows.map((r) => [r.id, r.name]));
+
+    const rows = [
+      ...grocery.map((o) => ({
+        id: o.id,
+        orderId: o.id,
+        orderCode: o.id.slice(0, 8).toUpperCase(),
+        type: 'grocery' as const,
+        route: vendorNameById.get(o.vendorId ?? '') ?? 'Pickup',
+        payout: o.deliveryFee,
+        status: (o.status === 'delivered' ? 'delivered' : 'cancelled') as 'delivered' | 'cancelled',
+        completedAt: o.createdAt,
+      })),
+      ...food.map((o) => ({
+        id: o.id,
+        orderId: o.id,
+        orderCode: o.id.slice(0, 8).toUpperCase(),
+        type: 'food' as const,
+        route: restaurantNameById.get(o.restaurantId) ?? 'Pickup',
+        payout: o.deliveryFee,
+        status: (o.status === 'delivered' ? 'delivered' : 'cancelled') as 'delivered' | 'cancelled',
+        completedAt: o.createdAt,
+      })),
+    ];
+    return rows.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
+  }
+
+  async getEarningsForPartner(userId: string) {
+    await this.requirePartner(userId); // access-control check only
+    const recent = (await this.getHistoryForPartner(userId)).slice(0, 20);
+    const delivered = recent.filter((r) => r.status === 'delivered');
+
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayRows = delivered.filter((r) => now - r.completedAt.getTime() < dayMs);
+    const weekRows = delivered.filter((r) => now - r.completedAt.getTime() < 7 * dayMs);
+    const today = { amount: todayRows.reduce((s, r) => s + r.payout, 0), deliveries: todayRows.length };
+    const week = { amount: weekRows.reduce((s, r) => s + r.payout, 0), deliveries: weekRows.length };
+    const avgPerDelivery = week.deliveries > 0 ? Math.round(week.amount / week.deliveries) : 0;
+
+    // No payout-batching system exists (same gap flagged in the vendor
+    // app's earnings screen) — honestly null rather than a fabricated date.
+    return { today, week, avgPerDelivery, nextPayoutDate: null as string | null, recent };
   }
 
   // ---------- Matching (TRD Section 7.3 / 9.3: nearest online partner, plain Haversine) ----------

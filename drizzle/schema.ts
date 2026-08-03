@@ -176,6 +176,10 @@ export const deliveryPartners = pgTable('delivery_partners', {
   currentLat: doublePrecision('current_lat'),
   currentLng: doublePrecision('current_lng'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // Added reconciling a parallel real-backend-wiring session's profile
+  // screen, which shows "Partner since <year>" — genuinely missing before,
+  // not backfilled/faked for existing rows (defaults to now() for them).
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const categories = pgTable('categories', {
