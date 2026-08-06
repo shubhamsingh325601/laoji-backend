@@ -28,7 +28,10 @@ export class AuthService {
   ) {}
 
   async requestOtp(phone: string, role: OtpRole): Promise<{ devOtp?: string }> {
-    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
+    // Test mode: outside production the OTP is always 123456 so logins are
+    // reproducible in the mobile apps (see CLAUDE.md OTP-delivery note).
+    const code = isDev ? '123456' : String(randomInt(0, 1_000_000)).padStart(6, '0');
     const codeHash = await bcrypt.hash(code, 10);
 
     await this.db.insert(otpCodes).values({
@@ -38,7 +41,6 @@ export class AuthService {
       expiresAt: new Date(Date.now() + OTP_TTL_MS),
     });
 
-    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
     // Dev-mode stub: no SMS provider wired yet (see CLAUDE.md OTP-delivery note).
     // The OTP is only ever returned in the API response outside production.
     return isDev ? { devOtp: code } : {};
