@@ -3,6 +3,10 @@ import { z } from 'zod';
 export const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  OTP_TEST_MODE: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
   CORS_ORIGIN: z.string().default('http://localhost:8080'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
