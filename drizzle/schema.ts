@@ -46,6 +46,18 @@ export const users = pgTable(
     passwordHash: text('password_hash'),
     role: userRoleEnum('role').notNull(),
     status: userStatusEnum('status').notNull().default('active'),
+    // Admin-portal wiring pass: admin's own profile (SettingsPage) and
+    // customer support notes (CustomerDetailPage) both needed columns that
+    // didn't exist anywhere in the schema. Kept on `users` rather than new
+    // tables since both concepts are 1:1 with a single user row — an admin's
+    // display name/city/timezone/notification prefs, or free-text notes a
+    // support agent keeps on a customer.
+    name: varchar('name', { length: 200 }),
+    city: varchar('city', { length: 100 }),
+    timezone: varchar('timezone', { length: 50 }),
+    notifyStuckOrders: boolean('notify_stuck_orders').notNull().default(true),
+    notifyKyc: boolean('notify_kyc').notNull().default(true),
+    supportNotes: text('support_notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
