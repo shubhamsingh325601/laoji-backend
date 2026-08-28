@@ -1,5 +1,4 @@
 # compiled output
-/dist
 /node_modules
 # `nest build`'s tsc invocation has no rootDir pinned (drizzle/schema.ts is
 # imported from outside src/, so pinning rootDir breaks the build) — as a

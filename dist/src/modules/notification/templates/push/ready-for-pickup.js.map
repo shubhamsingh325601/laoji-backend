@@ -1,0 +1,1 @@
+{"version":3,"file":"ready-for-pickup.js","sourceRoot":"","sources":["../../../../../../src/modules/notification/templates/push/ready-for-pickup.ts"],"names":[],"mappings":";;AAMA,oEAMC;AAND,SAAgB,4BAA4B,CAAC,SAAiB,EAAE,MAAc;IAC5E,OAAO;QACL,KAAK,EAAE,yBAAyB;QAChC,IAAI,EAAE,SAAS,SAAS,2BAA2B,MAAM,UAAU;QACnE,IAAI,EAAE,EAAE,KAAK,EAAE,oBAAoB,EAAE,SAAS,EAAE;KACjD,CAAC;AACJ,CAAC"}

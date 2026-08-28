@@ -1,0 +1,1 @@
+{"version":3,"file":"settlement-summary.js","sourceRoot":"","sources":["../../../../../../src/modules/notification/templates/email/settlement-summary.ts"],"names":[],"mappings":";;AAMA,wDAKC;AALD,SAAgB,sBAAsB,CAAC,WAAmB,EAAE,KAAa,EAAE,UAAkB,EAAE,GAAW;IACxG,OAAO;QACL,OAAO,EAAE,2BAA2B,WAAW,EAAE;QACjD,IAAI,EAAE,cAAc,KAAK,gCAAgC,UAAU,+BAA+B,GAAG,eAAe;KACrH,CAAC;AACJ,CAAC"}

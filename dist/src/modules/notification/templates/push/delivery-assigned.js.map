@@ -1,0 +1,1 @@
+{"version":3,"file":"delivery-assigned.js","sourceRoot":"","sources":["../../../../../../src/modules/notification/templates/push/delivery-assigned.ts"],"names":[],"mappings":";;AAKA,oEAMC;AAND,SAAgB,4BAA4B,CAAC,SAAiB;IAC5D,OAAO;QACL,KAAK,EAAE,6BAA6B;QACpC,IAAI,EAAE,iDAAiD,SAAS,6BAA6B;QAC7F,IAAI,EAAE,EAAE,KAAK,EAAE,mBAAmB,EAAE,SAAS,EAAE;KAChD,CAAC;AACJ,CAAC"}

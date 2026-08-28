@@ -1,0 +1,1 @@
+{"version":3,"file":"allocation-failed-admin.js","sourceRoot":"","sources":["../../../../../../src/modules/notification/templates/email/allocation-failed-admin.ts"],"names":[],"mappings":";;AAOA,gEAKC;AALD,SAAgB,0BAA0B,CAAC,SAAiB;IAC1D,OAAO;QACL,OAAO,EAAE,6BAA6B,SAAS,EAAE;QACjD,IAAI,EAAE,oBAAoB,SAAS,kIAAkI;KACtK,CAAC;AACJ,CAAC"}
