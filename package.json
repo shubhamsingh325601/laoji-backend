@@ -4,8 +4,12 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "index.js",
   "scripts": {
+    "postinstall": "npm run build",
     "build": "tsc -p tsconfig.build.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
