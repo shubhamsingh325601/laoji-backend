@@ -685,33 +685,36 @@ export class DeliveryService {
     name: string;
     phone: string;
     email?: string;
-    vehicleType: 'bike' | 'scooter' | 'bicycle';
+    vehicleType: string;
     city?: string;
     kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
   }) {
+    const phone = dto.phone.trim();
+    const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+
     let [user] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, dto.phone), eq(users.role, 'delivery_partner')))
+      .where(and(eq(users.phone, phone), eq(users.role, 'delivery_partner')))
       .limit(1);
 
     if (!user) {
       [user] = await this.db
         .insert(users)
         .values({
-          phone: dto.phone,
-          email: dto.email || null,
+          phone,
+          email,
           role: 'delivery_partner',
           status: 'active',
         })
         .returning();
     } else {
-      if (dto.email && !user.email) {
-        await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+      if (email && !user.email) {
+        await this.db.update(users).set({ email }).where(eq(users.id, user.id));
       }
       const [existingPartner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.userId, user.id)).limit(1);
       if (existingPartner) {
-        throw new BadRequestException(`A delivery partner profile already exists for phone ${dto.phone}`);
+        throw new BadRequestException(`A delivery partner profile already exists for phone ${phone}`);
       }
     }
 
@@ -730,17 +733,21 @@ export class DeliveryService {
       .returning();
 
     // Send Welcome Email with corporate signature to the invited delivery rider
-    if (dto.email) {
-      this.notifications.sendWelcomePartnerEmail({
-        id: partner.id,
-        name: dto.name || `Rider +91 ${dto.phone}`,
-        email: dto.email,
-        phone: dto.phone,
-        vehicleType: dto.vehicleType,
-      });
+    if (email) {
+      try {
+        this.notifications.sendWelcomePartnerEmail({
+          id: user.id,
+          name: dto.name || `Rider +91 ${dto.phone}`,
+          email,
+          phone: dto.phone,
+          vehicleType: dto.vehicleType,
+        });
+      } catch (err) {
+        console.error('[DeliveryService] Failed to queue welcome partner email:', err);
+      }
     }
 
-    return { ...partner, name: dto.name, phone: dto.phone, email: dto.email };
+    return { ...partner, name: dto.name, phone: dto.phone, email };
   }
 
   async updateAdminPartner(

@@ -749,29 +749,32 @@ export class CatalogService {
   }
 
   async createAdminVendor(dto: CreateAdminVendorDto) {
+    const phone = dto.phone.trim();
+    const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+
     let [user] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, dto.phone), eq(users.role, 'vendor')))
+      .where(and(eq(users.phone, phone), eq(users.role, 'vendor')))
       .limit(1);
 
     if (!user) {
       [user] = await this.db
         .insert(users)
         .values({
-          phone: dto.phone,
-          email: dto.email || null,
+          phone,
+          email,
           role: 'vendor',
           status: 'active',
         })
         .returning();
     } else {
-      if (dto.email && !user.email) {
-        await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+      if (email && !user.email) {
+        await this.db.update(users).set({ email }).where(eq(users.id, user.id));
       }
       const [existingVendor] = await this.db.select().from(vendors).where(eq(vendors.userId, user.id)).limit(1);
       if (existingVendor) {
-        throw new ConflictException(`A vendor profile already exists for phone ${dto.phone}`);
+        throw new ConflictException(`A vendor profile already exists for phone ${phone}`);
       }
     }
 
@@ -781,10 +784,10 @@ export class CatalogService {
       .insert(vendors)
       .values({
         userId: user.id,
-        businessName: dto.businessName,
-        ownerName: dto.ownerName,
+        businessName: dto.businessName.trim(),
+        ownerName: dto.ownerName.trim(),
         type: dto.type,
-        shopAddress: dto.shopAddress || null,
+        shopAddress: dto.shopAddress?.trim() || null,
         pickupLat: dto.pickupLat ?? 16.705,
         pickupLng: dto.pickupLng ?? 74.2433,
         radiusKm: dto.deliveryRadiusKm ?? 5,
@@ -794,25 +797,32 @@ export class CatalogService {
       .returning();
 
     if (dto.type === 'restaurant' || dto.type === 'both') {
-      await this.db.insert(restaurants).values({
-        vendorId: vendor.id,
-        name: dto.businessName,
-      });
+      const [existingRest] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendor.id)).limit(1);
+      if (!existingRest) {
+        await this.db.insert(restaurants).values({
+          vendorId: vendor.id,
+          name: dto.businessName.trim(),
+        });
+      }
     }
 
     // Send Welcome Email with corporate signature to the invited vendor
-    if (dto.email) {
-      this.notifications.sendWelcomeVendorEmail({
-        id: vendor.id,
-        businessName: dto.businessName,
-        ownerName: dto.ownerName,
-        email: dto.email,
-        phone: dto.phone,
-        type: dto.type,
-      });
+    if (email) {
+      try {
+        this.notifications.sendWelcomeVendorEmail({
+          id: user.id,
+          businessName: dto.businessName.trim(),
+          ownerName: dto.ownerName.trim(),
+          email,
+          phone,
+          type: dto.type,
+        });
+      } catch (err) {
+        console.error('[CatalogService] Failed to queue welcome vendor email:', err);
+      }
     }
 
-    return { ...vendor, phone: dto.phone, email: dto.email };
+    return { ...vendor, phone, email };
   }
 
   async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {

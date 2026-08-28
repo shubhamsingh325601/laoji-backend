@@ -106,14 +106,18 @@ export class NotificationService {
     payload: any,
     status: 'sent' | 'failed',
   ) {
-    await this.db.insert(notificationLog).values({
-      userId,
-      channel,
-      template,
-      payloadJson: payload,
-      status,
-      sentAt: status === 'sent' ? new Date() : null,
-    });
+    try {
+      await this.db.insert(notificationLog).values({
+        userId,
+        channel,
+        template,
+        payloadJson: payload,
+        status,
+        sentAt: status === 'sent' ? new Date() : null,
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to write notification_log for user ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   // Welcome emails with corporate signature for invited users

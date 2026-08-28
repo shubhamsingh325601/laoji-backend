@@ -1,4 +1,5 @@
-import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
 
 export class CreateAdminVendorDto {
   @IsString()
@@ -14,7 +15,9 @@ export class CreateAdminVendorDto {
   phone: string;
 
   @IsOptional()
+  @ValidateIf((o) => typeof o.email === 'string' && o.email.trim().length > 0)
   @IsEmail()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() ? value.trim() : undefined))
   email?: string;
 
   @IsIn(['grocery', 'restaurant', 'both'])
@@ -60,7 +63,9 @@ export class UpdateAdminVendorDto {
   phone?: string;
 
   @IsOptional()
+  @ValidateIf((o) => typeof o.email === 'string' && o.email.trim().length > 0)
   @IsEmail()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() ? value.trim() : undefined))
   email?: string;
 
   @IsOptional()
