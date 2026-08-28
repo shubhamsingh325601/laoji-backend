@@ -13,6 +13,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
+    if (!(exception instanceof HttpException)) {
+      console.error('[HttpExceptionFilter] Unhandled exception:', exception);
+    }
+
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
@@ -36,6 +40,9 @@ function normalize(
     const message = Array.isArray(b.message) ? b.message.join(', ') : (b.message ?? 'Error');
     const code = typeof b.error === 'string' ? toCode(b.error) : toCode(String(status));
     return { code, message: String(message), details: {} };
+  }
+  if (typeof body === 'string') {
+    return { code: toCode(String(status)), message: body, details: {} };
   }
   return { code: toCode(String(status)), message: 'Internal server error', details: {} };
 }

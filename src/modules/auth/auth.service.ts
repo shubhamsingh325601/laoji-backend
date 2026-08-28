@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { and, desc, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomInt, randomUUID } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -98,10 +98,11 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<{ tokens: TokenPair; userId: string; role: UserRole }> {
+    const trimmedEmail = email.trim();
     const [user] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.email, email), eq(users.role, 'admin')))
+      .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'admin')))
       .limit(1);
 
     if (!user || !user.passwordHash) {
@@ -211,27 +212,30 @@ export class AuthService {
     role: UserRole,
     deviceId?: string,
   ): Promise<TokenPair> {
-    const accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN')!;
+    const accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+    const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET');
+    const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
+    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '30d';
+
     const accessPayload: JwtAccessPayload = { sub: userId, role };
     const accessToken = this.jwt.sign(accessPayload, {
-      secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: parseDurationMs(accessExpiresIn) / 1000,
+      secret: accessSecret,
+      expiresIn: Math.floor(parseDurationMs(accessExpiresIn, 15 * 60 * 1000) / 1000),
     });
 
     const jti = randomUUID();
-    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN')!;
     const refreshPayload: JwtRefreshPayload = { sub: userId, jti };
     const refreshToken = this.jwt.sign(refreshPayload, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: parseDurationMs(refreshExpiresIn) / 1000,
+      secret: refreshSecret,
+      expiresIn: Math.floor(parseDurationMs(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000) / 1000),
     });
 
     await this.db.insert(authTokens).values({
       id: jti,
       userId,
       refreshTokenHash: hashToken(refreshToken),
-      deviceId,
-      expiresAt: new Date(Date.now() + parseDurationMs(refreshExpiresIn)),
+      deviceId: deviceId ?? null,
+      expiresAt: new Date(Date.now() + parseDurationMs(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000)),
     });
 
     return { accessToken, refreshToken };
