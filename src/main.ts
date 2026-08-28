@@ -6,13 +6,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  // Only laoji-admin (browser) is cross-origin — the RN apps aren't subject
-  // to CORS. Dev origin covers `vite dev`'s default port; override via
-  // CORS_ORIGIN for other environments (comma-separated).
+  const rawCors = process.env.CORS_ORIGIN?.replace(/^["']|["']$/g, '').trim();
+  const corsOrigins = rawCors
+    ? rawCors.split(',').map((s) => s.trim())
+    : ['http://localhost:8080', 'https://laoji-admin.vercel.app'];
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:8080'],
+    origin: corsOrigins,
     credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3000);
+
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`[Laoji API] Application successfully started and listening on 0.0.0.0:${port}`);
 }
 bootstrap();
