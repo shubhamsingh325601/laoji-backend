@@ -9,11 +9,12 @@ import type { EmailMessage, EmailSendResult } from '../notification.types';
 export class ResendEmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name);
   private readonly client: Resend | null;
-  private readonly fromAddress = 'Laoji <notifications@laoji.app>';
+  private readonly fromAddress: string;
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.client = apiKey ? new Resend(apiKey) : null;
+    this.fromAddress = this.config.get<string>('RESEND_FROM_EMAIL') || 'Laoji <no-reply@laojionline.com>';
   }
 
   async send(to: string, message: EmailMessage): Promise<EmailSendResult> {
