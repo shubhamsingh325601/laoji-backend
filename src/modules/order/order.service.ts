@@ -104,6 +104,7 @@ export class OrderService {
         platformCommission: subtotal * commissionPct,
         commissionPct,
         total,
+        instructions: dto.instructions ?? null,
         vendorId: candidate.vendorId,
         deliveryAddressId: dto.deliveryAddressId,
       })
@@ -225,6 +226,7 @@ export class OrderService {
         platformCommission: subtotal * commissionPct,
         commissionPct,
         total,
+        instructions: dto.instructions ?? null,
         restaurantId: dto.restaurantId,
         deliveryAddressId: dto.deliveryAddressId,
       })

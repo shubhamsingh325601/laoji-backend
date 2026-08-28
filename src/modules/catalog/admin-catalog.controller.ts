@@ -8,6 +8,7 @@ import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
+import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -60,7 +61,27 @@ export class AdminCatalogController {
   // its own not-yet-built screen, not part of Phase 4's order-list ask.
   @Get('vendors')
   listVendors() {
-    return this.catalog.listVendorsBasic();
+    return this.catalog.listVendorsAdmin();
+  }
+
+  @Get('vendors/:id')
+  getVendor(@Param('id') id: string) {
+    return this.catalog.getAdminVendor(id);
+  }
+
+  @Post('vendors')
+  createVendor(@Body() dto: CreateAdminVendorDto) {
+    return this.catalog.createAdminVendor(dto);
+  }
+
+  @Patch('vendors/:id')
+  updateVendor(@Param('id') id: string, @Body() dto: UpdateAdminVendorDto) {
+    return this.catalog.updateAdminVendor(id, dto);
+  }
+
+  @Delete('vendors/:id')
+  deleteVendor(@Param('id') id: string) {
+    return this.catalog.deleteAdminVendor(id);
   }
 
   @Get('restaurants')

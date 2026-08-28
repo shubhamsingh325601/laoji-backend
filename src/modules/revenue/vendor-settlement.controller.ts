@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -16,5 +16,10 @@ export class VendorSettlementController {
   async list(@CurrentUser() user: JwtAccessPayload) {
     const vendorId = await this.settlements.vendorIdForUser(user.sub);
     return this.settlements.listForVendor(vendorId);
+  }
+
+  @Post('withdraw')
+  async withdraw(@CurrentUser() user: JwtAccessPayload) {
+    return this.settlements.requestVendorWithdrawal(user.sub);
   }
 }

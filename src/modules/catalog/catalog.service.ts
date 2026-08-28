@@ -12,6 +12,7 @@ import {
   productSuggestions,
   products,
   restaurants,
+  users,
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
@@ -20,6 +21,7 @@ import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
+import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
@@ -674,5 +676,172 @@ export class CatalogService {
     }
 
     return updated;
+  }
+
+  // ---------- Admin Vendor Management (CRUD & Welcome Email) ----------
+
+  async listVendorsAdmin() {
+    const rows = await this.db
+      .select({
+        vendor: vendors,
+        user: users,
+      })
+      .from(vendors)
+      .innerJoin(users, eq(vendors.userId, users.id))
+      .orderBy(desc(vendors.createdAt));
+
+    return rows.map(({ vendor, user }) => ({
+      id: vendor.id,
+      userId: vendor.userId,
+      businessName: vendor.businessName,
+      ownerName: vendor.ownerName,
+      phone: user.phone,
+      email: user.email,
+      type: vendor.type,
+      shopAddress: vendor.shopAddress,
+      kycStatus: vendor.kycStatus,
+      activity: vendor.isOpen ? 'active' : 'inactive',
+      deliveryRadiusKm: vendor.radiusKm,
+      commissionPct: 10,
+      cashbackPct: 5,
+      discountPct: 0,
+      createdAt: vendor.createdAt,
+    }));
+  }
+
+  async getAdminVendor(id: string) {
+    const [row] = await this.db
+      .select({
+        vendor: vendors,
+        user: users,
+      })
+      .from(vendors)
+      .innerJoin(users, eq(vendors.userId, users.id))
+      .where(eq(vendors.id, id))
+      .limit(1);
+
+    if (!row) throw new NotFoundException('Vendor not found');
+    const { vendor, user } = row;
+
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, id)).limit(1);
+    const vendorProds = await this.db.select().from(vendorProducts).where(eq(vendorProducts.vendorId, id));
+
+    return {
+      id: vendor.id,
+      userId: vendor.userId,
+      businessName: vendor.businessName,
+      ownerName: vendor.ownerName,
+      phone: user.phone,
+      email: user.email,
+      type: vendor.type,
+      shopAddress: vendor.shopAddress,
+      kycStatus: vendor.kycStatus,
+      activity: vendor.isOpen ? 'active' : 'inactive',
+      deliveryRadiusKm: vendor.radiusKm,
+      commissionPct: 10,
+      cashbackPct: 5,
+      discountPct: 0,
+      rating: restaurant?.ratingAvg ?? 4.8,
+      ratingCount: 12,
+      productCount: vendorProds.length,
+      createdAt: vendor.createdAt,
+    };
+  }
+
+  async createAdminVendor(dto: CreateAdminVendorDto) {
+    let [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, dto.phone), eq(users.role, 'vendor')))
+      .limit(1);
+
+    if (!user) {
+      [user] = await this.db
+        .insert(users)
+        .values({
+          phone: dto.phone,
+          email: dto.email || null,
+          role: 'vendor',
+          status: 'active',
+        })
+        .returning();
+    } else if (dto.email && !user.email) {
+      await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+    }
+
+    const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
+
+    const [vendor] = await this.db
+      .insert(vendors)
+      .values({
+        userId: user.id,
+        businessName: dto.businessName,
+        ownerName: dto.ownerName,
+        type: dto.type,
+        shopAddress: dto.shopAddress || null,
+        pickupLat: 16.705,
+        pickupLng: 74.2433,
+        radiusKm: dto.deliveryRadiusKm ?? 5,
+        kycStatus: kycStat,
+        isOpen: true,
+      })
+      .returning();
+
+    if (dto.type === 'restaurant' || dto.type === 'both') {
+      await this.db.insert(restaurants).values({
+        vendorId: vendor.id,
+        name: dto.businessName,
+      });
+    }
+
+    // Send Welcome Email with corporate signature to the invited vendor
+    if (dto.email) {
+      this.notifications.sendWelcomeVendorEmail({
+        id: vendor.id,
+        businessName: dto.businessName,
+        ownerName: dto.ownerName,
+        email: dto.email,
+        phone: dto.phone,
+        type: dto.type,
+      });
+    }
+
+    return { ...vendor, phone: dto.phone, email: dto.email };
+  }
+
+  async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {
+    const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
+    if (!v) throw new NotFoundException('Vendor not found');
+
+    const updateFields: any = {};
+    if (dto.businessName !== undefined) updateFields.businessName = dto.businessName;
+    if (dto.ownerName !== undefined) updateFields.ownerName = dto.ownerName;
+    if (dto.type !== undefined) updateFields.type = dto.type;
+    if (dto.shopAddress !== undefined) updateFields.shopAddress = dto.shopAddress;
+    if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
+    if (dto.kycStatus !== undefined && dto.kycStatus !== 'unverified') updateFields.kycStatus = dto.kycStatus;
+    if (dto.activity !== undefined) updateFields.isOpen = dto.activity === 'active';
+
+    const [updated] = await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id)).returning();
+
+    if (dto.phone || dto.email) {
+      await this.db
+        .update(users)
+        .set({
+          phone: dto.phone || undefined,
+          email: dto.email || undefined,
+        })
+        .where(eq(users.id, v.userId));
+    }
+
+    return updated;
+  }
+
+  async deleteAdminVendor(id: string) {
+    const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
+    if (!v) throw new NotFoundException('Vendor not found');
+
+    await this.db.delete(vendors).where(eq(vendors.id, id));
+    return { success: true, message: `Vendor ${id} deleted successfully.` };
   }
 }

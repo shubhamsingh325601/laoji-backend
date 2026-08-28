@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsInt, IsOptional, IsUUID, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class FoodOrderLineDto {
   @IsUUID()
@@ -31,4 +31,9 @@ export class CreateFoodOrderDto {
 
   @IsUUID()
   deliveryAddressId: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  instructions?: string;
 }

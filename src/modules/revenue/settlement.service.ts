@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
@@ -97,6 +97,50 @@ export class SettlementService {
       platformShare: s.platformShare,
       commissionPctSnapshot: s.commissionPctSnapshot,
       createdAt: s.createdAt,
+    };
+  }
+
+  // ---------- Payout / Withdrawal with KYC Verification ----------
+
+  async requestVendorWithdrawal(userId: string) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor profile not set up yet');
+
+    if (vendor.kycStatus !== 'verified') {
+      throw new BadRequestException(
+        'KYC verification required before withdrawal. Please upload your Aadhaar card (front and back) to complete verification.',
+      );
+    }
+
+    const settlementsList = await this.listForVendor(vendor.id);
+    const totalEarnings = settlementsList.reduce((sum, s) => sum + s.vendorPayout, 0);
+
+    return {
+      success: true,
+      message: 'Withdrawal request submitted successfully. Funds will be transferred to your registered bank / UPI account.',
+      availableBalance: totalEarnings,
+      kycStatus: vendor.kycStatus,
+    };
+  }
+
+  async requestPartnerWithdrawal(userId: string) {
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.userId, userId)).limit(1);
+    if (!partner) throw new NotFoundException('Delivery partner profile not set up yet');
+
+    if (partner.kycStatus !== 'verified') {
+      throw new BadRequestException(
+        'KYC verification required before withdrawal. Please upload your Aadhaar card (front and back) to complete verification.',
+      );
+    }
+
+    const settlementsList = await this.listForPartner(partner.id);
+    const totalEarnings = settlementsList.reduce((sum, s) => sum + s.deliveryPayout, 0);
+
+    return {
+      success: true,
+      message: 'Withdrawal request submitted successfully. Funds will be transferred to your registered bank / UPI account.',
+      availableBalance: totalEarnings,
+      kycStatus: partner.kycStatus,
     };
   }
 

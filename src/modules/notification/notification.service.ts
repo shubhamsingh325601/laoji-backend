@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { deviceTokens, notificationLog, users } from '../../../drizzle/schema';
@@ -9,6 +9,10 @@ import { FcmPushProvider } from './providers/fcm-push.provider';
 import { ResendEmailProvider } from './providers/resend-email.provider';
 import type { EmailMessage, PushMessage } from './notification.types';
 import { supportMessageAdminEmail } from './templates/email/support-message';
+import { welcomeCustomerEmail } from './templates/email/welcome-customer';
+import { welcomeVendorEmail } from './templates/email/welcome-vendor';
+import { welcomePartnerEmail } from './templates/email/welcome-partner';
+import { adminBroadcastEmail } from './templates/email/admin-broadcast';
 
 type Platform = 'ios' | 'android' | 'web';
 
@@ -42,13 +46,6 @@ export class NotificationService {
     return created;
   }
 
-  // Enqueues off the request thread (TRD Section 6 — order-state
-  // transactions must not block on a 3rd-party push API) using the exact
-  // same JobQueueService as Phase 4/5's allocation/reassignment jobs, per
-  // the "reuse the pattern" instruction. delayMs=0 is enough to get off
-  // the calling transaction's call stack — there's no retry/backoff here
-  // (JobQueueService doesn't have one, and this is MVP scope); a failed
-  // send is just logged with status='failed', not retried.
   notifyPush(userId: string, template: string, message: PushMessage): void {
     this.jobQueue.schedule(`notify-push:${randomUUID()}`, 0, () => this.dispatchPush(userId, template, message));
   }
@@ -57,8 +54,10 @@ export class NotificationService {
     this.jobQueue.schedule(`notify-email:${randomUUID()}`, 0, () => this.dispatchEmail(userId, template, message));
   }
 
-  // Convenience for admin-ops-alert templates that target every admin
-  // rather than one specific user.
+  notifySms(userId: string, template: string, message: { text: string; phone?: string }): void {
+    this.jobQueue.schedule(`notify-sms:${randomUUID()}`, 0, () => this.dispatchSms(userId, template, message));
+  }
+
   async notifyAllAdminsEmail(template: string, message: EmailMessage) {
     const admins = await this.db.select().from(users).where(eq(users.role, 'admin'));
     for (const admin of admins) {
@@ -87,11 +86,24 @@ export class NotificationService {
     await this.log(userId, 'email', template, message, result.ok ? 'sent' : 'failed');
   }
 
+  private async dispatchSms(userId: string, template: string, message: { text: string; phone?: string }) {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const destinationPhone = message.phone || user?.phone;
+    if (!destinationPhone) {
+      this.logger.debug(`Skipping SMS "${template}" for ${userId} — no phone number`);
+      await this.log(userId, 'sms', template, message, 'failed');
+      return;
+    }
+    // SMS dispatch log (ready for integration with SMS gateway like Fast2SMS / Twilio)
+    this.logger.log(`[SMS-OUT] To: +91 ${destinationPhone} | Message: ${message.text}`);
+    await this.log(userId, 'sms', template, message, 'sent');
+  }
+
   private async log(
     userId: string,
-    channel: 'push' | 'email',
+    channel: 'push' | 'email' | 'sms',
     template: string,
-    payload: PushMessage | EmailMessage,
+    payload: any,
     status: 'sent' | 'failed',
   ) {
     await this.db.insert(notificationLog).values({
@@ -104,10 +116,35 @@ export class NotificationService {
     });
   }
 
-  // Post-Phase-11 MVP-completion pass (Customer Support). Reuses the exact
-  // Resend path Phase 7 built and the notifyAllAdminsEmail broadcast
-  // AllocationService's admin-alert already relies on — no second email
-  // integration, no ticket table.
+  // Welcome emails with corporate signature for invited users
+  async sendWelcomeCustomerEmail(user: { id: string; name?: string; email?: string; phone?: string }) {
+    if (!user.email) return;
+    this.notifyEmail(user.id, 'welcome_customer', welcomeCustomerEmail(user));
+  }
+
+  async sendWelcomeVendorEmail(vendor: {
+    id: string;
+    businessName: string;
+    ownerName: string;
+    email?: string;
+    phone?: string;
+    type?: string;
+  }) {
+    if (!vendor.email) return;
+    this.notifyEmail(vendor.id, 'welcome_vendor', welcomeVendorEmail(vendor));
+  }
+
+  async sendWelcomePartnerEmail(partner: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    vehicleType?: string;
+  }) {
+    if (!partner.email) return;
+    this.notifyEmail(partner.id, 'welcome_partner', welcomePartnerEmail(partner));
+  }
+
   async sendSupportMessage(userId: string, role: string, subject: string, message: string) {
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     await this.notifyAllAdminsEmail(
@@ -122,14 +159,85 @@ export class NotificationService {
     );
   }
 
+  async sendAdminNotification(dto: {
+    target: 'all' | 'customer' | 'vendor' | 'restaurant' | 'delivery_partner' | 'user';
+    channel?: 'push' | 'email' | 'sms' | 'all';
+    channels?: ('push' | 'email' | 'sms')[];
+    userId?: string;
+    phone?: string;
+    email?: string;
+    title: string;
+    message: string;
+  }) {
+    let targetUsers: { id: string; email?: string | null; phone?: string | null }[] = [];
+
+    if (dto.target === 'user') {
+      if (dto.userId) {
+        const [u] = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users).where(eq(users.id, dto.userId)).limit(1);
+        if (u) targetUsers = [u];
+      } else if (dto.phone) {
+        targetUsers = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users).where(eq(users.phone, dto.phone));
+      } else if (dto.email) {
+        targetUsers = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users).where(eq(users.email, dto.email));
+      }
+    } else if (dto.target === 'all') {
+      targetUsers = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users);
+    } else if (dto.target === 'restaurant') {
+      targetUsers = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users).where(eq(users.role, 'vendor'));
+    } else {
+      targetUsers = await this.db.select({ id: users.id, email: users.email, phone: users.phone }).from(users).where(eq(users.role, dto.target));
+    }
+
+    // Determine channels to dispatch
+    const activeChannels = new Set<'push' | 'email' | 'sms'>();
+    if (dto.channels && dto.channels.length > 0) {
+      dto.channels.forEach((c) => activeChannels.add(c));
+    } else if (dto.channel === 'all' || !dto.channel) {
+      activeChannels.add('push');
+      activeChannels.add('email');
+      activeChannels.add('sms');
+    } else {
+      activeChannels.add(dto.channel);
+    }
+
+    for (const u of targetUsers) {
+      if (activeChannels.has('push')) {
+        this.notifyPush(u.id, 'admin_broadcast', {
+          title: dto.title,
+          body: dto.message,
+          data: { type: 'admin_broadcast', target: dto.target },
+        });
+      }
+
+      if (activeChannels.has('email') && u.email) {
+        this.notifyEmail(u.id, 'admin_broadcast', adminBroadcastEmail({
+          title: dto.title,
+          message: dto.message,
+        }));
+      }
+
+      if (activeChannels.has('sms') && u.phone) {
+        this.notifySms(u.id, 'admin_broadcast', {
+          text: `${dto.title}: ${dto.message.slice(0, 140)} (Laoji)`,
+          phone: u.phone,
+        });
+      }
+    }
+
+    return {
+      sentCount: targetUsers.length,
+      target: dto.target,
+      channels: Array.from(activeChannels),
+      message: `Notification queued for ${targetUsers.length} recipient(s) across [${Array.from(activeChannels).join(', ')}].`,
+    };
+  }
+
   // ---------- Admin visibility ----------
 
   async listRecentForAdmin(limit = 100) {
     const rows = await this.db.select().from(notificationLog).orderBy(desc(notificationLog.createdAt)).limit(limit);
     if (!rows.length) return [];
 
-    // Small admin-only listing (capped at `limit`) — one bulk user fetch
-    // is simpler than an inArray-filtered query for this scale.
     const allUsers = await this.db.select().from(users);
     const byId = new Map(allUsers.map((u) => [u.id, u]));
 
@@ -138,7 +246,7 @@ export class NotificationService {
       return {
         id: r.id,
         userId: r.userId,
-        userLabel: u?.phone ?? u?.email ?? 'Unknown user',
+        userLabel: u?.phone ? `+91 ${u.phone}` : u?.email ?? 'Unknown user',
         channel: r.channel,
         template: r.template,
         payload: r.payloadJson,

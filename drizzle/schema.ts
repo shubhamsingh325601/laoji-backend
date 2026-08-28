@@ -46,18 +46,6 @@ export const users = pgTable(
     passwordHash: text('password_hash'),
     role: userRoleEnum('role').notNull(),
     status: userStatusEnum('status').notNull().default('active'),
-    // Admin-portal wiring pass: admin's own profile (SettingsPage) and
-    // customer support notes (CustomerDetailPage) both needed columns that
-    // didn't exist anywhere in the schema. Kept on `users` rather than new
-    // tables since both concepts are 1:1 with a single user row — an admin's
-    // display name/city/timezone/notification prefs, or free-text notes a
-    // support agent keeps on a customer.
-    name: varchar('name', { length: 200 }),
-    city: varchar('city', { length: 100 }),
-    timezone: varchar('timezone', { length: 50 }),
-    notifyStuckOrders: boolean('notify_stuck_orders').notNull().default(true),
-    notifyKyc: boolean('notify_kyc').notNull().default(true),
-    supportNotes: text('support_notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -161,6 +149,12 @@ export const vendors = pgTable('vendors', {
   businessName: varchar('business_name', { length: 200 }).notNull(),
   ownerName: varchar('owner_name', { length: 200 }).notNull(),
   type: vendorTypeEnum('type').notNull(),
+  shopAddress: text('shop_address'),
+  gstNumber: varchar('gst_number', { length: 50 }),
+  aadhaarNumber: varchar('aadhaar_number', { length: 20 }),
+  bankAccount: varchar('bank_account', { length: 50 }),
+  bankIfsc: varchar('bank_ifsc', { length: 20 }),
+  upiId: varchar('upi_id', { length: 100 }),
   // Reuses kyc_document_status's value set (pending|verified|rejected) — same
   // meaning, no need for a second identical enum type.
   kycStatus: kycDocumentStatusEnum('kyc_status').notNull().default('pending'),
@@ -198,6 +192,11 @@ export const deliveryPartners = pgTable('delivery_partners', {
   // Reuses kyc_document_status's value set, same as vendors.kycStatus.
   kycStatus: kycDocumentStatusEnum('kyc_status').notNull().default('pending'),
   vehicleType: varchar('vehicle_type', { length: 30 }).notNull(),
+  aadhaarNumber: varchar('aadhaar_number', { length: 20 }),
+  drivingLicense: varchar('driving_license', { length: 50 }),
+  bankAccount: varchar('bank_account', { length: 50 }),
+  bankIfsc: varchar('bank_ifsc', { length: 20 }),
+  upiId: varchar('upi_id', { length: 100 }),
   isOnline: boolean('is_online').notNull().default(false),
   currentLat: doublePrecision('current_lat'),
   currentLng: doublePrecision('current_lng'),
@@ -376,6 +375,7 @@ export const groceryOrders = pgTable('grocery_orders', {
   // Simple string for now — Payment module (Phase 6) owns the real
   // provider-backed payment_status lifecycle behind PaymentProvider.
   paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+  instructions: text('instructions'),
   vendorId: uuid('vendor_id').references(() => vendors.id),
   deliveryAddressId: uuid('delivery_address_id')
     .notNull()
@@ -427,6 +427,7 @@ export const foodOrders = pgTable('food_orders', {
   commissionPct: doublePrecision('commission_pct').notNull().default(0),
   total: doublePrecision('total').notNull(),
   paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+  instructions: text('instructions'),
   restaurantId: uuid('restaurant_id')
     .notNull()
     .references(() => restaurants.id),
@@ -589,7 +590,7 @@ export const deviceTokens = pgTable(
   (table) => [uniqueIndex('device_tokens_user_platform_idx').on(table.userId, table.platform)],
 );
 
-export const notificationChannelEnum = pgEnum('notification_channel', ['push', 'email']);
+export const notificationChannelEnum = pgEnum('notification_channel', ['push', 'email', 'sms']);
 export const notificationStatusEnum = pgEnum('notification_status', ['queued', 'sent', 'failed']);
 
 export const notificationLog = pgTable('notification_log', {
