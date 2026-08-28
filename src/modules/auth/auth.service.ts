@@ -179,6 +179,11 @@ export class AuthService {
   // KYC status) need somewhere real to send to for these roles, not just
   // admin's email+password login.
   async updateEmail(userId: string, email: string) {
+    const [existing] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (existing && existing.id !== userId) {
+      throw new ConflictException('This email is already in use by another account');
+    }
+
     const [user] = await this.db.update(users).set({ email }).where(eq(users.id, userId)).returning();
     if (!user) throw new UnauthorizedException('User no longer exists');
     const { passwordHash: _passwordHash, ...safeUser } = user;

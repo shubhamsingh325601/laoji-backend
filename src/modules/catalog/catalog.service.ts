@@ -765,8 +765,14 @@ export class CatalogService {
           status: 'active',
         })
         .returning();
-    } else if (dto.email && !user.email) {
-      await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+    } else {
+      if (dto.email && !user.email) {
+        await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+      }
+      const [existingVendor] = await this.db.select().from(vendors).where(eq(vendors.userId, user.id)).limit(1);
+      if (existingVendor) {
+        throw new ConflictException(`A vendor profile already exists for phone ${dto.phone}`);
+      }
     }
 
     const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
@@ -779,8 +785,8 @@ export class CatalogService {
         ownerName: dto.ownerName,
         type: dto.type,
         shopAddress: dto.shopAddress || null,
-        pickupLat: 16.705,
-        pickupLng: 74.2433,
+        pickupLat: dto.pickupLat ?? 16.705,
+        pickupLng: dto.pickupLng ?? 74.2433,
         radiusKm: dto.deliveryRadiusKm ?? 5,
         kycStatus: kycStat,
         isOpen: true,

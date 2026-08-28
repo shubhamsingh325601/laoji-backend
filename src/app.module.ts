@@ -45,6 +45,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
         // support-contact form, same abuse-prone-write reasoning as the
         // other named throttlers above.
         { name: 'supportContact', ttl: 60_000, limit: 5 },
+        // Doorstep 6-digit delivery OTP verification throttle against brute-force
+        { name: 'deliveryOtpVerify', ttl: 60_000, limit: 10 },
       ],
     }),
     HealthModule,

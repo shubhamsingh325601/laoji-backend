@@ -1,4 +1,4 @@
-﻿import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
 
 export class CreateAdminVendorDto {
   @IsString()
@@ -23,6 +23,14 @@ export class CreateAdminVendorDto {
   @IsOptional()
   @IsString()
   shopAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLng?: number;
 
   @IsOptional()
   @IsNumber()

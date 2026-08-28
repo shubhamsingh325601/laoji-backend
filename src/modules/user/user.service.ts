@@ -1,5 +1,5 @@
-﻿import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, or } from 'drizzle-orm';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { addresses, groceryOrders, foodOrders, users } from '../../../drizzle/schema';
@@ -28,8 +28,17 @@ export class UserService {
       );
     }
 
-    const allAddresses = await this.db.select().from(addresses);
-    const addrMap = new Map(allAddresses.map((a) => [a.userId, a]));
+    const userIds = filtered.map((u) => u.id);
+    const userAddresses = userIds.length
+      ? await this.db.select().from(addresses).where(inArray(addresses.userId, userIds))
+      : [];
+
+    const addrMap = new Map<string, typeof addresses.$inferSelect>();
+    for (const a of userAddresses) {
+      if (!addrMap.has(a.userId) || a.isDefault) {
+        addrMap.set(a.userId, a);
+      }
+    }
 
     return filtered.map((u) => {
       const addr = addrMap.get(u.id);

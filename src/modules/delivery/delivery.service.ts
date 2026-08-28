@@ -705,8 +705,14 @@ export class DeliveryService {
           status: 'active',
         })
         .returning();
-    } else if (dto.email && !user.email) {
-      await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+    } else {
+      if (dto.email && !user.email) {
+        await this.db.update(users).set({ email: dto.email }).where(eq(users.id, user.id));
+      }
+      const [existingPartner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.userId, user.id)).limit(1);
+      if (existingPartner) {
+        throw new BadRequestException(`A delivery partner profile already exists for phone ${dto.phone}`);
+      }
     }
 
     const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
