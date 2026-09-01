@@ -20,8 +20,8 @@ export declare class AdminCatalogController {
     createCategory(dto: CreateCategoryDto): Promise<{
         id: string;
         name: string;
-        parentId: string | null;
         imageUrl: string | null;
+        parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
         id: string;
@@ -444,9 +444,9 @@ export declare class AdminCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        description: string | null;
         imageUrl: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -506,32 +506,22 @@ export declare class AdminCatalogController {
         createdAt: Date;
     }>;
     createVendor(dto: CreateAdminVendorDto): Promise<{
-        phone: string;
-        email: string | null;
-        tempPassword: string;
         id: string;
-        createdAt: Date;
         userId: string;
         businessName: string;
         ownerName: string;
+        phone: string;
+        email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
-        gstNumber: string | null;
-        aadhaarNumber: string | null;
-        bankAccount: string | null;
-        bankIfsc: string | null;
-        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
-        isOpen: boolean;
-        businessHours: {
-            day: number;
-            isOpen: boolean;
-            openTime: string;
-            closeTime: string;
-        }[] | null;
+        activity: string;
+        deliveryRadiusKm: number;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        tempPassword: string;
+        createdAt: Date;
     }>;
     updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
         id: string;
@@ -595,9 +585,9 @@ export declare class AdminCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

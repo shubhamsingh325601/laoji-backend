@@ -158,9 +158,9 @@ export declare class PublicCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        description: string | null;
         imageUrl: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;

@@ -785,7 +785,24 @@ let CatalogService = class CatalogService {
                 console.error('[CatalogService] Failed to queue welcome vendor email:', err);
             }
         }
-        return { ...vendor, phone, email, tempPassword };
+        return {
+            id: vendor.id,
+            userId: vendor.userId,
+            businessName: vendor.businessName,
+            ownerName: vendor.ownerName,
+            phone,
+            email,
+            type: vendor.type,
+            shopAddress: vendor.shopAddress,
+            kycStatus: vendor.kycStatus,
+            activity: vendor.isOpen ? 'active' : 'inactive',
+            deliveryRadiusKm: vendor.radiusKm,
+            commissionPct: 10,
+            cashbackPct: 5,
+            discountPct: 0,
+            tempPassword,
+            createdAt: vendor.createdAt,
+        };
     }
     async updateAdminVendor(id, dto) {
         const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).limit(1);

@@ -948,7 +948,24 @@ export class CatalogService {
       }
     }
 
-    return { ...vendor, phone, email, tempPassword };
+    return {
+      id: vendor.id,
+      userId: vendor.userId,
+      businessName: vendor.businessName,
+      ownerName: vendor.ownerName,
+      phone,
+      email,
+      type: vendor.type,
+      shopAddress: vendor.shopAddress,
+      kycStatus: vendor.kycStatus,
+      activity: vendor.isOpen ? 'active' : 'inactive',
+      deliveryRadiusKm: vendor.radiusKm,
+      commissionPct: 10,
+      cashbackPct: 5,
+      discountPct: 0,
+      tempPassword,
+      createdAt: vendor.createdAt,
+    };
   }
 
   async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {
