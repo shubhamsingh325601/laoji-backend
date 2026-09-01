@@ -59,12 +59,6 @@ export declare class AuthService {
         email: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
-        name: string | null;
-        city: string | null;
-        timezone: string | null;
-        notifyStuckOrders: boolean;
-        notifyKyc: boolean;
-        supportNotes: string | null;
         mustChangePassword: boolean;
         createdAt: Date;
     }>;
@@ -74,12 +68,6 @@ export declare class AuthService {
         email: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
-        name: string | null;
-        city: string | null;
-        timezone: string | null;
-        notifyStuckOrders: boolean;
-        notifyKyc: boolean;
-        supportNotes: string | null;
         mustChangePassword: boolean;
         createdAt: Date;
     }>;

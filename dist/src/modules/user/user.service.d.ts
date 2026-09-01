@@ -69,17 +69,11 @@ export declare class UserService {
     }>;
     createUser(dto: CreateAdminUserDto): Promise<{
         id: string;
-        name: string | null;
         phone: string | null;
         email: string | null;
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
-        city: string | null;
-        timezone: string | null;
-        notifyStuckOrders: boolean;
-        notifyKyc: boolean;
-        supportNotes: string | null;
         mustChangePassword: boolean;
         createdAt: Date;
     }>;
@@ -90,12 +84,6 @@ export declare class UserService {
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
-        name: string | null;
-        city: string | null;
-        timezone: string | null;
-        notifyStuckOrders: boolean;
-        notifyKyc: boolean;
-        supportNotes: string | null;
         mustChangePassword: boolean;
         createdAt: Date;
     }>;

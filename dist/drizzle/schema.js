@@ -17,12 +17,6 @@ exports.users = (0, pg_core_1.pgTable)('users', {
     passwordHash: (0, pg_core_1.text)('password_hash'),
     role: (0, exports.userRoleEnum)('role').notNull(),
     status: (0, exports.userStatusEnum)('status').notNull().default('active'),
-    name: (0, pg_core_1.varchar)('name', { length: 200 }),
-    city: (0, pg_core_1.varchar)('city', { length: 100 }),
-    timezone: (0, pg_core_1.varchar)('timezone', { length: 50 }),
-    notifyStuckOrders: (0, pg_core_1.boolean)('notify_stuck_orders').notNull().default(true),
-    notifyKyc: (0, pg_core_1.boolean)('notify_kyc').notNull().default(true),
-    supportNotes: (0, pg_core_1.text)('support_notes'),
     mustChangePassword: (0, pg_core_1.boolean)('must_change_password').notNull().default(false),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
