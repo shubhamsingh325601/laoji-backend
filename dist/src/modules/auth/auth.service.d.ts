@@ -21,11 +21,20 @@ export declare class AuthService {
         userId: string;
         role: UserRole;
     }>;
-    vendorLogin(phone: string, password: string, deviceId?: string): Promise<{
+    vendorLogin(identifier: {
+        email?: string;
+        phone?: string;
+    } | string, password: string, deviceId?: string): Promise<{
         tokens: TokenPair;
         userId: string;
         role: UserRole;
+        mustChangePassword: boolean;
         vendor?: any;
+    }>;
+    createPassword(userId: string, newPassword: string): Promise<{
+        success: boolean;
+        message: string;
+        mustChangePassword: boolean;
     }>;
     vendorRegister(dto: VendorRegisterDto): Promise<{
         tokens: TokenPair;
@@ -50,6 +59,13 @@ export declare class AuthService {
         email: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
         createdAt: Date;
     }>;
     updateEmail(userId: string, email: string): Promise<{
@@ -58,6 +74,13 @@ export declare class AuthService {
         email: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
         createdAt: Date;
     }>;
     private findOrCreateByPhone;

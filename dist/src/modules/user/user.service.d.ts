@@ -68,12 +68,19 @@ export declare class UserService {
         createdAt: Date;
     }>;
     createUser(dto: CreateAdminUserDto): Promise<{
-        phone: string | null;
         id: string;
+        name: string | null;
+        phone: string | null;
         email: string | null;
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
         createdAt: Date;
     }>;
     updateUser(id: string, dto: UpdateAdminUserDto): Promise<{
@@ -83,6 +90,13 @@ export declare class UserService {
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
         createdAt: Date;
     }>;
     deleteUser(id: string): Promise<{

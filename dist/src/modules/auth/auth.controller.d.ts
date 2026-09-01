@@ -6,6 +6,8 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
+import { CreatePasswordDto } from './dto/create-password.dto';
+import type { JwtAccessPayload } from './auth.types';
 export declare class AuthController {
     private readonly auth;
     constructor(auth: AuthService);
@@ -27,7 +29,18 @@ export declare class AuthController {
         tokens: import("./auth.types").TokenPair;
         userId: string;
         role: import("./auth.types").UserRole;
+        mustChangePassword: boolean;
         vendor?: any;
+    }>;
+    vendorCreatePassword(user: JwtAccessPayload, dto: CreatePasswordDto): Promise<{
+        success: boolean;
+        message: string;
+        mustChangePassword: boolean;
+    }>;
+    changePassword(user: JwtAccessPayload, dto: CreatePasswordDto): Promise<{
+        success: boolean;
+        message: string;
+        mustChangePassword: boolean;
     }>;
     vendorRegister(dto: VendorRegisterDto): Promise<{
         tokens: import("./auth.types").TokenPair;

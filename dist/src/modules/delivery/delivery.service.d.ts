@@ -316,12 +316,12 @@ export declare class DeliveryService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        updatedAt: Date;
         vehicleType: string;
         drivingLicense: string | null;
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;

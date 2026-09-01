@@ -1,6 +1,6 @@
 {
-  "id": "e27c48b4-6a40-4b48-af60-6107d6e639a2",
-  "prevId": "73b1d2d0-ae5c-4005-9d6f-961ceb636f09",
+  "id": "484b27e7-ddef-49d1-b73b-1387f30e8aeb",
+  "prevId": "e27c48b4-6a40-4b48-af60-6107d6e639a2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -425,6 +425,36 @@
           "primaryKey": false,
           "notNull": true
         },
+        "aadhaar_number": {
+          "name": "aadhaar_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "driving_license": {
+          "name": "driving_license",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_account": {
+          "name": "bank_account",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_ifsc": {
+          "name": "bank_ifsc",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upi_id": {
+          "name": "upi_id",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_online": {
           "name": "is_online",
           "type": "boolean",
@@ -823,6 +853,12 @@
           "notNull": true,
           "default": "'pending'"
         },
+        "instructions": {
+          "name": "instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "restaurant_id": {
           "name": "restaurant_id",
           "type": "uuid",
@@ -1051,6 +1087,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'pending'"
+        },
+        "instructions": {
+          "name": "instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "vendor_id": {
           "name": "vendor_id",
@@ -2483,6 +2525,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "must_change_password": {
+          "name": "must_change_password",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2680,6 +2729,42 @@
           "primaryKey": false,
           "notNull": true
         },
+        "shop_address": {
+          "name": "shop_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gst_number": {
+          "name": "gst_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aadhaar_number": {
+          "name": "aadhaar_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_account": {
+          "name": "bank_account",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_ifsc": {
+          "name": "bank_ifsc",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upi_id": {
+          "name": "upi_id",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "kyc_status": {
           "name": "kyc_status",
           "type": "kyc_document_status",
@@ -2814,7 +2899,8 @@
       "schema": "public",
       "values": [
         "push",
-        "email"
+        "email",
+        "sms"
       ]
     },
     "public.notification_status": {

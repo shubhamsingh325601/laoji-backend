@@ -9,33 +9,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VendorLoginDto = void 0;
+exports.CreatePasswordDto = void 0;
 const class_validator_1 = require("class-validator");
-class VendorLoginDto {
-    email;
-    phone;
-    password;
-    deviceId;
+class CreatePasswordDto {
+    newPassword;
 }
-exports.VendorLoginDto = VendorLoginDto;
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], VendorLoginDto.prototype, "email", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], VendorLoginDto.prototype, "phone", void 0);
+exports.CreatePasswordDto = CreatePasswordDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Length)(4, 100, { message: 'Password must be at least 4 characters' }),
+    (0, class_validator_1.Length)(4, 100, { message: 'Password must be at least 4 characters long' }),
     __metadata("design:type", String)
-], VendorLoginDto.prototype, "password", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], VendorLoginDto.prototype, "deviceId", void 0);
-//# sourceMappingURL=vendor-login.dto.js.map
+], CreatePasswordDto.prototype, "newPassword", void 0);
+//# sourceMappingURL=create-password.dto.js.map

@@ -5,4 +5,6 @@ export declare function welcomeVendorEmail(params: {
     phone?: string;
     email?: string;
     type?: string;
+    tempPassword?: string;
+    apkDownloadUrl?: string;
 }): EmailMessage;

@@ -17,13 +17,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
       console.error('[HttpExceptionFilter] Unhandled exception:', exception);
     }
 
-    const status =
+    let status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const body =
+    let body =
       exception instanceof HttpException ? exception.getResponse() : undefined;
+
+    // Handle database constraint violations gracefully instead of 500
+    if (!(exception instanceof HttpException) && typeof exception === 'object' && exception !== null) {
+      const err = exception as { code?: string; detail?: string; message?: string };
+      if (err.code === '23503') {
+        status = HttpStatus.CONFLICT;
+        body = {
+          error: 'Conflict',
+          message: err.detail || 'Cannot complete operation: this record is referenced by other items.',
+        };
+      } else if (err.code === '23505') {
+        status = HttpStatus.CONFLICT;
+        body = {
+          error: 'Conflict',
+          message: err.detail || 'A record with this unique information already exists.',
+        };
+      }
+    }
 
     const { code, message, details } = normalize(status, body);
 

@@ -8,22 +8,22 @@ export declare class VendorCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
-        type: "grocery" | "restaurant" | "both";
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
         id: string;
         createdAt: Date;
         userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
         isOpen: boolean;
         businessHours: {
             day: number;
@@ -33,6 +33,9 @@ export declare class VendorCatalogController {
         }[] | null;
     }>;
     myProfile(user: JwtAccessPayload): Promise<{
+        email: string | null;
+        phone: string | null;
+        mustChangePassword: boolean;
         id: string;
         userId: string;
         businessName: string;
@@ -56,7 +59,7 @@ export declare class VendorCatalogController {
             closeTime: string;
         }[] | null;
         createdAt: Date;
-    }>;
+    } | null>;
     updateBusinessHours(user: JwtAccessPayload, dto: UpdateBusinessHoursDto): Promise<{
         id: string;
         userId: string;

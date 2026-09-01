@@ -14,6 +14,9 @@ export declare class CatalogService {
     private readonly notifications;
     constructor(db: Db, notifications: NotificationService);
     getVendorByUserId(userId: string): Promise<{
+        email: string | null;
+        phone: string | null;
+        mustChangePassword: boolean;
         id: string;
         userId: string;
         businessName: string;
@@ -37,8 +40,11 @@ export declare class CatalogService {
             closeTime: string;
         }[] | null;
         createdAt: Date;
-    }>;
+    } | null>;
     requireVendor(userId: string): Promise<{
+        email: string | null;
+        phone: string | null;
+        mustChangePassword: boolean;
         id: string;
         userId: string;
         businessName: string;
@@ -64,22 +70,22 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
-        type: "grocery" | "restaurant" | "both";
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
         id: string;
         createdAt: Date;
         userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
         isOpen: boolean;
         businessHours: {
             day: number;
@@ -297,7 +303,10 @@ export declare class CatalogService {
         name: string;
         imageUrl: string | null;
     }>;
-    deleteCategory(id: string): Promise<void>;
+    deleteCategory(id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     listProducts(categoryId?: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"products", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -742,7 +751,10 @@ export declare class CatalogService {
         status: "active" | "inactive";
         createdAt: Date;
     }>;
-    deleteProduct(id: string): Promise<void>;
+    deleteProduct(id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     listVendorProducts(vendorId: string): Promise<{
         product: {
             id: string;
@@ -1567,22 +1579,23 @@ export declare class CatalogService {
     createAdminVendor(dto: CreateAdminVendorDto): Promise<{
         phone: string;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
+        tempPassword: string;
         id: string;
         createdAt: Date;
         userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
         isOpen: boolean;
         businessHours: {
             day: number;

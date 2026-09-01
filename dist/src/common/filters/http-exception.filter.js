@@ -15,10 +15,27 @@ let HttpExceptionFilter = class HttpExceptionFilter {
         if (!(exception instanceof common_1.HttpException)) {
             console.error('[HttpExceptionFilter] Unhandled exception:', exception);
         }
-        const status = exception instanceof common_1.HttpException
+        let status = exception instanceof common_1.HttpException
             ? exception.getStatus()
             : common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-        const body = exception instanceof common_1.HttpException ? exception.getResponse() : undefined;
+        let body = exception instanceof common_1.HttpException ? exception.getResponse() : undefined;
+        if (!(exception instanceof common_1.HttpException) && typeof exception === 'object' && exception !== null) {
+            const err = exception;
+            if (err.code === '23503') {
+                status = common_1.HttpStatus.CONFLICT;
+                body = {
+                    error: 'Conflict',
+                    message: err.detail || 'Cannot complete operation: this record is referenced by other items.',
+                };
+            }
+            else if (err.code === '23505') {
+                status = common_1.HttpStatus.CONFLICT;
+                body = {
+                    error: 'Conflict',
+                    message: err.detail || 'A record with this unique information already exists.',
+                };
+            }
+        }
         const { code, message, details } = normalize(status, body);
         response.status(status).json({ error: { code, message, details } });
     }

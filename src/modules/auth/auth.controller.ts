@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -8,6 +8,10 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
+import { CreatePasswordDto } from './dto/create-password.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtAccessPayload } from './auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -39,7 +43,21 @@ export class AuthController {
   @Throttle({ vendorLogin: { limit: 10, ttl: 60_000 } })
   @Post('vendor/login')
   vendorLogin(@Body() dto: VendorLoginDto) {
-    return this.auth.vendorLogin(dto.phone, dto.password, dto.deviceId);
+    return this.auth.vendorLogin({ email: dto.email, phone: dto.phone }, dto.password, dto.deviceId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ changePassword: { limit: 5, ttl: 60_000 } })
+  @Post('vendor/create-password')
+  vendorCreatePassword(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreatePasswordDto) {
+    return this.auth.createPassword(user.sub, dto.newPassword);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ changePassword: { limit: 5, ttl: 60_000 } })
+  @Post('change-password')
+  changePassword(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreatePasswordDto) {
+    return this.auth.createPassword(user.sub, dto.newPassword);
   }
 
   @Throttle({ vendorLogin: { limit: 10, ttl: 60_000 } })

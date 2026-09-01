@@ -47,9 +47,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
         { name: 'supportContact', ttl: 60_000, limit: 5 },
         // Doorstep 6-digit delivery OTP verification throttle against brute-force
         { name: 'deliveryOtpVerify', ttl: 60_000, limit: 10 },
-        // Vendor password login and forgot password throttlers
+        // Vendor password login, forgot password, and change password throttlers
         { name: 'vendorLogin', ttl: 60_000, limit: 10 },
         { name: 'forgotPassword', ttl: 60_000, limit: 10 },
+        { name: 'changePassword', ttl: 60_000, limit: 10 },
       ],
     }),
     HealthModule,

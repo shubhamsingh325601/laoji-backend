@@ -29,7 +29,10 @@ export declare class AdminCatalogController {
         name: string;
         imageUrl: string | null;
     }>;
-    deleteCategory(id: string): Promise<void>;
+    deleteCategory(id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     listProducts(): Omit<import("drizzle-orm/pg-core").PgSelectBase<"products", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -461,7 +464,10 @@ export declare class AdminCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
     }>;
-    deleteProduct(id: string): Promise<void>;
+    deleteProduct(id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     listVendors(): Promise<{
         id: string;
         userId: string;
@@ -502,22 +508,23 @@ export declare class AdminCatalogController {
     createVendor(dto: CreateAdminVendorDto): Promise<{
         phone: string;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
+        tempPassword: string;
         id: string;
         createdAt: Date;
         userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
         isOpen: boolean;
         businessHours: {
             day: number;

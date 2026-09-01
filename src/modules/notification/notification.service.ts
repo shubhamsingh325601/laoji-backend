@@ -133,6 +133,8 @@ export class NotificationService {
     email?: string;
     phone?: string;
     type?: string;
+    tempPassword?: string;
+    apkDownloadUrl?: string;
   }) {
     if (!vendor.email) return;
     this.notifyEmail(vendor.id, 'welcome_vendor', welcomeVendorEmail(vendor));

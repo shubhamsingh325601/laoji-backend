@@ -1,5 +1,6 @@
 export declare class VendorLoginDto {
-    phone: string;
+    email?: string;
+    phone?: string;
     password: string;
     deviceId?: string;
 }

@@ -1,10 +1,13 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import * as bcrypt from 'bcryptjs';
+import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
   categories,
   foodOrderRatings,
+  groceryOrderItems,
   menuCategories,
   menuItemAddons,
   menuItems,
@@ -50,7 +53,14 @@ export class CatalogService {
 
   async getVendorByUserId(userId: string) {
     const [row] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
-    return row ?? null;
+    if (!row) return null;
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    return {
+      ...row,
+      email: user?.email ?? null,
+      phone: user?.phone ?? null,
+      mustChangePassword: user?.mustChangePassword ?? false,
+    };
   }
 
   async requireVendor(userId: string) {
@@ -157,7 +167,64 @@ export class CatalogService {
   }
 
   async deleteCategory(id: string) {
+    const [cat] = await this.db
+      .select()
+      .from(categories)
+      .where(eq(categories.id, id))
+      .limit(1);
+    if (!cat) throw new NotFoundException('Category not found');
+
+    // 1. Check if the category directly contains products
+    const [directProduct] = await this.db
+      .select({ id: products.id, name: products.name })
+      .from(products)
+      .where(eq(products.categoryId, id))
+      .limit(1);
+
+    if (directProduct) {
+      throw new ConflictException(
+        `Cannot delete category "${cat.name}" because it contains products. Please delete or reassign its products first.`,
+      );
+    }
+
+    // 2. Check for subcategories and whether any subcategory contains products
+    const subcats = await this.db
+      .select()
+      .from(categories)
+      .where(eq(categories.parentId, id));
+
+    if (subcats.length > 0) {
+      const subcatIds = subcats.map((s) => s.id);
+      const [subProduct] = await this.db
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(inArray(products.categoryId, subcatIds))
+        .limit(1);
+
+      if (subProduct) {
+        throw new ConflictException(
+          `Cannot delete category "${cat.name}" because its subcategories contain products. Please delete or reassign products first.`,
+        );
+      }
+    }
+
+    const allCatIds = [id, ...subcats.map((s) => s.id)];
+
+    // 3. Clean up any product suggestions referencing this category or its subcategories
+    await this.db
+      .delete(productSuggestions)
+      .where(inArray(productSuggestions.categoryId, allCatIds));
+
+    // 4. Delete subcategories if any
+    if (subcats.length > 0) {
+      await this.db
+        .delete(categories)
+        .where(inArray(categories.id, subcats.map((s) => s.id)));
+    }
+
+    // 5. Delete the category itself
     await this.db.delete(categories).where(eq(categories.id, id));
+    return { success: true, message: `Category "${cat.name}" deleted successfully.` };
   }
 
   // ---------- Admin + Vendor: master product catalog ----------
@@ -187,7 +254,40 @@ export class CatalogService {
   }
 
   async deleteProduct(id: string) {
+    const [prod] = await this.db
+      .select()
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1);
+    if (!prod) throw new NotFoundException('Product not found');
+
+    // 1. Check if the product is linked to any customer orders
+    const [orderItem] = await this.db
+      .select({ id: groceryOrderItems.id })
+      .from(groceryOrderItems)
+      .where(eq(groceryOrderItems.productId, id))
+      .limit(1);
+
+    if (orderItem) {
+      throw new ConflictException(
+        `Cannot delete product "${prod.name}" because it is linked to existing customer orders. Please set its status to inactive instead.`,
+      );
+    }
+
+    // 2. Disassociate any product suggestions pointing to this product (productId is nullable)
+    await this.db
+      .update(productSuggestions)
+      .set({ productId: null })
+      .where(eq(productSuggestions.productId, id));
+
+    // 3. Clean up any vendor product listings for this product
+    await this.db
+      .delete(vendorProducts)
+      .where(eq(vendorProducts.productId, id));
+
+    // 4. Delete the product
     await this.db.delete(products).where(eq(products.id, id));
+    return { success: true, message: `Product "${prod.name}" deleted successfully.` };
   }
 
   // ---------- Vendor: own stock/price/availability ----------
@@ -754,10 +854,24 @@ export class CatalogService {
     const phone = dto.phone.trim();
     const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
 
+    // Generate a secure, readable random temporary password for the invited vendor (e.g. LJ#7k9m2)
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+    let rand = '';
+    for (let i = 0; i < 5; i++) {
+      rand += chars.charAt(randomInt(0, chars.length));
+    }
+    const tempPassword = `LJ#${rand}`;
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
     let [user] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, phone), eq(users.role, 'vendor')))
+      .where(
+        and(
+          email ? or(eq(users.phone, phone), ilike(users.email, email)) : eq(users.phone, phone),
+          eq(users.role, 'vendor'),
+        ),
+      )
       .limit(1);
 
     if (!user) {
@@ -768,16 +882,25 @@ export class CatalogService {
           email,
           role: 'vendor',
           status: 'active',
+          passwordHash,
+          mustChangePassword: true,
         })
         .returning();
     } else {
-      if (email && !user.email) {
-        await this.db.update(users).set({ email }).where(eq(users.id, user.id));
-      }
       const [existingVendor] = await this.db.select().from(vendors).where(eq(vendors.userId, user.id)).limit(1);
       if (existingVendor) {
-        throw new ConflictException(`A vendor profile already exists for phone ${phone}`);
+        throw new ConflictException(`A vendor profile already exists for phone ${phone} or email ${email ?? ''}`);
       }
+      [user] = await this.db
+        .update(users)
+        .set({
+          phone,
+          ...(email ? { email } : {}),
+          passwordHash,
+          mustChangePassword: true,
+        })
+        .where(eq(users.id, user.id))
+        .returning();
     }
 
     const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
@@ -808,7 +931,7 @@ export class CatalogService {
       }
     }
 
-    // Send Welcome Email with corporate signature to the invited vendor
+    // Send Welcome Email with credentials and APK download/install instructions
     if (email) {
       try {
         this.notifications.sendWelcomeVendorEmail({
@@ -818,13 +941,14 @@ export class CatalogService {
           email,
           phone,
           type: dto.type,
+          tempPassword,
         });
       } catch (err) {
         console.error('[CatalogService] Failed to queue welcome vendor email:', err);
       }
     }
 
-    return { ...vendor, phone, email };
+    return { ...vendor, phone, email, tempPassword };
   }
 
   async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {

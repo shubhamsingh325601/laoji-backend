@@ -122,26 +122,76 @@ let AuthService = class AuthService {
         const tokens = await this.issueTokens(user.id, user.role);
         return { tokens, userId: user.id, role: user.role };
     }
-    async vendorLogin(phone, password, deviceId) {
-        const trimmedPhone = phone.trim();
-        const [user] = await this.db
-            .select()
-            .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
-            .limit(1);
+    async vendorLogin(identifier, password, deviceId) {
+        const email = typeof identifier === 'object' ? identifier.email : undefined;
+        const phone = typeof identifier === 'object' ? identifier.phone : identifier;
+        let user;
+        if (email && email.trim()) {
+            const trimmedEmail = email.trim().toLowerCase();
+            const [u] = await this.db
+                .select()
+                .from(schema_1.users)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.ilike)(schema_1.users.email, trimmedEmail), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+                .limit(1);
+            user = u;
+        }
+        else if (phone && phone.trim()) {
+            const trimmedPhone = phone.trim();
+            const [u] = await this.db
+                .select()
+                .from(schema_1.users)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+                .limit(1);
+            user = u;
+        }
+        else {
+            throw new common_1.BadRequestException('Please provide your email address or mobile number');
+        }
         if (!user) {
-            throw new common_1.UnauthorizedException('Invalid phone number or password');
+            throw new common_1.UnauthorizedException('Invalid email or password');
         }
         if (!user.passwordHash) {
             throw new common_1.UnauthorizedException('Password not set for this account. Please use Forgot Password to set one.');
         }
         const matches = await bcrypt.compare(password, user.passwordHash);
         if (!matches) {
-            throw new common_1.UnauthorizedException('Invalid phone number or password');
+            throw new common_1.UnauthorizedException('Invalid email or password');
         }
         const tokens = await this.issueTokens(user.id, user.role, deviceId);
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, user.id)).limit(1);
-        return { tokens, userId: user.id, role: user.role, vendor: vendor ?? undefined };
+        return {
+            tokens,
+            userId: user.id,
+            role: user.role,
+            mustChangePassword: !!user.mustChangePassword,
+            vendor: vendor
+                ? {
+                    ...vendor,
+                    email: user.email,
+                    phone: user.phone,
+                    mustChangePassword: !!user.mustChangePassword,
+                }
+                : undefined,
+        };
+    }
+    async createPassword(userId, newPassword) {
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        if (!user) {
+            throw new common_1.NotFoundException('User account not found');
+        }
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await this.db
+            .update(schema_1.users)
+            .set({
+            passwordHash,
+            mustChangePassword: false,
+        })
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        return {
+            success: true,
+            message: 'Password created successfully',
+            mustChangePassword: false,
+        };
     }
     async vendorRegister(dto) {
         const trimmedPhone = dto.phone.trim();

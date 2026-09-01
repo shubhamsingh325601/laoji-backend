@@ -42,6 +42,8 @@ export declare class NotificationService {
         email?: string;
         phone?: string;
         type?: string;
+        tempPassword?: string;
+        apkDownloadUrl?: string;
     }): Promise<void>;
     sendWelcomePartnerEmail(partner: {
         id: string;
@@ -62,7 +64,7 @@ export declare class NotificationService {
         message: string;
     }): Promise<{
         sentCount: number;
-        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
+        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "user" | "all";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
@@ -73,7 +75,7 @@ export declare class NotificationService {
         channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "failed" | "sent" | "queued";
+        status: "failed" | "queued" | "sent";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;

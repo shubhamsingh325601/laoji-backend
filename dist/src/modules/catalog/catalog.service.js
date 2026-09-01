@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -15,6 +48,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CatalogService = void 0;
 const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
+const bcrypt = __importStar(require("bcryptjs"));
+const crypto_1 = require("crypto");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const catalog_types_1 = require("./catalog.types");
@@ -29,7 +64,15 @@ let CatalogService = class CatalogService {
     }
     async getVendorByUserId(userId) {
         const [row] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
-        return row ?? null;
+        if (!row)
+            return null;
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        return {
+            ...row,
+            email: user?.email ?? null,
+            phone: user?.phone ?? null,
+            mustChangePassword: user?.mustChangePassword ?? false,
+        };
     }
     async requireVendor(userId) {
         const vendor = await this.getVendorByUserId(userId);
@@ -122,7 +165,47 @@ let CatalogService = class CatalogService {
         return row;
     }
     async deleteCategory(id) {
+        const [cat] = await this.db
+            .select()
+            .from(schema_1.categories)
+            .where((0, drizzle_orm_1.eq)(schema_1.categories.id, id))
+            .limit(1);
+        if (!cat)
+            throw new common_1.NotFoundException('Category not found');
+        const [directProduct] = await this.db
+            .select({ id: schema_1.products.id, name: schema_1.products.name })
+            .from(schema_1.products)
+            .where((0, drizzle_orm_1.eq)(schema_1.products.categoryId, id))
+            .limit(1);
+        if (directProduct) {
+            throw new common_1.ConflictException(`Cannot delete category "${cat.name}" because it contains products. Please delete or reassign its products first.`);
+        }
+        const subcats = await this.db
+            .select()
+            .from(schema_1.categories)
+            .where((0, drizzle_orm_1.eq)(schema_1.categories.parentId, id));
+        if (subcats.length > 0) {
+            const subcatIds = subcats.map((s) => s.id);
+            const [subProduct] = await this.db
+                .select({ id: schema_1.products.id, name: schema_1.products.name })
+                .from(schema_1.products)
+                .where((0, drizzle_orm_1.inArray)(schema_1.products.categoryId, subcatIds))
+                .limit(1);
+            if (subProduct) {
+                throw new common_1.ConflictException(`Cannot delete category "${cat.name}" because its subcategories contain products. Please delete or reassign products first.`);
+            }
+        }
+        const allCatIds = [id, ...subcats.map((s) => s.id)];
+        await this.db
+            .delete(schema_1.productSuggestions)
+            .where((0, drizzle_orm_1.inArray)(schema_1.productSuggestions.categoryId, allCatIds));
+        if (subcats.length > 0) {
+            await this.db
+                .delete(schema_1.categories)
+                .where((0, drizzle_orm_1.inArray)(schema_1.categories.id, subcats.map((s) => s.id)));
+        }
         await this.db.delete(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id));
+        return { success: true, message: `Category "${cat.name}" deleted successfully.` };
     }
     listProducts(categoryId) {
         return this.db
@@ -147,7 +230,30 @@ let CatalogService = class CatalogService {
         return row;
     }
     async deleteProduct(id) {
+        const [prod] = await this.db
+            .select()
+            .from(schema_1.products)
+            .where((0, drizzle_orm_1.eq)(schema_1.products.id, id))
+            .limit(1);
+        if (!prod)
+            throw new common_1.NotFoundException('Product not found');
+        const [orderItem] = await this.db
+            .select({ id: schema_1.groceryOrderItems.id })
+            .from(schema_1.groceryOrderItems)
+            .where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, id))
+            .limit(1);
+        if (orderItem) {
+            throw new common_1.ConflictException(`Cannot delete product "${prod.name}" because it is linked to existing customer orders. Please set its status to inactive instead.`);
+        }
+        await this.db
+            .update(schema_1.productSuggestions)
+            .set({ productId: null })
+            .where((0, drizzle_orm_1.eq)(schema_1.productSuggestions.productId, id));
+        await this.db
+            .delete(schema_1.vendorProducts)
+            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, id));
         await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, id));
+        return { success: true, message: `Product "${prod.name}" deleted successfully.` };
     }
     async listVendorProducts(vendorId) {
         const rows = await this.db
@@ -597,10 +703,17 @@ let CatalogService = class CatalogService {
     async createAdminVendor(dto) {
         const phone = dto.phone.trim();
         const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+        let rand = '';
+        for (let i = 0; i < 5; i++) {
+            rand += chars.charAt((0, crypto_1.randomInt)(0, chars.length));
+        }
+        const tempPassword = `LJ#${rand}`;
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
         let [user] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+            .where((0, drizzle_orm_1.and)(email ? (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.ilike)(schema_1.users.email, email)) : (0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
             .limit(1);
         if (!user) {
             [user] = await this.db
@@ -610,17 +723,26 @@ let CatalogService = class CatalogService {
                 email,
                 role: 'vendor',
                 status: 'active',
+                passwordHash,
+                mustChangePassword: true,
             })
                 .returning();
         }
         else {
-            if (email && !user.email) {
-                await this.db.update(schema_1.users).set({ email }).where((0, drizzle_orm_1.eq)(schema_1.users.id, user.id));
-            }
             const [existingVendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, user.id)).limit(1);
             if (existingVendor) {
-                throw new common_1.ConflictException(`A vendor profile already exists for phone ${phone}`);
+                throw new common_1.ConflictException(`A vendor profile already exists for phone ${phone} or email ${email ?? ''}`);
             }
+            [user] = await this.db
+                .update(schema_1.users)
+                .set({
+                phone,
+                ...(email ? { email } : {}),
+                passwordHash,
+                mustChangePassword: true,
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, user.id))
+                .returning();
         }
         const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
         const [vendor] = await this.db
@@ -656,13 +778,14 @@ let CatalogService = class CatalogService {
                     email,
                     phone,
                     type: dto.type,
+                    tempPassword,
                 });
             }
             catch (err) {
                 console.error('[CatalogService] Failed to queue welcome vendor email:', err);
             }
         }
-        return { ...vendor, phone, email };
+        return { ...vendor, phone, email, tempPassword };
     }
     async updateAdminVendor(id, dto) {
         const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).limit(1);

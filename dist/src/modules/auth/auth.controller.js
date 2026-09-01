@@ -23,6 +23,9 @@ const admin_login_dto_1 = require("./dto/admin-login.dto");
 const vendor_login_dto_1 = require("./dto/vendor-login.dto");
 const vendor_register_dto_1 = require("./dto/vendor-register.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
+const create_password_dto_1 = require("./dto/create-password.dto");
+const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let AuthController = class AuthController {
     auth;
     constructor(auth) {
@@ -41,7 +44,13 @@ let AuthController = class AuthController {
         return this.auth.adminLogin(dto.email, dto.password);
     }
     vendorLogin(dto) {
-        return this.auth.vendorLogin(dto.phone, dto.password, dto.deviceId);
+        return this.auth.vendorLogin({ email: dto.email, phone: dto.phone }, dto.password, dto.deviceId);
+    }
+    vendorCreatePassword(user, dto) {
+        return this.auth.createPassword(user.sub, dto.newPassword);
+    }
+    changePassword(user, dto) {
+        return this.auth.createPassword(user.sub, dto.newPassword);
     }
     vendorRegister(dto) {
         return this.auth.vendorRegister(dto);
@@ -93,6 +102,26 @@ __decorate([
     __metadata("design:paramtypes", [vendor_login_dto_1.VendorLoginDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "vendorLogin", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, throttler_1.Throttle)({ changePassword: { limit: 5, ttl: 60_000 } }),
+    (0, common_1.Post)('vendor/create-password'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_password_dto_1.CreatePasswordDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "vendorCreatePassword", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, throttler_1.Throttle)({ changePassword: { limit: 5, ttl: 60_000 } }),
+    (0, common_1.Post)('change-password'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_password_dto_1.CreatePasswordDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "changePassword", null);
 __decorate([
     (0, throttler_1.Throttle)({ vendorLogin: { limit: 10, ttl: 60_000 } }),
     (0, common_1.Post)('vendor/register'),

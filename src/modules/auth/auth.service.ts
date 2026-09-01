@@ -120,19 +120,37 @@ export class AuthService {
   }
 
   async vendorLogin(
-    phone: string,
+    identifier: { email?: string; phone?: string } | string,
     password: string,
     deviceId?: string,
-  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; vendor?: any }> {
-    const trimmedPhone = phone.trim();
-    const [user] = await this.db
-      .select()
-      .from(users)
-      .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor')))
-      .limit(1);
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; mustChangePassword: boolean; vendor?: any }> {
+    const email = typeof identifier === 'object' ? identifier.email : undefined;
+    const phone = typeof identifier === 'object' ? identifier.phone : identifier;
+
+    let user: typeof users.$inferSelect | undefined;
+
+    if (email && email.trim()) {
+      const trimmedEmail = email.trim().toLowerCase();
+      const [u] = await this.db
+        .select()
+        .from(users)
+        .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'vendor')))
+        .limit(1);
+      user = u;
+    } else if (phone && phone.trim()) {
+      const trimmedPhone = phone.trim();
+      const [u] = await this.db
+        .select()
+        .from(users)
+        .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor')))
+        .limit(1);
+      user = u;
+    } else {
+      throw new BadRequestException('Please provide your email address or mobile number');
+    }
 
     if (!user) {
-      throw new UnauthorizedException('Invalid phone number or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.passwordHash) {
@@ -141,13 +159,51 @@ export class AuthService {
 
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
-      throw new UnauthorizedException('Invalid phone number or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     const tokens = await this.issueTokens(user.id, user.role, deviceId);
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.userId, user.id)).limit(1);
 
-    return { tokens, userId: user.id, role: user.role, vendor: vendor ?? undefined };
+    return {
+      tokens,
+      userId: user.id,
+      role: user.role,
+      mustChangePassword: !!user.mustChangePassword,
+      vendor: vendor
+        ? {
+            ...vendor,
+            email: user.email,
+            phone: user.phone,
+            mustChangePassword: !!user.mustChangePassword,
+          }
+        : undefined,
+    };
+  }
+
+  async createPassword(
+    userId: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; message: string; mustChangePassword: boolean }> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      throw new NotFoundException('User account not found');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.db
+      .update(users)
+      .set({
+        passwordHash,
+        mustChangePassword: false,
+      })
+      .where(eq(users.id, userId));
+
+    return {
+      success: true,
+      message: 'Password created successfully',
+      mustChangePassword: false,
+    };
   }
 
   async vendorRegister(
