@@ -7,19 +7,7 @@ export declare class UploadsController {
     private readonly uploads;
     constructor(uploads: UploadsService);
     getSignature(user: JwtAccessPayload, dto: SignatureRequestDto): import("./uploads.service").SignatureResponse;
-    saveKycDocument(user: JwtAccessPayload, dto: SaveKycDocumentDto): Promise<{
-        id: string;
-        role: "customer" | "vendor" | "delivery_partner" | "admin";
-        status: "pending" | "verified" | "rejected";
-        userId: string;
-        docType: string;
-        secureUrl: string;
-        publicId: string;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
-        uploadedAt: Date;
-    }>;
+    saveKycDocument(user: JwtAccessPayload, dto: SaveKycDocumentDto): Promise<any>;
     myKycDocuments(user: JwtAccessPayload): Promise<{
         id: string;
         userId: string;
@@ -33,6 +21,11 @@ export declare class UploadsController {
         reviewedAt: Date | null;
         uploadedAt: Date;
     }[]>;
+    deleteKycDocument(user: JwtAccessPayload, id: string): Promise<{
+        success: boolean;
+        deletedId: string;
+        rolledUpStatus: "pending" | "verified" | "rejected";
+    }>;
     allKycDocuments(status?: 'pending' | 'verified' | 'rejected'): Promise<{
         id: string;
         userId: string;

@@ -49,11 +49,47 @@ let UploadsService = class UploadsService {
         return { signature, timestamp, apiKey: this.apiKey, cloudName: this.cloudName, folder };
     }
     async saveKycDocument(userId, role, input) {
-        const [row] = await this.db
-            .insert(schema_1.kycDocuments)
-            .values({ userId, role, ...input })
-            .returning();
-        return row;
+        const [existing] = await this.db
+            .select()
+            .from(schema_1.kycDocuments)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId), (0, drizzle_orm_1.eq)(schema_1.kycDocuments.docType, input.docType)))
+            .limit(1);
+        let row;
+        if (existing) {
+            [row] = await this.db
+                .update(schema_1.kycDocuments)
+                .set({
+                secureUrl: input.secureUrl,
+                publicId: input.publicId,
+                status: 'pending',
+                rejectionReason: null,
+                reviewedBy: null,
+                reviewedAt: null,
+                uploadedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.id, existing.id))
+                .returning();
+        }
+        else {
+            [row] = await this.db
+                .insert(schema_1.kycDocuments)
+                .values({ userId, role, ...input, status: 'pending' })
+                .returning();
+        }
+        const rolledUpStatus = await this.rollUpKycStatus(userId, role);
+        return { ...row, rolledUpStatus };
+    }
+    async deleteKycDocument(userId, docId) {
+        const [doc] = await this.db
+            .select()
+            .from(schema_1.kycDocuments)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.kycDocuments.id, docId), (0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId)))
+            .limit(1);
+        if (!doc)
+            throw new common_1.NotFoundException('KYC document not found');
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.id, docId));
+        const rolledUpStatus = await this.rollUpKycStatus(userId, doc.role);
+        return { success: true, deletedId: docId, rolledUpStatus };
     }
     async listMyKycDocuments(userId) {
         return this.db

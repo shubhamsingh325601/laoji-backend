@@ -7,5 +7,10 @@ export declare class UpsertVendorProfileDto {
     pickupLat: number;
     pickupLng: number;
     radiusKm?: number;
+    gstNumber?: string;
+    aadhaarNumber?: string;
+    bankAccount?: string;
+    bankIfsc?: string;
+    upiId?: string;
 }
 export {};

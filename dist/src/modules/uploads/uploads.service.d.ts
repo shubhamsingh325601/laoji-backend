@@ -24,18 +24,11 @@ export declare class UploadsService {
         docType: string;
         secureUrl: string;
         publicId: string;
-    }): Promise<{
-        id: string;
-        role: "customer" | "vendor" | "delivery_partner" | "admin";
-        status: "pending" | "verified" | "rejected";
-        userId: string;
-        docType: string;
-        secureUrl: string;
-        publicId: string;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
-        uploadedAt: Date;
+    }): Promise<any>;
+    deleteKycDocument(userId: string, docId: string): Promise<{
+        success: boolean;
+        deletedId: string;
+        rolledUpStatus: "pending" | "verified" | "rejected";
     }>;
     listMyKycDocuments(userId: string): Promise<{
         id: string;

@@ -20,6 +20,11 @@ class UpsertVendorProfileDto {
     pickupLat;
     pickupLng;
     radiusKm;
+    gstNumber;
+    aadhaarNumber;
+    bankAccount;
+    bankIfsc;
+    upiId;
 }
 exports.UpsertVendorProfileDto = UpsertVendorProfileDto;
 __decorate([
@@ -60,4 +65,29 @@ __decorate([
     (0, class_validator_1.Max)(50),
     __metadata("design:type", Number)
 ], UpsertVendorProfileDto.prototype, "radiusKm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "gstNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "aadhaarNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "bankIfsc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "upiId", void 0);
 //# sourceMappingURL=vendor-profile.dto.js.map

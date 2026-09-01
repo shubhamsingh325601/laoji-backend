@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -27,6 +27,11 @@ export class UploadsController {
   @Get('kyc-documents/me')
   myKycDocuments(@CurrentUser() user: JwtAccessPayload) {
     return this.uploads.listMyKycDocuments(user.sub);
+  }
+
+  @Delete('kyc-documents/:id')
+  deleteKycDocument(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+    return this.uploads.deleteKycDocument(user.sub, id);
   }
 
   @UseGuards(RolesGuard)

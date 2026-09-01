@@ -1,7 +1,7 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { deliveryPartners, kycDocuments, vendors } from '../../../drizzle/schema';
@@ -56,11 +56,51 @@ export class UploadsService {
     role: UserRole,
     input: { docType: string; secureUrl: string; publicId: string },
   ) {
-    const [row] = await this.db
-      .insert(kycDocuments)
-      .values({ userId, role, ...input })
-      .returning();
-    return row;
+    // If a document of the same docType already exists for this user, update it
+    const [existing] = await this.db
+      .select()
+      .from(kycDocuments)
+      .where(and(eq(kycDocuments.userId, userId), eq(kycDocuments.docType, input.docType)))
+      .limit(1);
+
+    let row;
+    if (existing) {
+      [row] = await this.db
+        .update(kycDocuments)
+        .set({
+          secureUrl: input.secureUrl,
+          publicId: input.publicId,
+          status: 'pending',
+          rejectionReason: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          uploadedAt: new Date(),
+        })
+        .where(eq(kycDocuments.id, existing.id))
+        .returning();
+    } else {
+      [row] = await this.db
+        .insert(kycDocuments)
+        .values({ userId, role, ...input, status: 'pending' })
+        .returning();
+    }
+
+    const rolledUpStatus = await this.rollUpKycStatus(userId, role);
+    return { ...row, rolledUpStatus };
+  }
+
+  async deleteKycDocument(userId: string, docId: string) {
+    const [doc] = await this.db
+      .select()
+      .from(kycDocuments)
+      .where(and(eq(kycDocuments.id, docId), eq(kycDocuments.userId, userId)))
+      .limit(1);
+
+    if (!doc) throw new NotFoundException('KYC document not found');
+
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.id, docId));
+    const rolledUpStatus = await this.rollUpKycStatus(userId, doc.role);
+    return { success: true, deletedId: docId, rolledUpStatus };
   }
 
   async listMyKycDocuments(userId: string) {
@@ -79,13 +119,6 @@ export class UploadsService {
       .orderBy(desc(kycDocuments.uploadedAt));
   }
 
-  // No approve/reject action existed anywhere before — the admin KYC page
-  // (Phase 2) only ever listed documents. Reviewing one document rolls up
-  // to the user's single `vendors`/`delivery_partners.kyc_status` field:
-  // any rejected document makes the whole profile "rejected"; all-verified
-  // makes it "verified"; anything else stays "pending". Returns the
-  // reviewed document plus the user's role/rolled-up status so callers
-  // (Notification dispatch) don't need a second round-trip.
   async reviewKycDocument(adminUserId: string, docId: string, status: 'verified' | 'rejected', rejectionReason?: string) {
     const [doc] = await this.db.select().from(kycDocuments).where(eq(kycDocuments.id, docId)).limit(1);
     if (!doc) throw new NotFoundException('KYC document not found');
