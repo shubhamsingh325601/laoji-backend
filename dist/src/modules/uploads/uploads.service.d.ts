@@ -29,12 +29,12 @@ export declare class UploadsService {
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "pending" | "verified" | "rejected";
         userId: string;
-        docType: string;
-        secureUrl: string;
-        publicId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        docType: string;
+        secureUrl: string;
+        publicId: string;
         uploadedAt: Date;
     }>;
     listMyKycDocuments(userId: string): Promise<{

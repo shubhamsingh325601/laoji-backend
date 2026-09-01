@@ -23,6 +23,7 @@ export declare const envSchema: z.ZodObject<{
     FIREBASE_CLIENT_EMAIL: z.ZodPreprocess<z.ZodDefault<z.ZodString>>;
     FIREBASE_PRIVATE_KEY: z.ZodPreprocess<z.ZodDefault<z.ZodString>>;
     RESEND_API_KEY: z.ZodPreprocess<z.ZodDefault<z.ZodString>>;
+    RESEND_FROM_EMAIL: z.ZodPreprocess<z.ZodDefault<z.ZodString>>;
     PAYMENT_PROVIDER: z.ZodPreprocess<z.ZodDefault<z.ZodEnum<{
         upi_deeplink: "upi_deeplink";
         razorpay: "razorpay";

@@ -5,6 +5,9 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { VendorLoginDto } from './dto/vendor-login.dto';
+import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -31,5 +34,29 @@ export class AuthController {
   @Post('admin/login')
   adminLogin(@Body() dto: AdminLoginDto) {
     return this.auth.adminLogin(dto.email, dto.password);
+  }
+
+  @Throttle({ vendorLogin: { limit: 10, ttl: 60_000 } })
+  @Post('vendor/login')
+  vendorLogin(@Body() dto: VendorLoginDto) {
+    return this.auth.vendorLogin(dto.phone, dto.password, dto.deviceId);
+  }
+
+  @Throttle({ vendorLogin: { limit: 10, ttl: 60_000 } })
+  @Post('vendor/register')
+  vendorRegister(@Body() dto: VendorRegisterDto) {
+    return this.auth.vendorRegister(dto);
+  }
+
+  @Throttle({ forgotPassword: { limit: 5, ttl: 60_000 } })
+  @Post('forgot-password/request')
+  forgotPasswordRequest(@Body() dto: ForgotPasswordRequestDto) {
+    return this.auth.requestForgotPassword(dto.phone, dto.role ?? 'vendor');
+  }
+
+  @Throttle({ forgotPassword: { limit: 10, ttl: 60_000 } })
+  @Post('forgot-password/reset')
+  forgotPasswordReset(@Body() dto: ForgotPasswordResetDto) {
+    return this.auth.resetPasswordWithOtp(dto.phone, dto.code, dto.newPassword, dto.role ?? 'vendor');
   }
 }

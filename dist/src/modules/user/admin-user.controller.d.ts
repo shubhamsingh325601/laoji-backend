@@ -66,8 +66,8 @@ export declare class AdminUserController {
         createdAt: Date;
     }>;
     create(dto: CreateAdminUserDto): Promise<{
-        id: string;
         phone: string | null;
+        id: string;
         email: string | null;
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";

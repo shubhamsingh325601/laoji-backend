@@ -20,6 +20,9 @@ const request_otp_dto_1 = require("./dto/request-otp.dto");
 const verify_otp_dto_1 = require("./dto/verify-otp.dto");
 const refresh_token_dto_1 = require("./dto/refresh-token.dto");
 const admin_login_dto_1 = require("./dto/admin-login.dto");
+const vendor_login_dto_1 = require("./dto/vendor-login.dto");
+const vendor_register_dto_1 = require("./dto/vendor-register.dto");
+const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 let AuthController = class AuthController {
     auth;
     constructor(auth) {
@@ -36,6 +39,18 @@ let AuthController = class AuthController {
     }
     adminLogin(dto) {
         return this.auth.adminLogin(dto.email, dto.password);
+    }
+    vendorLogin(dto) {
+        return this.auth.vendorLogin(dto.phone, dto.password, dto.deviceId);
+    }
+    vendorRegister(dto) {
+        return this.auth.vendorRegister(dto);
+    }
+    forgotPasswordRequest(dto) {
+        return this.auth.requestForgotPassword(dto.phone, dto.role ?? 'vendor');
+    }
+    forgotPasswordReset(dto) {
+        return this.auth.resetPasswordWithOtp(dto.phone, dto.code, dto.newPassword, dto.role ?? 'vendor');
     }
 };
 exports.AuthController = AuthController;
@@ -70,6 +85,38 @@ __decorate([
     __metadata("design:paramtypes", [admin_login_dto_1.AdminLoginDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "adminLogin", null);
+__decorate([
+    (0, throttler_1.Throttle)({ vendorLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('vendor/login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [vendor_login_dto_1.VendorLoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "vendorLogin", null);
+__decorate([
+    (0, throttler_1.Throttle)({ vendorLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('vendor/register'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [vendor_register_dto_1.VendorRegisterDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "vendorRegister", null);
+__decorate([
+    (0, throttler_1.Throttle)({ forgotPassword: { limit: 5, ttl: 60_000 } }),
+    (0, common_1.Post)('forgot-password/request'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordRequestDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "forgotPasswordRequest", null);
+__decorate([
+    (0, throttler_1.Throttle)({ forgotPassword: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('forgot-password/reset'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordResetDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "forgotPasswordReset", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

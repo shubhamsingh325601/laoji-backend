@@ -44,6 +44,8 @@ exports.AppModule = AppModule = __decorate([
                     { name: 'productSuggestion', ttl: 60_000, limit: 5 },
                     { name: 'supportContact', ttl: 60_000, limit: 5 },
                     { name: 'deliveryOtpVerify', ttl: 60_000, limit: 10 },
+                    { name: 'vendorLogin', ttl: 60_000, limit: 10 },
+                    { name: 'forgotPassword', ttl: 60_000, limit: 10 },
                 ],
             }),
             health_module_1.HealthModule,

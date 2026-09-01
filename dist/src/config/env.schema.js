@@ -29,6 +29,7 @@ exports.envSchema = zod_1.z.object({
     FIREBASE_CLIENT_EMAIL: zod_1.z.preprocess(cleanString, zod_1.z.string().default('')),
     FIREBASE_PRIVATE_KEY: zod_1.z.preprocess(cleanString, zod_1.z.string().default('')),
     RESEND_API_KEY: zod_1.z.preprocess(cleanString, zod_1.z.string().default('')),
+    RESEND_FROM_EMAIL: zod_1.z.preprocess(cleanString, zod_1.z.string().default('Laoji <no-reply@laojionline.com>')),
     PAYMENT_PROVIDER: zod_1.z.preprocess(cleanString, zod_1.z.enum(['upi_deeplink', 'razorpay']).default('upi_deeplink')),
     UPI_VPA: zod_1.z.preprocess(cleanString, zod_1.z.string().default('laoji@upi')),
     UPI_PAYEE_NAME: zod_1.z.preprocess(cleanString, zod_1.z.string().default('Laoji')),

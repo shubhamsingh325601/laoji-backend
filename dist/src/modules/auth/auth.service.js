@@ -122,6 +122,164 @@ let AuthService = class AuthService {
         const tokens = await this.issueTokens(user.id, user.role);
         return { tokens, userId: user.id, role: user.role };
     }
+    async vendorLogin(phone, password, deviceId) {
+        const trimmedPhone = phone.trim();
+        const [user] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+            .limit(1);
+        if (!user) {
+            throw new common_1.UnauthorizedException('Invalid phone number or password');
+        }
+        if (!user.passwordHash) {
+            throw new common_1.UnauthorizedException('Password not set for this account. Please use Forgot Password to set one.');
+        }
+        const matches = await bcrypt.compare(password, user.passwordHash);
+        if (!matches) {
+            throw new common_1.UnauthorizedException('Invalid phone number or password');
+        }
+        const tokens = await this.issueTokens(user.id, user.role, deviceId);
+        const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, user.id)).limit(1);
+        return { tokens, userId: user.id, role: user.role, vendor: vendor ?? undefined };
+    }
+    async vendorRegister(dto) {
+        const trimmedPhone = dto.phone.trim();
+        const [existingUser] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+            .limit(1);
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+        let userId;
+        if (existingUser) {
+            const [existingVendor] = await this.db
+                .select()
+                .from(schema_1.vendors)
+                .where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, existingUser.id))
+                .limit(1);
+            if (existingVendor && existingUser.passwordHash) {
+                throw new common_1.ConflictException('An account with this phone number already exists. Please log in.');
+            }
+            await this.db
+                .update(schema_1.users)
+                .set({ passwordHash })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, existingUser.id));
+            userId = existingUser.id;
+        }
+        else {
+            const [createdUser] = await this.db
+                .insert(schema_1.users)
+                .values({
+                phone: trimmedPhone,
+                role: 'vendor',
+                passwordHash,
+            })
+                .returning();
+            userId = createdUser.id;
+        }
+        const [existingVendor] = await this.db
+            .select()
+            .from(schema_1.vendors)
+            .where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId))
+            .limit(1);
+        let vendorRecord;
+        if (existingVendor) {
+            const [updated] = await this.db
+                .update(schema_1.vendors)
+                .set({
+                businessName: dto.businessName,
+                ownerName: dto.ownerName,
+                type: dto.type,
+                shopAddress: dto.shopAddress ?? undefined,
+                pickupLat: dto.pickupLat,
+                pickupLng: dto.pickupLng,
+                radiusKm: dto.radiusKm ?? 5,
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, existingVendor.id))
+                .returning();
+            vendorRecord = updated;
+        }
+        else {
+            const [created] = await this.db
+                .insert(schema_1.vendors)
+                .values({
+                userId,
+                businessName: dto.businessName,
+                ownerName: dto.ownerName,
+                type: dto.type,
+                shopAddress: dto.shopAddress ?? null,
+                pickupLat: dto.pickupLat,
+                pickupLng: dto.pickupLng,
+                radiusKm: dto.radiusKm ?? 5,
+            })
+                .returning();
+            vendorRecord = created;
+        }
+        const tokens = await this.issueTokens(userId, 'vendor');
+        return { tokens, userId, role: 'vendor', vendor: vendorRecord };
+    }
+    async requestForgotPassword(phone, role = 'vendor') {
+        const trimmedPhone = phone.trim();
+        const [user] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, role)))
+            .limit(1);
+        if (!user) {
+            throw new common_1.NotFoundException('No account found with this phone number');
+        }
+        const testMode = this.config.get('NODE_ENV') !== 'production' ||
+            this.config.get('OTP_TEST_MODE') === true;
+        const code = testMode ? '123456' : String((0, crypto_1.randomInt)(0, 1_000_000)).padStart(6, '0');
+        const codeHash = await bcrypt.hash(code, 10);
+        await this.db.insert(schema_1.otpCodes).values({
+            phone: trimmedPhone,
+            purpose: `reset_password:${role}`,
+            codeHash,
+            expiresAt: new Date(Date.now() + OTP_TTL_MS),
+        });
+        return {
+            message: 'Password reset code has been sent to your mobile number',
+            ...(testMode ? { devOtp: code } : {}),
+        };
+    }
+    async resetPasswordWithOtp(phone, code, newPassword, role = 'vendor') {
+        const trimmedPhone = phone.trim();
+        const [otp] = await this.db
+            .select()
+            .from(schema_1.otpCodes)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.otpCodes.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.otpCodes.purpose, `reset_password:${role}`), (0, drizzle_orm_1.isNull)(schema_1.otpCodes.consumedAt), (0, drizzle_orm_1.gt)(schema_1.otpCodes.expiresAt, new Date())))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.otpCodes.createdAt))
+            .limit(1);
+        if (!otp) {
+            throw new common_1.BadRequestException('Verification code expired or not found. Please request a new one.');
+        }
+        if (otp.attemptCount >= OTP_MAX_ATTEMPTS) {
+            throw new common_1.BadRequestException('Too many incorrect attempts — please request a new code');
+        }
+        const matches = await bcrypt.compare(code, otp.codeHash);
+        if (!matches) {
+            await this.db
+                .update(schema_1.otpCodes)
+                .set({ attemptCount: otp.attemptCount + 1 })
+                .where((0, drizzle_orm_1.eq)(schema_1.otpCodes.id, otp.id));
+            throw new common_1.BadRequestException('Incorrect verification code');
+        }
+        await this.db.update(schema_1.otpCodes).set({ consumedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.otpCodes.id, otp.id));
+        const [user] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, role)))
+            .limit(1);
+        if (!user) {
+            throw new common_1.NotFoundException('User account not found');
+        }
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await this.db.update(schema_1.users).set({ passwordHash }).where((0, drizzle_orm_1.eq)(schema_1.users.id, user.id));
+        const tokens = await this.issueTokens(user.id, user.role);
+        return { tokens, userId: user.id, role: user.role, message: 'Password reset successfully' };
+    }
     async refresh(refreshToken) {
         let payload;
         try {

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,9 +13,10 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomInt, randomUUID } from 'crypto';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { authTokens, otpCodes, users } from '../../../drizzle/schema';
+import { authTokens, otpCodes, users, vendors } from '../../../drizzle/schema';
 import { parseDurationMs } from '../../common/utils/duration';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
+import { VendorRegisterDto } from './dto/vendor-register.dto';
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -115,6 +117,211 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.role);
     return { tokens, userId: user.id, role: user.role };
+  }
+
+  async vendorLogin(
+    phone: string,
+    password: string,
+    deviceId?: string,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; vendor?: any }> {
+    const trimmedPhone = phone.trim();
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor')))
+      .limit(1);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid phone number or password');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Password not set for this account. Please use Forgot Password to set one.');
+    }
+
+    const matches = await bcrypt.compare(password, user.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Invalid phone number or password');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.role, deviceId);
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.userId, user.id)).limit(1);
+
+    return { tokens, userId: user.id, role: user.role, vendor: vendor ?? undefined };
+  }
+
+  async vendorRegister(
+    dto: VendorRegisterDto,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; vendor: any }> {
+    const trimmedPhone = dto.phone.trim();
+    const [existingUser] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor')))
+      .limit(1);
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    let userId: string;
+
+    if (existingUser) {
+      const [existingVendor] = await this.db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.userId, existingUser.id))
+        .limit(1);
+
+      if (existingVendor && existingUser.passwordHash) {
+        throw new ConflictException('An account with this phone number already exists. Please log in.');
+      }
+
+      await this.db
+        .update(users)
+        .set({ passwordHash })
+        .where(eq(users.id, existingUser.id));
+      userId = existingUser.id;
+    } else {
+      const [createdUser] = await this.db
+        .insert(users)
+        .values({
+          phone: trimmedPhone,
+          role: 'vendor',
+          passwordHash,
+        })
+        .returning();
+      userId = createdUser.id;
+    }
+
+    const [existingVendor] = await this.db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.userId, userId))
+      .limit(1);
+
+    let vendorRecord: any;
+    if (existingVendor) {
+      const [updated] = await this.db
+        .update(vendors)
+        .set({
+          businessName: dto.businessName,
+          ownerName: dto.ownerName,
+          type: dto.type,
+          shopAddress: dto.shopAddress ?? undefined,
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          radiusKm: dto.radiusKm ?? 5,
+        })
+        .where(eq(vendors.id, existingVendor.id))
+        .returning();
+      vendorRecord = updated;
+    } else {
+      const [created] = await this.db
+        .insert(vendors)
+        .values({
+          userId,
+          businessName: dto.businessName,
+          ownerName: dto.ownerName,
+          type: dto.type,
+          shopAddress: dto.shopAddress ?? null,
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          radiusKm: dto.radiusKm ?? 5,
+        })
+        .returning();
+      vendorRecord = created;
+    }
+
+    const tokens = await this.issueTokens(userId, 'vendor');
+    return { tokens, userId, role: 'vendor', vendor: vendorRecord };
+  }
+
+  async requestForgotPassword(
+    phone: string,
+    role: OtpRole = 'vendor',
+  ): Promise<{ message: string; devOtp?: string }> {
+    const trimmedPhone = phone.trim();
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, trimmedPhone), eq(users.role, role)))
+      .limit(1);
+
+    if (!user) {
+      throw new NotFoundException('No account found with this phone number');
+    }
+
+    const testMode =
+      this.config.get<string>('NODE_ENV') !== 'production' ||
+      this.config.get<boolean>('OTP_TEST_MODE') === true;
+    const code = testMode ? '123456' : String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const codeHash = await bcrypt.hash(code, 10);
+
+    await this.db.insert(otpCodes).values({
+      phone: trimmedPhone,
+      purpose: `reset_password:${role}`,
+      codeHash,
+      expiresAt: new Date(Date.now() + OTP_TTL_MS),
+    });
+
+    return {
+      message: 'Password reset code has been sent to your mobile number',
+      ...(testMode ? { devOtp: code } : {}),
+    };
+  }
+
+  async resetPasswordWithOtp(
+    phone: string,
+    code: string,
+    newPassword: string,
+    role: OtpRole = 'vendor',
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; message: string }> {
+    const trimmedPhone = phone.trim();
+    const [otp] = await this.db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.phone, trimmedPhone),
+          eq(otpCodes.purpose, `reset_password:${role}`),
+          isNull(otpCodes.consumedAt),
+          gt(otpCodes.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(desc(otpCodes.createdAt))
+      .limit(1);
+
+    if (!otp) {
+      throw new BadRequestException('Verification code expired or not found. Please request a new one.');
+    }
+    if (otp.attemptCount >= OTP_MAX_ATTEMPTS) {
+      throw new BadRequestException('Too many incorrect attempts — please request a new code');
+    }
+
+    const matches = await bcrypt.compare(code, otp.codeHash);
+    if (!matches) {
+      await this.db
+        .update(otpCodes)
+        .set({ attemptCount: otp.attemptCount + 1 })
+        .where(eq(otpCodes.id, otp.id));
+      throw new BadRequestException('Incorrect verification code');
+    }
+
+    await this.db.update(otpCodes).set({ consumedAt: new Date() }).where(eq(otpCodes.id, otp.id));
+
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, trimmedPhone), eq(users.role, role)))
+      .limit(1);
+
+    if (!user) {
+      throw new NotFoundException('User account not found');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+
+    const tokens = await this.issueTokens(user.id, user.role);
+    return { tokens, userId: user.id, role: user.role, message: 'Password reset successfully' };
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {

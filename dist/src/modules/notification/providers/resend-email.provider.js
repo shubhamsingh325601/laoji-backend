@@ -18,11 +18,12 @@ let ResendEmailProvider = ResendEmailProvider_1 = class ResendEmailProvider {
     config;
     logger = new common_1.Logger(ResendEmailProvider_1.name);
     client;
-    fromAddress = 'Laoji <notifications@laoji.app>';
+    fromAddress;
     constructor(config) {
         this.config = config;
         const apiKey = this.config.get('RESEND_API_KEY');
         this.client = apiKey ? new resend_1.Resend(apiKey) : null;
+        this.fromAddress = this.config.get('RESEND_FROM_EMAIL') || 'Laoji <no-reply@laojionline.com>';
     }
     async send(to, message) {
         if (!this.client) {
