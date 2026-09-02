@@ -27,18 +27,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Handle database constraint violations gracefully instead of 500
     if (!(exception instanceof HttpException) && typeof exception === 'object' && exception !== null) {
-      const err = exception as { code?: string; detail?: string; message?: string };
-      if (err.code === '23503') {
+      const anyErr = exception as any;
+      const code = anyErr.code ?? anyErr.cause?.code;
+      const detail = anyErr.detail ?? anyErr.cause?.detail;
+
+      if (code === '23503') {
         status = HttpStatus.CONFLICT;
         body = {
           error: 'Conflict',
-          message: err.detail || 'Cannot complete operation: this record is referenced by other items.',
+          message: detail || 'Cannot complete operation: this record is referenced by other items.',
         };
-      } else if (err.code === '23505') {
+      } else if (code === '23505') {
         status = HttpStatus.CONFLICT;
         body = {
           error: 'Conflict',
-          message: err.detail || 'A record with this unique information already exists.',
+          message: detail || 'A record with this unique information already exists.',
         };
       }
     }

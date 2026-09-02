@@ -16,7 +16,7 @@ export declare class AdminNotificationController {
     }[]>;
     sendNotification(dto: SendAdminNotificationDto): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "user" | "all";
+        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;

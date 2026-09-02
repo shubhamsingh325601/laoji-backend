@@ -11,9 +11,9 @@ export declare class VendorCatalogController {
         id: string;
         createdAt: Date;
         userId: string;
-        type: "grocery" | "restaurant" | "both";
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -516,10 +516,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         id: string;
@@ -539,11 +539,11 @@ export declare class VendorCatalogController {
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        vendorId: string;
         imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        vendorId: string;
         productId: string | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{

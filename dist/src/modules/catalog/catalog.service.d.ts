@@ -73,9 +73,9 @@ export declare class CatalogService {
         id: string;
         createdAt: Date;
         userId: string;
-        type: "grocery" | "restaurant" | "both";
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -294,8 +294,8 @@ export declare class CatalogService {
     createCategory(dto: CreateCategoryDto): Promise<{
         id: string;
         name: string;
-        imageUrl: string | null;
         parentId: string | null;
+        imageUrl: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
         id: string;
@@ -731,9 +731,9 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -781,10 +781,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -806,9 +806,9 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -881,9 +881,9 @@ export declare class CatalogService {
         id: string;
         name: string;
         isOpen: boolean;
+        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
         ratingAvg: number;
     }>;
     recalcRestaurantRating(restaurantId: string): Promise<void>;
@@ -951,18 +951,18 @@ export declare class CatalogService {
         variants: {
             id: string;
             name: string;
+            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
-            isDefault: boolean;
         }[];
         id: string;
         name: string;
-        description: string | null;
         imageUrl: string | null;
-        menuCategoryId: string;
+        description: string | null;
         price: number;
-        isVeg: boolean;
         isAvailable: boolean;
+        menuCategoryId: string;
+        isVeg: boolean;
     }>;
     private requireOwnMenuItem;
     updateMenuItem(vendorId: string, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -1000,11 +1000,11 @@ export declare class CatalogService {
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        vendorId: string;
         imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        vendorId: string;
         productId: string | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
@@ -1235,7 +1235,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -1477,7 +1477,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -1503,9 +1503,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

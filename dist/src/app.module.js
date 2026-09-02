@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const throttler_1 = require("@nestjs/throttler");
+const throttler_guard_1 = require("./common/guards/throttler.guard");
 const config_module_1 = require("./config/config.module");
 const database_module_1 = require("./config/database.module");
 const health_module_1 = require("./modules/health/health.module");
@@ -63,7 +64,7 @@ exports.AppModule = AppModule = __decorate([
             dashboard_module_1.DashboardModule,
         ],
         providers: [
-            { provide: core_1.APP_GUARD, useClass: throttler_1.ThrottlerGuard },
+            { provide: core_1.APP_GUARD, useClass: throttler_guard_1.AppThrottlerGuard },
             { provide: core_1.APP_FILTER, useClass: http_exception_filter_1.HttpExceptionFilter },
         ],
     })

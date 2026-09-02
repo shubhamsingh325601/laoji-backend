@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, ne, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { addresses, groceryOrders, foodOrders, users } from '../../../drizzle/schema';
@@ -24,7 +24,10 @@ export class UserService {
     if (search && search.trim()) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
-        (u) => (u.phone && u.phone.includes(q)) || (u.email && u.email.toLowerCase().includes(q)),
+        (u) =>
+          (u.phone && u.phone.includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.name && u.name.toLowerCase().includes(q)),
       );
     }
 
@@ -48,7 +51,8 @@ export class UserService {
         email: u.email,
         role: u.role,
         status: u.status,
-        name: u.role === 'customer' ? `Customer +91 ${u.phone}` : `${u.role.toUpperCase()} User`,
+        name: u.name || (u.role === 'customer' ? `Customer +91 ${u.phone}` : `${u.role.toUpperCase()} User`),
+        supportNotes: u.supportNotes ?? '',
         address: addr?.formattedAddress ?? 'Rural Area / Locality',
         createdAt: u.createdAt,
       };
@@ -69,7 +73,8 @@ export class UserService {
       email: u.email,
       role: u.role,
       status: u.status,
-      name: `Customer +91 ${u.phone}`,
+      name: u.name || `Customer +91 ${u.phone}`,
+      supportNotes: u.supportNotes ?? '',
       addresses: userAddresses,
       orderCount: groceryList.length + foodList.length,
       recentOrders: [...groceryList, ...foodList].slice(0, 10),
@@ -97,6 +102,7 @@ export class UserService {
       .values({
         phone: dto.phone,
         email: dto.email || null,
+        name: dto.name || null,
         role,
         status,
       })
@@ -130,14 +136,53 @@ export class UserService {
     const [u] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     if (!u) throw new NotFoundException('User not found');
 
+    const targetRole = dto.role !== undefined ? dto.role : u.role;
+    const targetPhone = dto.phone !== undefined ? dto.phone.trim() : u.phone;
+    const targetEmail = dto.email !== undefined ? (dto.email ? dto.email.trim() : null) : u.email;
+
+    // Validate phone uniqueness for this role
+    if (targetPhone && (targetPhone !== u.phone || targetRole !== u.role)) {
+      const [existingPhone] = await this.db
+        .select()
+        .from(users)
+        .where(and(eq(users.phone, targetPhone), eq(users.role, targetRole), ne(users.id, id)))
+        .limit(1);
+
+      if (existingPhone) {
+        throw new BadRequestException(`An account with phone ${targetPhone} and role ${targetRole} already exists.`);
+      }
+    }
+
+    // Validate email uniqueness across all users
+    if (targetEmail && targetEmail !== u.email) {
+      const [existingEmail] = await this.db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, targetEmail), ne(users.id, id)))
+        .limit(1);
+
+      if (existingEmail) {
+        throw new BadRequestException(`The email ${targetEmail} is already in use by another account.`);
+      }
+    }
+
+    const updateData: Partial<typeof users.$inferInsert> = {
+      phone: targetPhone,
+      email: targetEmail,
+      role: targetRole,
+      status: dto.status !== undefined ? dto.status : u.status,
+    };
+
+    if (dto.name !== undefined) {
+      updateData.name = dto.name.trim() || null;
+    }
+    if (dto.supportNotes !== undefined) {
+      updateData.supportNotes = dto.supportNotes.trim() || null;
+    }
+
     const [updated] = await this.db
       .update(users)
-      .set({
-        phone: dto.phone !== undefined ? dto.phone : u.phone,
-        email: dto.email !== undefined ? dto.email : u.email,
-        role: dto.role !== undefined ? dto.role : u.role,
-        status: dto.status !== undefined ? dto.status : u.status,
-      })
+      .set(updateData)
       .where(eq(users.id, id))
       .returning();
 

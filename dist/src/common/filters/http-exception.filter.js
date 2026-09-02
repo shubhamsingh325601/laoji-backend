@@ -20,19 +20,21 @@ let HttpExceptionFilter = class HttpExceptionFilter {
             : common_1.HttpStatus.INTERNAL_SERVER_ERROR;
         let body = exception instanceof common_1.HttpException ? exception.getResponse() : undefined;
         if (!(exception instanceof common_1.HttpException) && typeof exception === 'object' && exception !== null) {
-            const err = exception;
-            if (err.code === '23503') {
+            const anyErr = exception;
+            const code = anyErr.code ?? anyErr.cause?.code;
+            const detail = anyErr.detail ?? anyErr.cause?.detail;
+            if (code === '23503') {
                 status = common_1.HttpStatus.CONFLICT;
                 body = {
                     error: 'Conflict',
-                    message: err.detail || 'Cannot complete operation: this record is referenced by other items.',
+                    message: detail || 'Cannot complete operation: this record is referenced by other items.',
                 };
             }
-            else if (err.code === '23505') {
+            else if (code === '23505') {
                 status = common_1.HttpStatus.CONFLICT;
                 body = {
                     error: 'Conflict',
-                    message: err.detail || 'A record with this unique information already exists.',
+                    message: detail || 'A record with this unique information already exists.',
                 };
             }
         }
