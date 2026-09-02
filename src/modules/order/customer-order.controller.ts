@@ -52,4 +52,13 @@ export class CustomerOrderController {
   rateFoodOrder(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string, @Body() dto: RateFoodOrderDto) {
     return this.orders.rateFoodOrder(user.sub, id, dto);
   }
+
+  @Post(':type/:id/cancel')
+  cancelOrder(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+  ) {
+    return this.orders.cancelOrderForCustomer(user.sub, type, id);
+  }
 }

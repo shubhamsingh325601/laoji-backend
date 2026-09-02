@@ -10,10 +10,10 @@ export declare class VendorCatalogController {
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
         id: string;
         createdAt: Date;
+        type: "grocery" | "restaurant" | "both";
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -84,6 +84,14 @@ export declare class VendorCatalogController {
             closeTime: string;
         }[] | null;
         createdAt: Date;
+    }>;
+    deleteAccount(user: JwtAccessPayload): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    deleteAccountAlt(user: JwtAccessPayload): Promise<{
+        success: boolean;
+        message: string;
     }>;
     browseMasterCatalog(categoryId?: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"products", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -514,12 +522,12 @@ export declare class VendorCatalogController {
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
+        updatedAt: Date;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         id: string;
@@ -536,15 +544,15 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
+        vendorId: string;
         imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
-        vendorId: string;
         productId: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{
         id: string;

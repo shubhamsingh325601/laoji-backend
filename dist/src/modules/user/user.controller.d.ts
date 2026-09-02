@@ -1,6 +1,7 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { AuthService } from '../auth/auth.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 export declare class UserController {
     private readonly auth;
     constructor(auth: AuthService);
@@ -33,5 +34,39 @@ export declare class UserController {
         supportNotes: string | null;
         mustChangePassword: boolean;
         createdAt: Date;
+    }>;
+    updateProfile(user: JwtAccessPayload, dto: UpdateProfileDto): Promise<{
+        id: string;
+        phone: string | null;
+        email: string | null;
+        role: "customer" | "vendor" | "delivery_partner" | "admin";
+        status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
+        createdAt: Date;
+    }>;
+    updateProfileDirect(user: JwtAccessPayload, dto: UpdateProfileDto): Promise<{
+        id: string;
+        phone: string | null;
+        email: string | null;
+        role: "customer" | "vendor" | "delivery_partner" | "admin";
+        status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
+        createdAt: Date;
+    }>;
+    deleteAccount(user: JwtAccessPayload): Promise<{
+        success: boolean;
+        message: string;
     }>;
 }

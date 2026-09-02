@@ -32,6 +32,16 @@ export class VendorCatalogController {
     return this.catalog.updateBusinessHours(user.sub, dto);
   }
 
+  @Delete('vendors/me')
+  async deleteAccount(@CurrentUser() user: JwtAccessPayload) {
+    return this.catalog.deleteVendorAccount(user.sub);
+  }
+
+  @Delete('vendor/me')
+  async deleteAccountAlt(@CurrentUser() user: JwtAccessPayload) {
+    return this.catalog.deleteVendorAccount(user.sub);
+  }
+
   @Get('vendor/catalog/products')
   browseMasterCatalog(@Query('categoryId') categoryId?: string) {
     return this.catalog.listProducts(categoryId);

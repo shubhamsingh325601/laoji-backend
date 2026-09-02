@@ -810,6 +810,38 @@ export class OrderService {
       : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
   }
 
+  async cancelOrderForCustomer(customerId: string, type: 'grocery' | 'food', orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.customerId !== customerId) throw new ForbiddenException('You can only cancel your own orders');
+    if (['delivered', 'failed', 'cancelled'].includes(order.status)) {
+      throw new BadRequestException(`Order is already "${order.status}" — nothing to cancel`);
+    }
+    if (order.status !== 'placed') {
+      throw new BadRequestException('Order can only be cancelled while waiting for store confirmation');
+    }
+
+    const [updated] = await this.db.update(table).set({ status: 'cancelled' }).where(eq(table.id, orderId)).returning();
+    await this.db.insert(orderStatusHistory).values({
+      ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+      status: 'cancelled',
+      actorRole: 'customer',
+      changedBy: customerId,
+    });
+
+    await this.payments.markRefundPendingIfPaid(type, orderId);
+
+    const orderCode = this.orderCode(orderId);
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+
+    return type === 'grocery'
+      ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })
+      : this.getFoodOrder(orderId, { userId: customerId, role: 'customer' });
+  }
+
   private async vendorUserIdForOrder(type: 'grocery' | 'food', order: { vendorId?: string | null; restaurantId?: string }): Promise<string | null> {
     let vendorId = type === 'grocery' ? order.vendorId : undefined;
     if (type === 'food' && order.restaurantId) {

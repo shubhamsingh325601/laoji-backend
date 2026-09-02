@@ -596,6 +596,36 @@ let OrderService = class OrderService {
             ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
             : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
     }
+    async cancelOrderForCustomer(customerId, type, orderId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (order.customerId !== customerId)
+            throw new common_1.ForbiddenException('You can only cancel your own orders');
+        if (['delivered', 'failed', 'cancelled'].includes(order.status)) {
+            throw new common_1.BadRequestException(`Order is already "${order.status}" — nothing to cancel`);
+        }
+        if (order.status !== 'placed') {
+            throw new common_1.BadRequestException('Order can only be cancelled while waiting for store confirmation');
+        }
+        const [updated] = await this.db.update(table).set({ status: 'cancelled' }).where((0, drizzle_orm_1.eq)(table.id, orderId)).returning();
+        await this.db.insert(schema_1.orderStatusHistory).values({
+            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+            status: 'cancelled',
+            actorRole: 'customer',
+            changedBy: customerId,
+        });
+        await this.payments.markRefundPendingIfPaid(type, orderId);
+        const orderCode = this.orderCode(orderId);
+        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode));
+        const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+        if (vendorUserId)
+            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode));
+        return type === 'grocery'
+            ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })
+            : this.getFoodOrder(orderId, { userId: customerId, role: 'customer' });
+    }
     async vendorUserIdForOrder(type, order) {
         let vendorId = type === 'grocery' ? order.vendorId : undefined;
         if (type === 'food' && order.restaurantId) {

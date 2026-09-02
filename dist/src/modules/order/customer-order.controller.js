@@ -49,6 +49,9 @@ let CustomerOrderController = class CustomerOrderController {
     rateFoodOrder(user, id, dto) {
         return this.orders.rateFoodOrder(user.sub, id, dto);
     }
+    cancelOrder(user, type, id) {
+        return this.orders.cancelOrderForCustomer(user.sub, type, id);
+    }
 };
 exports.CustomerOrderController = CustomerOrderController;
 __decorate([
@@ -108,6 +111,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, rate_food_order_dto_1.RateFoodOrderDto]),
     __metadata("design:returntype", void 0)
 ], CustomerOrderController.prototype, "rateFoodOrder", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/cancel'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], CustomerOrderController.prototype, "cancelOrder", null);
 exports.CustomerOrderController = CustomerOrderController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('customer'),

@@ -9,9 +9,9 @@ export declare class VendorMenuController {
         id: string;
         name: string;
         isOpen: boolean;
-        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
+        imageUrl: string | null;
         ratingAvg: number;
     }>;
     updateRestaurant(user: JwtAccessPayload, dto: UpdateRestaurantDto): Promise<{
@@ -83,12 +83,12 @@ export declare class VendorMenuController {
         }[];
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
+        imageUrl: string | null;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{
         addons: {

@@ -8,12 +8,21 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { and, desc, eq, gt, ilike, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike, inArray, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomInt, randomUUID } from 'crypto';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { authTokens, otpCodes, users, vendors } from '../../../drizzle/schema';
+import {
+  authTokens,
+  deliveryPartners,
+  foodOrders,
+  groceryOrders,
+  otpCodes,
+  restaurants,
+  users,
+  vendors,
+} from '../../../drizzle/schema';
 import { parseDurationMs } from '../../common/utils/duration';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
@@ -452,6 +461,123 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User no longer exists');
     const { passwordHash: _passwordHash, ...safeUser } = user;
     return safeUser;
+  }
+
+  async updateProfile(userId: string, dto: { name?: string; email?: string }) {
+    if (dto.email) {
+      const [existing] = await this.db.select().from(users).where(eq(users.email, dto.email)).limit(1);
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('This email is already in use by another account');
+      }
+    }
+
+    const updates: { name?: string; email?: string } = {};
+    if (dto.name !== undefined) updates.name = dto.name.trim();
+    if (dto.email !== undefined) updates.email = dto.email.trim();
+
+    if (Object.keys(updates).length === 0) return this.me(userId);
+
+    const [user] = await this.db.update(users).set(updates).where(eq(users.id, userId)).returning();
+    if (!user) throw new UnauthorizedException('User no longer exists');
+    const { passwordHash: _passwordHash, ...safeUser } = user;
+    return safeUser;
+  }
+
+  async deleteAccount(userId: string) {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new NotFoundException('User not found');
+
+    if (user.role === 'vendor') {
+      const [vendor] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
+      if (vendor) {
+        // Check active grocery orders
+        const activeGrocery = await this.db
+          .select({ id: groceryOrders.id })
+          .from(groceryOrders)
+          .where(
+            and(
+              eq(groceryOrders.vendorId, vendor.id),
+              inArray(groceryOrders.status, [
+                'placed',
+                'vendor_accepted',
+                'preparing',
+                'ready',
+                'handed_over',
+                'delivery_assigned',
+                'picked_up',
+                'out_for_delivery',
+              ]),
+            ),
+          )
+          .limit(1);
+
+        // Check active food orders
+        const [restaurant] = await this.db
+          .select()
+          .from(restaurants)
+          .where(eq(restaurants.vendorId, vendor.id))
+          .limit(1);
+
+        let activeFood: { id: string }[] = [];
+        if (restaurant) {
+          activeFood = await this.db
+            .select({ id: foodOrders.id })
+            .from(foodOrders)
+            .where(
+              and(
+                eq(foodOrders.restaurantId, restaurant.id),
+                inArray(foodOrders.status, [
+                  'placed',
+                  'vendor_accepted',
+                  'preparing',
+                  'ready',
+                  'handed_over',
+                  'delivery_assigned',
+                  'picked_up',
+                  'out_for_delivery',
+                ]),
+              ),
+            )
+            .limit(1);
+        }
+
+        if (activeGrocery.length > 0 || activeFood.length > 0) {
+          throw new BadRequestException(
+            'Cannot delete account while you have active orders in progress. Please complete or cancel remaining orders first.',
+          );
+        }
+
+        // Close vendor store & restaurant
+        await this.db
+          .update(vendors)
+          .set({ isOpen: false })
+          .where(eq(vendors.id, vendor.id));
+
+        if (restaurant) {
+          await this.db
+            .update(restaurants)
+            .set({ isOpen: false })
+            .where(eq(restaurants.id, restaurant.id));
+        }
+      }
+    } else if (user.role === 'delivery_partner') {
+      await this.db
+        .update(deliveryPartners)
+        .set({ isOnline: false })
+        .where(eq(deliveryPartners.userId, userId));
+    }
+
+    await this.db
+      .update(users)
+      .set({ status: 'suspended', phone: null, email: null })
+      .where(eq(users.id, userId));
+
+    await this.db
+      .update(authTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(authTokens.userId, userId));
+
+    return { success: true, message: 'Account deleted successfully' };
   }
 
   private async findOrCreateByPhone(phone: string, role: OtpRole) {

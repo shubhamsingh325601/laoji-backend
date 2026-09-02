@@ -38,6 +38,12 @@ let VendorCatalogController = class VendorCatalogController {
     async updateBusinessHours(user, dto) {
         return this.catalog.updateBusinessHours(user.sub, dto);
     }
+    async deleteAccount(user) {
+        return this.catalog.deleteVendorAccount(user.sub);
+    }
+    async deleteAccountAlt(user) {
+        return this.catalog.deleteVendorAccount(user.sub);
+    }
     browseMasterCatalog(categoryId) {
         return this.catalog.listProducts(categoryId);
     }
@@ -90,6 +96,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, business_hours_dto_1.UpdateBusinessHoursDto]),
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "updateBusinessHours", null);
+__decorate([
+    (0, common_1.Delete)('vendors/me'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteAccount", null);
+__decorate([
+    (0, common_1.Delete)('vendor/me'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteAccountAlt", null);
 __decorate([
     (0, common_1.Get)('vendor/catalog/products'),
     __param(0, (0, common_1.Query)('categoryId')),

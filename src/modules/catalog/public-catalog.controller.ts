@@ -43,4 +43,10 @@ export class PublicCatalogController {
   restaurant(@Param('id') id: string) {
     return this.catalog.publicGetRestaurant(id);
   }
+
+  @Get('search')
+  search(@Query('lat') lat?: string, @Query('lng') lng?: string, @Query('q') q?: string) {
+    const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
+    return this.catalog.publicSearch(latNum, lngNum, q ?? '');
+  }
 }

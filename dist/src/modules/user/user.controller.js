@@ -18,6 +18,7 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const auth_service_1 = require("../auth/auth.service");
 const update_email_dto_1 = require("./dto/update-email.dto");
+const update_profile_dto_1 = require("./dto/update-profile.dto");
 let UserController = class UserController {
     auth;
     constructor(auth) {
@@ -28,6 +29,15 @@ let UserController = class UserController {
     }
     updateEmail(user, dto) {
         return this.auth.updateEmail(user.sub, dto.email);
+    }
+    updateProfile(user, dto) {
+        return this.auth.updateProfile(user.sub, dto);
+    }
+    updateProfileDirect(user, dto) {
+        return this.auth.updateProfile(user.sub, dto);
+    }
+    deleteAccount(user) {
+        return this.auth.deleteAccount(user.sub);
     }
 };
 exports.UserController = UserController;
@@ -46,6 +56,29 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_email_dto_1.UpdateEmailDto]),
     __metadata("design:returntype", void 0)
 ], UserController.prototype, "updateEmail", null);
+__decorate([
+    (0, common_1.Patch)('me/profile'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Patch)('me'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "updateProfileDirect", null);
+__decorate([
+    (0, common_1.Delete)('me'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "deleteAccount", null);
 exports.UserController = UserController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('users'),

@@ -388,6 +388,100 @@ let AuthService = class AuthService {
         const { passwordHash: _passwordHash, ...safeUser } = user;
         return safeUser;
     }
+    async updateProfile(userId, dto) {
+        if (dto.email) {
+            const [existing] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.email, dto.email)).limit(1);
+            if (existing && existing.id !== userId) {
+                throw new common_1.ConflictException('This email is already in use by another account');
+            }
+        }
+        const updates = {};
+        if (dto.name !== undefined)
+            updates.name = dto.name.trim();
+        if (dto.email !== undefined)
+            updates.email = dto.email.trim();
+        if (Object.keys(updates).length === 0)
+            return this.me(userId);
+        const [user] = await this.db.update(schema_1.users).set(updates).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).returning();
+        if (!user)
+            throw new common_1.UnauthorizedException('User no longer exists');
+        const { passwordHash: _passwordHash, ...safeUser } = user;
+        return safeUser;
+    }
+    async deleteAccount(userId) {
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        if (user.role === 'vendor') {
+            const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
+            if (vendor) {
+                const activeGrocery = await this.db
+                    .select({ id: schema_1.groceryOrders.id })
+                    .from(schema_1.groceryOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, [
+                    'placed',
+                    'vendor_accepted',
+                    'preparing',
+                    'ready',
+                    'handed_over',
+                    'delivery_assigned',
+                    'picked_up',
+                    'out_for_delivery',
+                ])))
+                    .limit(1);
+                const [restaurant] = await this.db
+                    .select()
+                    .from(schema_1.restaurants)
+                    .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id))
+                    .limit(1);
+                let activeFood = [];
+                if (restaurant) {
+                    activeFood = await this.db
+                        .select({ id: schema_1.foodOrders.id })
+                        .from(schema_1.foodOrders)
+                        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, [
+                        'placed',
+                        'vendor_accepted',
+                        'preparing',
+                        'ready',
+                        'handed_over',
+                        'delivery_assigned',
+                        'picked_up',
+                        'out_for_delivery',
+                    ])))
+                        .limit(1);
+                }
+                if (activeGrocery.length > 0 || activeFood.length > 0) {
+                    throw new common_1.BadRequestException('Cannot delete account while you have active orders in progress. Please complete or cancel remaining orders first.');
+                }
+                await this.db
+                    .update(schema_1.vendors)
+                    .set({ isOpen: false })
+                    .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendor.id));
+                if (restaurant) {
+                    await this.db
+                        .update(schema_1.restaurants)
+                        .set({ isOpen: false })
+                        .where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, restaurant.id));
+                }
+            }
+        }
+        else if (user.role === 'delivery_partner') {
+            await this.db
+                .update(schema_1.deliveryPartners)
+                .set({ isOnline: false })
+                .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.userId, userId));
+        }
+        await this.db
+            .update(schema_1.users)
+            .set({ status: 'suspended', phone: null, email: null })
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        await this.db
+            .update(schema_1.authTokens)
+            .set({ revokedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, userId));
+        return { success: true, message: 'Account deleted successfully' };
+    }
     async findOrCreateByPhone(phone, role) {
         const [existing] = await this.db
             .select()

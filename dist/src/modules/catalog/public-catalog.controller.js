@@ -47,6 +47,10 @@ let PublicCatalogController = class PublicCatalogController {
     restaurant(id) {
         return this.catalog.publicGetRestaurant(id);
     }
+    search(lat, lng, q) {
+        const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
+        return this.catalog.publicSearch(latNum, lngNum, q ?? '');
+    }
 };
 exports.PublicCatalogController = PublicCatalogController;
 __decorate([
@@ -88,6 +92,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "restaurant", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    __param(0, (0, common_1.Query)('lat')),
+    __param(1, (0, common_1.Query)('lng')),
+    __param(2, (0, common_1.Query)('q')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], PublicCatalogController.prototype, "search", null);
 exports.PublicCatalogController = PublicCatalogController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('catalog'),

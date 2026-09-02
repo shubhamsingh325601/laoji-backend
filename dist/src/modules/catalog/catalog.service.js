@@ -132,6 +132,61 @@ let CatalogService = class CatalogService {
             .returning();
         return updated;
     }
+    async deleteVendorAccount(userId) {
+        const vendor = await this.requireVendor(userId);
+        const activeGrocery = await this.db
+            .select({ id: schema_1.groceryOrders.id })
+            .from(schema_1.groceryOrders)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, [
+            'placed',
+            'vendor_accepted',
+            'preparing',
+            'ready',
+            'handed_over',
+            'delivery_assigned',
+            'picked_up',
+            'out_for_delivery',
+        ])))
+            .limit(1);
+        const [restaurant] = await this.db
+            .select()
+            .from(schema_1.restaurants)
+            .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id))
+            .limit(1);
+        let activeFood = [];
+        if (restaurant) {
+            activeFood = await this.db
+                .select({ id: schema_1.foodOrders.id })
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, [
+                'placed',
+                'vendor_accepted',
+                'preparing',
+                'ready',
+                'handed_over',
+                'delivery_assigned',
+                'picked_up',
+                'out_for_delivery',
+            ])))
+                .limit(1);
+        }
+        if (activeGrocery.length > 0 || activeFood.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete account while you have active orders in progress. Please complete or cancel remaining orders first.');
+        }
+        await this.db.update(schema_1.vendors).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendor.id));
+        if (restaurant) {
+            await this.db.update(schema_1.restaurants).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, restaurant.id));
+        }
+        await this.db
+            .update(schema_1.users)
+            .set({ status: 'suspended', phone: null, email: null })
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        await this.db
+            .update(schema_1.authTokens)
+            .set({ revokedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, userId));
+        return { success: true, message: 'Vendor account deleted successfully.' };
+    }
     async listVendorsBasic() {
         const rows = await this.db.select().from(schema_1.vendors);
         return rows.map((v) => ({ id: v.id, businessName: v.businessName, type: v.type }));
@@ -161,7 +216,13 @@ let CatalogService = class CatalogService {
             imageUrl: root.imageUrl,
             subcategories: all
                 .filter((c) => c.parentId === root.id)
-                .map((sub) => ({ id: sub.id, name: sub.name, productCount: countByCategory.get(sub.id) ?? 0 })),
+                .map((sub) => ({
+                id: sub.id,
+                name: sub.name,
+                imageUrl: sub.imageUrl,
+                parentId: sub.parentId,
+                productCount: countByCategory.get(sub.id) ?? 0,
+            })),
         }));
     }
     async createCategory(dto) {
@@ -169,7 +230,12 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateCategory(id, dto) {
-        const [row] = await this.db.update(schema_1.categories).set(dto).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id)).returning();
+        const updateData = {
+            ...dto,
+            ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+            ...(dto.parentId !== undefined ? { parentId: dto.parentId || null } : {}),
+        };
+        const [row] = await this.db.update(schema_1.categories).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id)).returning();
         if (!row)
             throw new common_1.NotFoundException('Category not found');
         return row;
@@ -234,7 +300,14 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateProduct(id, dto) {
-        const [row] = await this.db.update(schema_1.products).set(dto).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).returning();
+        const updateData = {
+            ...dto,
+            ...(dto.brand !== undefined ? { brand: dto.brand || null } : {}),
+            ...(dto.description !== undefined ? { description: dto.description || null } : {}),
+            ...(dto.size !== undefined ? { size: dto.size || null } : {}),
+            ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+        };
+        const [row] = await this.db.update(schema_1.products).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).returning();
         if (!row)
             throw new common_1.NotFoundException('Product not found');
         return row;
@@ -419,6 +492,74 @@ let CatalogService = class CatalogService {
                     variants: variants.filter((v) => v.menuItemId === item.id),
                 })),
             })),
+        };
+    }
+    async publicSearch(lat, lng, query) {
+        const trimmed = query.trim();
+        if (!trimmed) {
+            return { products: [], restaurants: [], dishes: [] };
+        }
+        const inRadius = await this.vendorsInRadius(lat, lng);
+        const groceryVendorIds = inRadius.filter((v) => v.type === 'grocery').map((v) => v.id);
+        const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+        let productsList = [];
+        if (groceryVendorIds.length > 0) {
+            const pRows = await this.db
+                .select({ vendorProduct: schema_1.vendorProducts, product: schema_1.products })
+                .from(schema_1.vendorProducts)
+                .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, groceryVendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), (0, drizzle_orm_1.ilike)(schema_1.products.name, `%${trimmed}%`)));
+            productsList = this.aggregateByProduct(pRows);
+        }
+        let matchedRestaurants = [];
+        if (restaurantVendorIds.length > 0) {
+            matchedRestaurants = await this.db
+                .select()
+                .from(schema_1.restaurants)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, restaurantVendorIds), (0, drizzle_orm_1.eq)(schema_1.restaurants.isOpen, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.ilike)(schema_1.restaurants.name, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.restaurants.cuisineTags, `%${trimmed}%`))));
+        }
+        let dishesList = [];
+        if (restaurantVendorIds.length > 0) {
+            const activeRestaurants = await this.db
+                .select()
+                .from(schema_1.restaurants)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, restaurantVendorIds), (0, drizzle_orm_1.eq)(schema_1.restaurants.isOpen, true)));
+            const restIds = activeRestaurants.map((r) => r.id);
+            if (restIds.length > 0) {
+                const catRows = await this.db
+                    .select()
+                    .from(schema_1.menuCategories)
+                    .where((0, drizzle_orm_1.inArray)(schema_1.menuCategories.restaurantId, restIds));
+                const catIds = catRows.map((c) => c.id);
+                if (catIds.length > 0) {
+                    const restMap = new Map(activeRestaurants.map((r) => [r.id, r]));
+                    const catMap = new Map(catRows.map((c) => [c.id, c.restaurantId]));
+                    const itemRows = await this.db
+                        .select()
+                        .from(schema_1.menuItems)
+                        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.menuItems.menuCategoryId, catIds), (0, drizzle_orm_1.eq)(schema_1.menuItems.isAvailable, true), (0, drizzle_orm_1.ilike)(schema_1.menuItems.name, `%${trimmed}%`)));
+                    dishesList = itemRows.map((item) => {
+                        const rId = catMap.get(item.menuCategoryId);
+                        const rest = restMap.get(rId);
+                        return {
+                            id: item.id,
+                            restaurantId: rId,
+                            restaurantName: rest?.name ?? 'Restaurant',
+                            name: item.name,
+                            description: item.description,
+                            price: item.price,
+                            imageUrl: item.imageUrl,
+                            isVeg: item.isVeg,
+                            isAvailable: item.isAvailable,
+                        };
+                    });
+                }
+            }
+        }
+        return {
+            products: productsList,
+            restaurants: matchedRestaurants,
+            dishes: dishesList,
         };
     }
     async getOrCreateRestaurant(vendorId) {

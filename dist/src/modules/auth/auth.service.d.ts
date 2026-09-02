@@ -83,6 +83,28 @@ export declare class AuthService {
         mustChangePassword: boolean;
         createdAt: Date;
     }>;
+    updateProfile(userId: string, dto: {
+        name?: string;
+        email?: string;
+    }): Promise<{
+        id: string;
+        phone: string | null;
+        email: string | null;
+        role: "customer" | "vendor" | "delivery_partner" | "admin";
+        status: "active" | "suspended";
+        name: string | null;
+        city: string | null;
+        timezone: string | null;
+        notifyStuckOrders: boolean;
+        notifyKyc: boolean;
+        supportNotes: string | null;
+        mustChangePassword: boolean;
+        createdAt: Date;
+    }>;
+    deleteAccount(userId: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     private findOrCreateByPhone;
     private issueTokens;
 }
