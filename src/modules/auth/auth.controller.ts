@@ -7,6 +7,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { CustomerLoginDto, CustomerRegisterDto } from './dto/customer-auth.dto';
 import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
 import { CreatePasswordDto } from './dto/create-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -32,6 +33,18 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Throttle({ customerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('customer/login')
+  customerLogin(@Body() dto: CustomerLoginDto) {
+    return this.auth.customerLogin(dto.phone, dto.password, dto.deviceId);
+  }
+
+  @Throttle({ customerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('customer/register')
+  customerRegister(@Body() dto: CustomerRegisterDto) {
+    return this.auth.customerRegister(dto);
   }
 
   @Throttle({ adminLogin: { limit: 10, ttl: 60_000 } })

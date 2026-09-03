@@ -10,10 +10,10 @@ export declare class VendorCatalogController {
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
         id: string;
         createdAt: Date;
-        type: "grocery" | "restaurant" | "both";
         userId: string;
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -523,11 +523,11 @@ export declare class VendorCatalogController {
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
         id: string;
         vendorId: string;
-        updatedAt: Date;
         price: number;
         isAvailable: boolean;
         productId: string;
         stockQty: number;
+        updatedAt: Date;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         id: string;

@@ -511,12 +511,37 @@ let CatalogService = class CatalogService {
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, groceryVendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), (0, drizzle_orm_1.ilike)(schema_1.products.name, `%${trimmed}%`)));
             productsList = this.aggregateByProduct(pRows);
         }
+        if (productsList.length === 0) {
+            const fallbackProducts = await this.db
+                .select()
+                .from(schema_1.products)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), (0, drizzle_orm_1.or)((0, drizzle_orm_1.ilike)(schema_1.products.name, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.products.description, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.products.unit, `%${trimmed}%`))))
+                .limit(30);
+            productsList = fallbackProducts.map((p) => ({
+                id: p.id,
+                categoryId: p.categoryId,
+                name: p.name,
+                unit: p.unit,
+                imageUrl: p.imageUrl,
+                description: p.description,
+                mrp: p.mrp,
+                price: p.mrp ?? 0,
+                inStock: true,
+            }));
+        }
         let matchedRestaurants = [];
         if (restaurantVendorIds.length > 0) {
             matchedRestaurants = await this.db
                 .select()
                 .from(schema_1.restaurants)
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, restaurantVendorIds), (0, drizzle_orm_1.eq)(schema_1.restaurants.isOpen, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.ilike)(schema_1.restaurants.name, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.restaurants.cuisineTags, `%${trimmed}%`))));
+        }
+        if (matchedRestaurants.length === 0) {
+            matchedRestaurants = await this.db
+                .select()
+                .from(schema_1.restaurants)
+                .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.ilike)(schema_1.restaurants.name, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.restaurants.cuisineTags, `%${trimmed}%`)))
+                .limit(15);
         }
         let dishesList = [];
         if (restaurantVendorIds.length > 0) {
@@ -555,6 +580,30 @@ let CatalogService = class CatalogService {
                     });
                 }
             }
+        }
+        if (dishesList.length === 0) {
+            const menuRows = await this.db
+                .select({
+                item: schema_1.menuItems,
+                cat: schema_1.menuCategories,
+                rest: schema_1.restaurants,
+            })
+                .from(schema_1.menuItems)
+                .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
+                .innerJoin(schema_1.restaurants, (0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, schema_1.restaurants.id))
+                .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.ilike)(schema_1.menuItems.name, `%${trimmed}%`), (0, drizzle_orm_1.ilike)(schema_1.menuItems.description, `%${trimmed}%`)))
+                .limit(20);
+            dishesList = menuRows.map(({ item, rest }) => ({
+                id: item.id,
+                restaurantId: rest.id,
+                restaurantName: rest.name,
+                name: item.name,
+                description: item.description,
+                price: item.price,
+                imageUrl: item.imageUrl,
+                isVeg: item.isVeg,
+                isAvailable: item.isAvailable,
+            }));
         }
         return {
             products: productsList,

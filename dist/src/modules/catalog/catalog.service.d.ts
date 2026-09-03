@@ -72,10 +72,10 @@ export declare class CatalogService {
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
         id: string;
         createdAt: Date;
-        type: "grocery" | "restaurant" | "both";
         userId: string;
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -786,11 +786,11 @@ export declare class CatalogService {
     upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto): Promise<{
         id: string;
         vendorId: string;
-        updatedAt: Date;
         price: number;
         isAvailable: boolean;
         productId: string;
         stockQty: number;
+        updatedAt: Date;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -962,9 +962,9 @@ export declare class CatalogService {
         variants: {
             id: string;
             name: string;
-            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
+            isDefault: boolean;
         }[];
         id: string;
         name: string;

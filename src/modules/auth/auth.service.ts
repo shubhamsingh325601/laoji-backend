@@ -26,6 +26,7 @@ import {
 import { parseDurationMs } from '../../common/utils/duration';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { CustomerRegisterDto } from './dto/customer-auth.dto';
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -126,6 +127,82 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.role);
     return { tokens, userId: user.id, role: user.role };
+  }
+
+  async customerLogin(
+    phone: string,
+    password: string,
+    deviceId?: string,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any }> {
+    const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'customer')))
+      .limit(1);
+
+    if (!user) {
+      throw new UnauthorizedException('No account found with this phone number. Please sign up.');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Password is not set for this account. Please sign up or reset your password.');
+    }
+
+    const matches = await bcrypt.compare(password, user.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Incorrect password. Please try again.');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.role, deviceId);
+    const { passwordHash: _hash, ...safeUser } = user;
+    return { tokens, userId: user.id, role: user.role, user: safeUser };
+  }
+
+  async customerRegister(
+    dto: CustomerRegisterDto,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any }> {
+    const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+    const [existing] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'customer')))
+      .limit(1);
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    if (existing) {
+      if (existing.passwordHash) {
+        throw new ConflictException('An account with this phone number already exists. Please log in.');
+      }
+      const updates: { passwordHash: string; name?: string } = { passwordHash };
+      if (dto.name?.trim()) {
+        updates.name = dto.name.trim();
+      }
+      const [updated] = await this.db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, existing.id))
+        .returning();
+
+      const tokens = await this.issueTokens(updated.id, 'customer', dto.deviceId);
+      const { passwordHash: _hash, ...safeUser } = updated;
+      return { tokens, userId: updated.id, role: 'customer', user: safeUser };
+    }
+
+    const [created] = await this.db
+      .insert(users)
+      .values({
+        phone: cleanPhone,
+        role: 'customer',
+        passwordHash,
+        name: dto.name?.trim() || null,
+      })
+      .returning();
+
+    const tokens = await this.issueTokens(created.id, 'customer', dto.deviceId);
+    const { passwordHash: _hash, ...safeUser } = created;
+    return { tokens, userId: created.id, role: 'customer', user: safeUser };
   }
 
   async vendorLogin(

@@ -640,6 +640,36 @@ export class CatalogService {
       productsList = this.aggregateByProduct(pRows);
     }
 
+    // Direct active catalog products fallback so search always succeeds even if vendor radius is unmatched
+    if (productsList.length === 0) {
+      const fallbackProducts = await this.db
+        .select()
+        .from(products)
+        .where(
+          and(
+            eq(products.status, 'active'),
+            or(
+              ilike(products.name, `%${trimmed}%`),
+              ilike(products.description, `%${trimmed}%`),
+              ilike(products.unit, `%${trimmed}%`),
+            ),
+          ),
+        )
+        .limit(30);
+
+      productsList = fallbackProducts.map((p) => ({
+        id: p.id,
+        categoryId: p.categoryId,
+        name: p.name,
+        unit: p.unit,
+        imageUrl: p.imageUrl,
+        description: p.description,
+        mrp: p.mrp,
+        price: p.mrp ?? 0,
+        inStock: true,
+      }));
+    }
+
     // 2. Matched restaurants
     let matchedRestaurants: any[] = [];
     if (restaurantVendorIds.length > 0) {
@@ -656,6 +686,19 @@ export class CatalogService {
             ),
           ),
         );
+    }
+
+    if (matchedRestaurants.length === 0) {
+      matchedRestaurants = await this.db
+        .select()
+        .from(restaurants)
+        .where(
+          or(
+            ilike(restaurants.name, `%${trimmed}%`),
+            ilike(restaurants.cuisineTags, `%${trimmed}%`),
+          ),
+        )
+        .limit(15);
     }
 
     // 3. Matched dishes (menu items from active restaurants)
@@ -709,6 +752,37 @@ export class CatalogService {
           });
         }
       }
+    }
+
+    if (dishesList.length === 0) {
+      const menuRows = await this.db
+        .select({
+          item: menuItems,
+          cat: menuCategories,
+          rest: restaurants,
+        })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .innerJoin(restaurants, eq(menuCategories.restaurantId, restaurants.id))
+        .where(
+          or(
+            ilike(menuItems.name, `%${trimmed}%`),
+            ilike(menuItems.description, `%${trimmed}%`),
+          ),
+        )
+        .limit(20);
+
+      dishesList = menuRows.map(({ item, rest }) => ({
+        id: item.id,
+        restaurantId: rest.id,
+        restaurantName: rest.name,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        imageUrl: item.imageUrl,
+        isVeg: item.isVeg,
+        isAvailable: item.isAvailable,
+      }));
     }
 
     return {

@@ -77,9 +77,9 @@ export declare class VendorMenuController {
         variants: {
             id: string;
             name: string;
-            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
+            isDefault: boolean;
         }[];
         id: string;
         name: string;

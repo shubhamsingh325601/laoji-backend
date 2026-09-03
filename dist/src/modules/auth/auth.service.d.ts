@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Db } from '../../config/database.module';
 import { OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { CustomerRegisterDto } from './dto/customer-auth.dto';
 export declare class AuthService {
     private readonly db;
     private readonly jwt;
@@ -20,6 +21,18 @@ export declare class AuthService {
         tokens: TokenPair;
         userId: string;
         role: UserRole;
+    }>;
+    customerLogin(phone: string, password: string, deviceId?: string): Promise<{
+        tokens: TokenPair;
+        userId: string;
+        role: UserRole;
+        user: any;
+    }>;
+    customerRegister(dto: CustomerRegisterDto): Promise<{
+        tokens: TokenPair;
+        userId: string;
+        role: UserRole;
+        user: any;
     }>;
     vendorLogin(identifier: {
         email?: string;

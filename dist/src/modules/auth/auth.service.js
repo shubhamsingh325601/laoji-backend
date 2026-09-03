@@ -122,6 +122,65 @@ let AuthService = class AuthService {
         const tokens = await this.issueTokens(user.id, user.role);
         return { tokens, userId: user.id, role: user.role };
     }
+    async customerLogin(phone, password, deviceId) {
+        const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+        const [user] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'customer')))
+            .limit(1);
+        if (!user) {
+            throw new common_1.UnauthorizedException('No account found with this phone number. Please sign up.');
+        }
+        if (!user.passwordHash) {
+            throw new common_1.UnauthorizedException('Password is not set for this account. Please sign up or reset your password.');
+        }
+        const matches = await bcrypt.compare(password, user.passwordHash);
+        if (!matches) {
+            throw new common_1.UnauthorizedException('Incorrect password. Please try again.');
+        }
+        const tokens = await this.issueTokens(user.id, user.role, deviceId);
+        const { passwordHash: _hash, ...safeUser } = user;
+        return { tokens, userId: user.id, role: user.role, user: safeUser };
+    }
+    async customerRegister(dto) {
+        const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+        const [existing] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'customer')))
+            .limit(1);
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+        if (existing) {
+            if (existing.passwordHash) {
+                throw new common_1.ConflictException('An account with this phone number already exists. Please log in.');
+            }
+            const updates = { passwordHash };
+            if (dto.name?.trim()) {
+                updates.name = dto.name.trim();
+            }
+            const [updated] = await this.db
+                .update(schema_1.users)
+                .set(updates)
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, existing.id))
+                .returning();
+            const tokens = await this.issueTokens(updated.id, 'customer', dto.deviceId);
+            const { passwordHash: _hash, ...safeUser } = updated;
+            return { tokens, userId: updated.id, role: 'customer', user: safeUser };
+        }
+        const [created] = await this.db
+            .insert(schema_1.users)
+            .values({
+            phone: cleanPhone,
+            role: 'customer',
+            passwordHash,
+            name: dto.name?.trim() || null,
+        })
+            .returning();
+        const tokens = await this.issueTokens(created.id, 'customer', dto.deviceId);
+        const { passwordHash: _hash, ...safeUser } = created;
+        return { tokens, userId: created.id, role: 'customer', user: safeUser };
+    }
     async vendorLogin(identifier, password, deviceId) {
         const email = typeof identifier === 'object' ? identifier.email : undefined;
         const phone = typeof identifier === 'object' ? identifier.phone : identifier;
