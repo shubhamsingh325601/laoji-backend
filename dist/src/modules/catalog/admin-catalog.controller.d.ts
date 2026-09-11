@@ -477,7 +477,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
@@ -494,7 +494,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
@@ -514,7 +514,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
@@ -530,7 +530,7 @@ export declare class AdminCatalogController {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;

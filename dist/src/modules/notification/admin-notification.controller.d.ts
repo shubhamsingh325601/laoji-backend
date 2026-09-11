@@ -10,13 +10,13 @@ export declare class AdminNotificationController {
         channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "failed" | "queued" | "sent";
+        status: "sent" | "failed" | "queued";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;
     sendNotification(dto: SendAdminNotificationDto): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
+        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;

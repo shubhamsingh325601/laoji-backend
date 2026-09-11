@@ -25,7 +25,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
-    "seed:admin:live": "ts-node -r tsconfig-paths/register scripts/seed-admin-live.ts"
+    "seed:admin:live": "ts-node -r tsconfig-paths/register scripts/seed-admin-live.ts",
+    "seed:golden-cafe": "ts-node -r tsconfig-paths/register scripts/seed-golden-cafe.ts",
+    "seed:new-vendors": "ts-node -r tsconfig-paths/register scripts/seed-new-vendors.ts",
+    "verify:new-vendors": "ts-node -r tsconfig-paths/register scripts/verify-new-vendors.ts"
   },
   "dependencies": {
     "@nestjs/cli": "^11.0.0",

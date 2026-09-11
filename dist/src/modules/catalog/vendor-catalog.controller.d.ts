@@ -11,9 +11,9 @@ export declare class VendorCatalogController {
         id: string;
         createdAt: Date;
         userId: string;
+        type: "restaurant" | "both" | "grocery";
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -40,7 +40,7 @@ export declare class VendorCatalogController {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -65,7 +65,7 @@ export declare class VendorCatalogController {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "both" | "grocery";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -522,12 +522,12 @@ export declare class VendorCatalogController {
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
         productId: string;
         stockQty: number;
-        updatedAt: Date;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         id: string;
@@ -546,13 +546,13 @@ export declare class VendorCatalogController {
         createdAt: Date;
         vendorId: string;
         imageUrl: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         categoryId: string;
         unit: string;
         size: string | null;
         productId: string | null;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{
         id: string;

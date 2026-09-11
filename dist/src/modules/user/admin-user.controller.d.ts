@@ -35,7 +35,7 @@ export declare class AdminUserController {
         recentOrders: ({
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -51,7 +51,7 @@ export declare class AdminUserController {
         } | {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;

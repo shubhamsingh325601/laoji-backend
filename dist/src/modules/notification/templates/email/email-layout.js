@@ -39,9 +39,10 @@ function wrapInLaojiEmailLayout(contentHtml, previewText = 'Laoji Notification')
               <p style="margin: 0; font-size: 14px; font-weight: 700; color: #0A1938;">Warm regards,</p>
               <p style="margin: 2px 0 0 0; font-size: 15px; font-weight: 700; color: #1F4B3F;">The Laoji Team</p>
               <p style="margin: 6px 0 0 0; font-size: 12px; color: #64706A;">Laoji Technologies Private Limited</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #64706A;">Gaurav Tower, Malviya Nagar, Jaipur, Rajasthan 302017</p>
               <p style="margin: 2px 0 0 0; font-size: 12px; color: #64706A;">
-                Helpdesk: <a href="mailto:support@laoji.in" style="color: #0A1938; font-weight: 600; text-decoration: none;">support@laoji.in</a> &bull; 
-                Web: <a href="https://laoji.in" style="color: #0A1938; font-weight: 600; text-decoration: none;">https://laoji.in</a>
+                Helpdesk: <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600; text-decoration: none;">support@laojionline.com</a> &bull; 
+                Web: <a href="https://laojionline.com" style="color: #0A1938; font-weight: 600; text-decoration: none;">https://laojionline.com</a>
               </p>
             </td>
             <td style="vertical-align: middle; text-align: right; width: 90px;">
@@ -53,7 +54,7 @@ function wrapInLaojiEmailLayout(contentHtml, previewText = 'Laoji Notification')
         </table>
         
         <div style="margin-top: 18px; border-top: 1px solid #E2E6DF; padding-top: 12px; text-align: center; font-size: 11px; color: #939C97;">
-          Automated system notification &bull; Laoji Platform
+          Automated notification for registered users &bull; Laoji Platform &bull; <a href="https://laojionline.com/privacy" style="color: #64706A; text-decoration: underline;">Privacy Policy</a>
         </div>
       </td>
     </tr>

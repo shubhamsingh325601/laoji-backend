@@ -14,9 +14,9 @@ export declare class NotificationService {
     registerDeviceToken(userId: string, fcmToken: string, platform: Platform): Promise<{
         id: string;
         userId: string;
-        updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
+        updatedAt: Date;
     }>;
     notifyPush(userId: string, template: string, message: PushMessage): void;
     notifyEmail(userId: string, template: string, message: EmailMessage): void;
@@ -64,7 +64,7 @@ export declare class NotificationService {
         message: string;
     }): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
+        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
@@ -75,7 +75,7 @@ export declare class NotificationService {
         channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "failed" | "queued" | "sent";
+        status: "sent" | "failed" | "queued";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;
