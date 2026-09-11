@@ -62,9 +62,11 @@ export declare class NotificationService {
         email?: string;
         title: string;
         message: string;
+        imageUrl?: string;
+        link?: string;
     }): Promise<{
         sentCount: number;
-        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
+        target: "customer" | "vendor" | "delivery_partner" | "all" | "restaurant" | "user";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
@@ -75,7 +77,7 @@ export declare class NotificationService {
         channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "sent" | "failed" | "queued";
+        status: "queued" | "sent" | "failed";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;

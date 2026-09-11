@@ -8,10 +8,10 @@ export declare class VendorCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
+        type: "restaurant" | "both" | "grocery";
         id: string;
         createdAt: Date;
         userId: string;
-        type: "restaurant" | "both" | "grocery";
         businessName: string;
         ownerName: string;
         shopAddress: string | null;
@@ -540,12 +540,12 @@ export declare class VendorCatalogController {
     }>;
     deleteListing(user: JwtAccessPayload, id: string): Promise<void>;
     submitSuggestion(user: JwtAccessPayload, dto: CreateProductSuggestionDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
         vendorId: string;
-        imageUrl: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;

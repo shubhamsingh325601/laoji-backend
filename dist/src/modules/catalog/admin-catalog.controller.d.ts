@@ -20,9 +20,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
@@ -441,13 +441,13 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
+        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
         description: string | null;
-        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
@@ -582,13 +582,13 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
             description: string | null;
-            imageUrl: string | null;
             categoryId: string;
             unit: string;
             size: string | null;

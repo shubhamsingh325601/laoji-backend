@@ -182,7 +182,13 @@ let NotificationService = NotificationService_1 = class NotificationService {
                 this.notifyPush(u.id, 'admin_broadcast', {
                     title: dto.title,
                     body: dto.message,
-                    data: { type: 'admin_broadcast', target: dto.target },
+                    imageUrl: dto.imageUrl,
+                    data: {
+                        type: 'admin_broadcast',
+                        target: dto.target,
+                        ...(dto.link ? { link: dto.link } : {}),
+                        ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
+                    },
                 });
             }
             if (activeChannels.has('email') && u.email) {

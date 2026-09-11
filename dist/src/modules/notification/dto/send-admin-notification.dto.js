@@ -22,6 +22,8 @@ class SendAdminNotificationDto {
     email;
     title;
     message;
+    imageUrl;
+    link;
 }
 exports.SendAdminNotificationDto = SendAdminNotificationDto;
 __decorate([
@@ -63,4 +65,14 @@ __decorate([
     (0, class_validator_1.Length)(1, 4000),
     __metadata("design:type", String)
 ], SendAdminNotificationDto.prototype, "message", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SendAdminNotificationDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SendAdminNotificationDto.prototype, "link", void 0);
 //# sourceMappingURL=send-admin-notification.dto.js.map

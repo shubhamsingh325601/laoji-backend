@@ -35,7 +35,7 @@ export const envSchema = z.object({
   RESEND_FROM_EMAIL: z.preprocess(cleanString, z.string().default('Laoji <no-reply@laojionline.com>')),
 
   PAYMENT_PROVIDER: z.preprocess(cleanString, z.enum(['upi_deeplink', 'razorpay']).default('upi_deeplink')),
-  UPI_VPA: z.preprocess(cleanString, z.string().default('laoji@upi')),
+  UPI_VPA: z.preprocess(cleanString, z.string().default('8005949152-3@ybl')),
   UPI_PAYEE_NAME: z.preprocess(cleanString, z.string().default('Laoji')),
 
   GOOGLE_MAPS_API_KEY: z.preprocess(cleanString, z.string().default('')),

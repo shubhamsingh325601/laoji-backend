@@ -70,10 +70,10 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
+        type: "restaurant" | "both" | "grocery";
         id: string;
         createdAt: Date;
         userId: string;
-        type: "restaurant" | "both" | "grocery";
         businessName: string;
         ownerName: string;
         shopAddress: string | null;
@@ -298,9 +298,9 @@ export declare class CatalogService {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
@@ -732,13 +732,13 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     createProduct(dto: CreateProductDto): Promise<{
+        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
         description: string | null;
-        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
@@ -807,13 +807,13 @@ export declare class CatalogService {
     publicListProducts(lat: number, lng: number, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
+        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
         description: string | null;
-        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
@@ -889,12 +889,12 @@ export declare class CatalogService {
         dishes: any[];
     }>;
     getOrCreateRestaurant(vendorId: string): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
         isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
         ratingAvg: number;
     }>;
     recalcRestaurantRating(restaurantId: string): Promise<void>;
@@ -966,10 +966,10 @@ export declare class CatalogService {
             menuItemId: string;
             priceDelta: number;
         }[];
+        imageUrl: string | null;
         id: string;
         name: string;
         description: string | null;
-        imageUrl: string | null;
         menuCategoryId: string;
         price: number;
         isVeg: boolean;
@@ -1004,12 +1004,12 @@ export declare class CatalogService {
     private replaceAddons;
     private replaceVariants;
     createProductSuggestion(vendorId: string, dto: CreateProductSuggestionDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
         vendorId: string;
-        imageUrl: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
@@ -1509,13 +1509,13 @@ export declare class CatalogService {
     private requirePendingSuggestion;
     approveProductSuggestion(adminUserId: string, id: string): Promise<{
         product: {
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
             description: string | null;
-            imageUrl: string | null;
             categoryId: string;
             unit: string;
             size: string | null;

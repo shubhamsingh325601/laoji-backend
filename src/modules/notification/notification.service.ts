@@ -174,6 +174,8 @@ export class NotificationService {
     email?: string;
     title: string;
     message: string;
+    imageUrl?: string;
+    link?: string;
   }) {
     let targetUsers: { id: string; email?: string | null; phone?: string | null }[] = [];
 
@@ -211,7 +213,13 @@ export class NotificationService {
         this.notifyPush(u.id, 'admin_broadcast', {
           title: dto.title,
           body: dto.message,
-          data: { type: 'admin_broadcast', target: dto.target },
+          imageUrl: dto.imageUrl,
+          data: {
+            type: 'admin_broadcast',
+            target: dto.target,
+            ...(dto.link ? { link: dto.link } : {}),
+            ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
+          },
         });
       }
 

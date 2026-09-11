@@ -11,4 +11,6 @@ export declare class SendAdminNotificationDto {
     email?: string;
     title: string;
     message: string;
+    imageUrl?: string;
+    link?: string;
 }

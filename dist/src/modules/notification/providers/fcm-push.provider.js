@@ -27,9 +27,18 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
         const privateKey = this.config.get('FIREBASE_PRIVATE_KEY');
         this.configured = !!(projectId && clientEmail && privateKey);
         if (this.configured) {
-            this.app = (0, app_1.initializeApp)({
-                credential: (0, app_1.cert)({ projectId, clientEmail, privateKey: privateKey.replace(/\\n/g, '\n') }),
-            });
+            try {
+                this.app = (0, app_1.initializeApp)({
+                    credential: (0, app_1.cert)({ projectId, clientEmail, privateKey: privateKey.replace(/\\n/g, '\n') }),
+                });
+                this.logger.log(`Initialized Firebase Admin SDK for project "${projectId}".`);
+            }
+            catch (err) {
+                this.logger.error(`Failed to initialize Firebase Admin SDK: ${err?.message || err}`);
+            }
+        }
+        else {
+            this.logger.warn('FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY not set — FcmPushProvider running in DEV STUB mode.');
         }
     }
     async send(token, message) {
@@ -38,16 +47,46 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
             return { ok: true, stubbed: true };
         }
         try {
-            await (0, messaging_1.getMessaging)(this.app).send({
+            const payload = {
                 token,
-                notification: { title: message.title, body: message.body },
-                data: message.data,
-            });
+                notification: {
+                    title: message.title,
+                    body: message.body,
+                    ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
+                },
+                android: {
+                    notification: {
+                        sound: 'default',
+                        priority: 'high',
+                        ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
+                    },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: 'default',
+                            'mutable-content': 1,
+                        },
+                    },
+                    fcmOptions: {
+                        ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
+                    },
+                },
+                data: message.data || {},
+            };
+            await (0, messaging_1.getMessaging)(this.app).send(payload);
             return { ok: true, stubbed: false };
         }
         catch (e) {
-            this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
-            return { ok: false, stubbed: false };
+            const code = e?.code || e?.errorInfo?.code;
+            if (code === 'messaging/invalid-registration-token' ||
+                code === 'messaging/registration-token-not-registered') {
+                this.logger.warn(`Stale or invalid FCM token (${code}): ${token.slice(0, 12)}...`);
+            }
+            else {
+                this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
+            }
+            return { ok: false, stubbed: false, error: e?.message };
         }
     }
 };
