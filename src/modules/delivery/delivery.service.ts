@@ -307,7 +307,7 @@ export class DeliveryService {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (partner && order) {
-      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee));
+      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee, orderId));
     }
     return assignment;
   }
@@ -377,9 +377,9 @@ export class DeliveryService {
     // either rejected or timed out, or none existed at all — so the
     // partner-alert cell ("if assigned") never applies here.
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
   }
 
   // ---------- Delivery partner: order actions ----------
@@ -532,7 +532,11 @@ export class DeliveryService {
       actorRole: 'delivery_partner',
       changedBy: userId,
     });
-    this.notifications.notifyPush(updated.customerId, 'delivery_assigned', deliveryAssignedCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      updated.customerId,
+      'delivery_assigned',
+      deliveryAssignedCustomerPush(this.orderCode(orderId), orderId, type),
+    );
     return { ok: true };
   }
 
@@ -575,11 +579,11 @@ export class DeliveryService {
 
     const orderCode = this.orderCode(orderId);
     if (status === 'picked_up') {
-      this.notifications.notifyPush(order.customerId, 'picked_up', pickedUpCustomerPush(orderCode));
+      this.notifications.notifyPush(order.customerId, 'picked_up', pickedUpCustomerPush(orderCode, orderId, type));
       const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
-      if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'picked_up', pickedUpVendorPush(orderCode));
+      if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'picked_up', pickedUpVendorPush(orderCode, orderId));
     } else {
-      this.notifications.notifyPush(order.customerId, 'out_for_delivery', outForDeliveryCustomerPush(orderCode));
+      this.notifications.notifyPush(order.customerId, 'out_for_delivery', outForDeliveryCustomerPush(orderCode, orderId, type));
     }
     return { ok: true };
   }
@@ -609,10 +613,10 @@ export class DeliveryService {
     const settlement = await this.settlements.generateForDeliveredOrder(type, orderId);
 
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(order.customerId, 'delivered', deliveredCustomerPush(orderCode));
+    this.notifications.notifyPush(order.customerId, 'delivered', deliveredCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
     if (vendorUserId) {
-      this.notifications.notifyPush(vendorUserId, 'delivered', deliveredVendorPush(orderCode));
+      this.notifications.notifyPush(vendorUserId, 'delivered', deliveredVendorPush(orderCode, orderId));
       // Wires the template Phase 7 left unwired — one email per settlement
       // rather than a real weekly digest (no cron/aggregation job exists
       // yet), "period" is honestly labelled as the single order it covers.
@@ -624,7 +628,7 @@ export class DeliveryService {
         );
       }
     }
-    this.notifications.notifyPush(userId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee));
+    this.notifications.notifyPush(userId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee, orderId));
     return { ok: true };
   }
 

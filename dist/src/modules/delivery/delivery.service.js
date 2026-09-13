@@ -255,7 +255,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
         const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
         if (partner && order) {
-            this.notifications.notifyPush(partner.userId, 'assignment_offered', (0, ready_for_pickup_1.assignmentOfferedPartnerPush)(this.orderCode(orderId), order.deliveryFee));
+            this.notifications.notifyPush(partner.userId, 'assignment_offered', (0, ready_for_pickup_1.assignmentOfferedPartnerPush)(this.orderCode(orderId), order.deliveryFee, orderId));
         }
         return assignment;
     }
@@ -305,10 +305,10 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         });
         await this.payments.markRefundPendingIfPaid(type, orderId);
         const orderCode = this.orderCode(orderId);
-        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode));
+        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
         const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
         if (vendorUserId)
-            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode));
+            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
     }
     async requirePendingAssignment(type, orderId, partnerId) {
         const [assignment] = await this.db
@@ -408,7 +408,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             actorRole: 'delivery_partner',
             changedBy: userId,
         });
-        this.notifications.notifyPush(updated.customerId, 'delivery_assigned', (0, delivery_assigned_1.deliveryAssignedCustomerPush)(this.orderCode(orderId)));
+        this.notifications.notifyPush(updated.customerId, 'delivery_assigned', (0, delivery_assigned_1.deliveryAssignedCustomerPush)(this.orderCode(orderId), orderId, type));
         return { ok: true };
     }
     async reject(userId, type, orderId) {
@@ -446,13 +446,13 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         });
         const orderCode = this.orderCode(orderId);
         if (status === 'picked_up') {
-            this.notifications.notifyPush(order.customerId, 'picked_up', (0, picked_up_1.pickedUpCustomerPush)(orderCode));
+            this.notifications.notifyPush(order.customerId, 'picked_up', (0, picked_up_1.pickedUpCustomerPush)(orderCode, orderId, type));
             const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
             if (vendorUserId)
-                this.notifications.notifyPush(vendorUserId, 'picked_up', (0, picked_up_1.pickedUpVendorPush)(orderCode));
+                this.notifications.notifyPush(vendorUserId, 'picked_up', (0, picked_up_1.pickedUpVendorPush)(orderCode, orderId));
         }
         else {
-            this.notifications.notifyPush(order.customerId, 'out_for_delivery', (0, out_for_delivery_1.outForDeliveryCustomerPush)(orderCode));
+            this.notifications.notifyPush(order.customerId, 'out_for_delivery', (0, out_for_delivery_1.outForDeliveryCustomerPush)(orderCode, orderId, type));
         }
         return { ok: true };
     }
@@ -476,15 +476,15 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         await this.payments.markCodCollected(type, orderId);
         const settlement = await this.settlements.generateForDeliveredOrder(type, orderId);
         const orderCode = this.orderCode(orderId);
-        this.notifications.notifyPush(order.customerId, 'delivered', (0, delivered_1.deliveredCustomerPush)(orderCode));
+        this.notifications.notifyPush(order.customerId, 'delivered', (0, delivered_1.deliveredCustomerPush)(orderCode, orderId, type));
         const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
         if (vendorUserId) {
-            this.notifications.notifyPush(vendorUserId, 'delivered', (0, delivered_1.deliveredVendorPush)(orderCode));
+            this.notifications.notifyPush(vendorUserId, 'delivered', (0, delivered_1.deliveredVendorPush)(orderCode, orderId));
             if (settlement) {
                 this.notifications.notifyEmail(vendorUserId, 'settlement_summary', (0, settlement_summary_1.settlementSummaryEmail)(`Order ${orderCode}`, order.subtotal, settlement.platformShare, settlement.vendorPayout));
             }
         }
-        this.notifications.notifyPush(userId, 'delivered', (0, delivered_1.deliveredPartnerPush)(orderCode, order.deliveryFee));
+        this.notifications.notifyPush(userId, 'delivered', (0, delivered_1.deliveredPartnerPush)(orderCode, order.deliveryFee, orderId));
         return { ok: true };
     }
     async listPartnersAdmin() {

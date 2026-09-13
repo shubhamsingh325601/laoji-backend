@@ -5,16 +5,16 @@ export declare class CustomerPaymentController {
     private readonly payments;
     constructor(payments: PaymentService);
     initiate(user: JwtAccessPayload, type: 'grocery' | 'food', orderId: string, dto: InitiatePaymentDto): Promise<{
+        amount: number;
+        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        upiDeepLink: string | null;
+        providerRef: string | null;
         id: string;
-        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
-        amount: number;
-        upiDeepLink: string | null;
-        providerRef: string | null;
+        provider: "upi_deeplink" | "razorpay" | "cod";
         reconciledBy: string | null;
         reconciledAt: Date | null;
     }>;
@@ -22,8 +22,8 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
-        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        provider: "upi_deeplink" | "razorpay" | "cod";
+        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -36,8 +36,8 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
-        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        provider: "upi_deeplink" | "razorpay" | "cod";
+        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;

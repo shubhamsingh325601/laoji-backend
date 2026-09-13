@@ -4,10 +4,14 @@ import type { PushMessage } from '../../notification.types';
 // Partner cell ("Assignment push") fires when DeliveryService offers a
 // pending assignment to the nearest online partner (Phase 5), not when the
 // vendor marks the order ready itself (that's the vendor's own app state).
-export function assignmentOfferedPartnerPush(orderCode: string, payout: number): PushMessage {
+export function assignmentOfferedPartnerPush(orderCode: string, payout: number, orderId?: string): PushMessage {
   return {
     title: 'New delivery assignment',
     body: `Order ${orderCode} is ready for pickup — ₹${payout} payout.`,
-    data: { event: 'assignment_offered', orderCode },
+    data: {
+      event: 'assignment_offered',
+      orderCode,
+      ...(orderId ? { orderId, link: `/orders` } : {}),
+    },
   };
 }

@@ -1,2 +1,2 @@
 import type { PushMessage } from '../../notification.types';
-export declare function assignmentOfferedPartnerPush(orderCode: string, payout: number): PushMessage;
+export declare function assignmentOfferedPartnerPush(orderCode: string, payout: number, orderId?: string): PushMessage;

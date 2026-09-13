@@ -487,13 +487,18 @@ export class AuthService {
     }
 
     if (row.revokedAt) {
-      // Reuse of an already-rotated refresh token — treat as theft, kill every
-      // session for this user (TRD Section 10: "detect reuse = revoke session").
-      await this.db
-        .update(authTokens)
-        .set({ revokedAt: new Date() })
-        .where(and(eq(authTokens.userId, row.userId), isNull(authTokens.revokedAt)));
-      throw new UnauthorizedException('Refresh token reuse detected — all sessions revoked');
+      // If rotated within last 60s, it's likely a concurrent request / network retry race condition.
+      // Do NOT kill all sessions across the user's devices in that window.
+      const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 60_000;
+      if (!rotatedRecently) {
+        // Reuse of an older already-rotated refresh token — treat as theft, kill every
+        // session for this user (TRD Section 10: "detect reuse = revoke session").
+        await this.db
+          .update(authTokens)
+          .set({ revokedAt: new Date() })
+          .where(and(eq(authTokens.userId, row.userId), isNull(authTokens.revokedAt)));
+      }
+      throw new UnauthorizedException('Refresh token has already been rotated');
     }
 
     const hash = hashToken(refreshToken);
@@ -678,22 +683,22 @@ export class AuthService {
     role: UserRole,
     deviceId?: string,
   ): Promise<TokenPair> {
-    const accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+    const accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '7d';
     const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET');
     const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
-    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '30d';
+    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '90d';
 
     const accessPayload: JwtAccessPayload = { sub: userId, role };
     const accessToken = this.jwt.sign(accessPayload, {
       secret: accessSecret,
-      expiresIn: Math.floor(parseDurationMs(accessExpiresIn, 15 * 60 * 1000) / 1000),
+      expiresIn: Math.floor(parseDurationMs(accessExpiresIn, 7 * 24 * 60 * 60 * 1000) / 1000),
     });
 
     const jti = randomUUID();
     const refreshPayload: JwtRefreshPayload = { sub: userId, jti };
     const refreshToken = this.jwt.sign(refreshPayload, {
       secret: refreshSecret,
-      expiresIn: Math.floor(parseDurationMs(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000) / 1000),
+      expiresIn: Math.floor(parseDurationMs(refreshExpiresIn, 90 * 24 * 60 * 60 * 1000) / 1000),
     });
 
     await this.db.insert(authTokens).values({
@@ -701,7 +706,7 @@ export class AuthService {
       userId,
       refreshTokenHash: hashToken(refreshToken),
       deviceId: deviceId ?? null,
-      expiresAt: new Date(Date.now() + parseDurationMs(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000)),
+      expiresAt: new Date(Date.now() + parseDurationMs(refreshExpiresIn, 90 * 24 * 60 * 60 * 1000)),
     });
 
     return { accessToken, refreshToken };

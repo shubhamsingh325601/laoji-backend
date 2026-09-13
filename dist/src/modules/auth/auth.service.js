@@ -408,11 +408,14 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Invalid or expired refresh token');
         }
         if (row.revokedAt) {
-            await this.db
-                .update(schema_1.authTokens)
-                .set({ revokedAt: new Date() })
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, row.userId), (0, drizzle_orm_1.isNull)(schema_1.authTokens.revokedAt)));
-            throw new common_1.UnauthorizedException('Refresh token reuse detected — all sessions revoked');
+            const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 60_000;
+            if (!rotatedRecently) {
+                await this.db
+                    .update(schema_1.authTokens)
+                    .set({ revokedAt: new Date() })
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, row.userId), (0, drizzle_orm_1.isNull)(schema_1.authTokens.revokedAt)));
+            }
+            throw new common_1.UnauthorizedException('Refresh token has already been rotated');
         }
         const hash = hashToken(refreshToken);
         if (hash !== row.refreshTokenHash) {
@@ -558,27 +561,27 @@ let AuthService = class AuthService {
         }
     }
     async issueTokens(userId, role, deviceId) {
-        const accessExpiresIn = this.config.get('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+        const accessExpiresIn = this.config.get('JWT_ACCESS_EXPIRES_IN') ?? '7d';
         const accessSecret = this.config.get('JWT_ACCESS_SECRET');
         const refreshSecret = this.config.get('JWT_REFRESH_SECRET');
-        const refreshExpiresIn = this.config.get('JWT_REFRESH_EXPIRES_IN') ?? '30d';
+        const refreshExpiresIn = this.config.get('JWT_REFRESH_EXPIRES_IN') ?? '90d';
         const accessPayload = { sub: userId, role };
         const accessToken = this.jwt.sign(accessPayload, {
             secret: accessSecret,
-            expiresIn: Math.floor((0, duration_1.parseDurationMs)(accessExpiresIn, 15 * 60 * 1000) / 1000),
+            expiresIn: Math.floor((0, duration_1.parseDurationMs)(accessExpiresIn, 7 * 24 * 60 * 60 * 1000) / 1000),
         });
         const jti = (0, crypto_1.randomUUID)();
         const refreshPayload = { sub: userId, jti };
         const refreshToken = this.jwt.sign(refreshPayload, {
             secret: refreshSecret,
-            expiresIn: Math.floor((0, duration_1.parseDurationMs)(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000) / 1000),
+            expiresIn: Math.floor((0, duration_1.parseDurationMs)(refreshExpiresIn, 90 * 24 * 60 * 60 * 1000) / 1000),
         });
         await this.db.insert(schema_1.authTokens).values({
             id: jti,
             userId,
             refreshTokenHash: hashToken(refreshToken),
             deviceId: deviceId ?? null,
-            expiresAt: new Date(Date.now() + (0, duration_1.parseDurationMs)(refreshExpiresIn, 30 * 24 * 60 * 60 * 1000)),
+            expiresAt: new Date(Date.now() + (0, duration_1.parseDurationMs)(refreshExpiresIn, 90 * 24 * 60 * 60 * 1000)),
         });
         return { accessToken, refreshToken };
     }

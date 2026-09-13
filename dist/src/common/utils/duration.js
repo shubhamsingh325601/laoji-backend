@@ -19,7 +19,7 @@ const UNIT_MS = {
     week: 604_800_000,
     weeks: 604_800_000,
 };
-function parseDurationMs(input, defaultMs = 15 * 60 * 1000) {
+function parseDurationMs(input, defaultMs = 7 * 24 * 60 * 60 * 1000) {
     if (input === undefined || input === null)
         return defaultMs;
     if (typeof input === 'number') {

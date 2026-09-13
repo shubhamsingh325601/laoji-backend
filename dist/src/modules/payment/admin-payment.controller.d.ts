@@ -6,10 +6,10 @@ export declare class AdminPaymentController {
     constructor(payments: PaymentService);
     listPending(): Promise<{
         id: string;
-        type: "grocery" | "food";
+        type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "razorpay" | "cod";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -19,8 +19,8 @@ export declare class AdminPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
-        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        provider: "upi_deeplink" | "razorpay" | "cod";
+        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -31,10 +31,10 @@ export declare class AdminPaymentController {
     }>;
     listRefunds(): Promise<{
         id: string;
-        type: "grocery" | "food";
+        type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "razorpay" | "cod";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -44,8 +44,8 @@ export declare class AdminPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
-        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        provider: "upi_deeplink" | "razorpay" | "cod";
+        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;

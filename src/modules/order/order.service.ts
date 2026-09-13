@@ -53,7 +53,13 @@ export class OrderService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly revenueConfig: RevenueConfigService,
-  ) {}
+  ) {
+    this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
+      this.handlePaymentSatisfied(type, orderId).catch((err) => {
+        console.error('[OrderService] handlePaymentSatisfied error:', err);
+      });
+    });
+  }
 
   private orderCode(orderId: string): string {
     return orderId.slice(0, 8).toUpperCase();
@@ -126,13 +132,14 @@ export class OrderService {
       changedBy: customerId,
     });
 
-    await this.allocation.createAttempt(order.id, candidate.vendorId, 1);
-
-    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
-    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, candidate.vendorId)).limit(1);
-    if (vendorRow) {
-      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
-    }
+    // Customer receives order placed notification immediately with deep link data.
+    // Vendor notification and allocation attempt are deferred until payment is satisfied
+    // (UPI paid or Cash on Delivery selected), so vendors are never spammed for unpaid orders.
+    this.notifications.notifyPush(
+      customerId,
+      'order_placed',
+      orderPlacedCustomerPush(this.orderCode(order.id), total, order.id, 'grocery'),
+    );
 
     return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
   }
@@ -241,11 +248,13 @@ export class OrderService {
       changedBy: customerId,
     });
 
-    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
-    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
-    if (vendorRow) {
-      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
-    }
+    // Customer receives order placed notification immediately with deep link data.
+    // Vendor notification is deferred until payment is satisfied (UPI paid or COD selected).
+    this.notifications.notifyPush(
+      customerId,
+      'order_placed',
+      orderPlacedCustomerPush(this.orderCode(order.id), total, order.id, 'food'),
+    );
 
     return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
   }
@@ -410,13 +419,62 @@ export class OrderService {
     return orders.map((o) => ({ ...o, items: items.filter((i) => i.foodOrderId === o.id) }));
   }
 
+  async handlePaymentSatisfied(type: 'grocery' | 'food', orderId: string) {
+    if (type === 'grocery') {
+      const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, orderId)).limit(1);
+      if (!order || !order.vendorId) return;
+
+      // Idempotency check: don't create multiple attempts for the same order
+      const [existingAttempt] = await this.db
+        .select()
+        .from(allocationAttempts)
+        .where(eq(allocationAttempts.groceryOrderId, orderId))
+        .limit(1);
+
+      if (!existingAttempt) {
+        await this.allocation.createAttempt(order.id, order.vendorId, 1);
+        const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, order.vendorId)).limit(1);
+        if (vendorRow) {
+          const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, order.id));
+          this.notifications.notifyPush(
+            vendorRow.userId,
+            'order_placed',
+            orderPlacedVendorPush(this.orderCode(order.id), items.length, order.id, 'grocery'),
+          );
+        }
+      }
+    } else {
+      const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
+      if (!order || !order.restaurantId) return;
+
+      const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
+      if (restaurant && restaurant.vendorId) {
+        const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+        if (vendorRow) {
+          const items = await this.db.select().from(foodOrderItems).where(eq(foodOrderItems.foodOrderId, order.id));
+          this.notifications.notifyPush(
+            vendorRow.userId,
+            'order_placed',
+            orderPlacedVendorPush(this.orderCode(order.id), items.length, order.id, 'food'),
+          );
+        }
+      }
+    }
+  }
+
   async listVendorIncomingGroceryOrders(userId: string) {
     const vendor = await this.catalog.requireVendor(userId);
     const rows = await this.db
       .select({ attempt: allocationAttempts, order: groceryOrders })
       .from(allocationAttempts)
       .innerJoin(groceryOrders, eq(allocationAttempts.groceryOrderId, groceryOrders.id))
-      .where(and(eq(allocationAttempts.vendorId, vendor.id), eq(allocationAttempts.outcome, 'pending')));
+      .where(
+        and(
+          eq(allocationAttempts.vendorId, vendor.id),
+          eq(allocationAttempts.outcome, 'pending'),
+          inArray(groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
+        ),
+      );
     const orders = rows.map((r) => ({ ...r.order, slaDeadline: r.attempt.slaDeadline, attemptId: r.attempt.id }));
     return this.attachGroceryItems(orders);
   }
@@ -503,7 +561,11 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
-    this.notifications.notifyPush(updated.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      updated.customerId,
+      'order_confirmed',
+      orderConfirmedCustomerPush(this.orderCode(orderId), orderId, 'grocery'),
+    );
     return this.getGroceryOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -596,7 +658,13 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(foodOrders)
-      .where(and(eq(foodOrders.restaurantId, restaurant.id), eq(foodOrders.status, 'placed')))
+      .where(
+        and(
+          eq(foodOrders.restaurantId, restaurant.id),
+          eq(foodOrders.status, 'placed'),
+          inArray(foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
+        ),
+      )
       .orderBy(desc(foodOrders.createdAt));
     return this.attachFoodItems(orders);
   }
@@ -643,7 +711,11 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
-    this.notifications.notifyPush(order.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      order.customerId,
+      'order_confirmed',
+      orderConfirmedCustomerPush(this.orderCode(orderId), orderId, 'food'),
+    );
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -672,8 +744,12 @@ export class OrderService {
     // even though the vendor caused it themselves (rejecting is the only
     // real 'cancelled' trigger this row can attach to) — harmless, just a
     // same-action confirmation rather than a true third-party alert.
-    this.notifications.notifyPush(order.customerId, 'order_cancelled', orderCancelledCustomerPush(this.orderCode(orderId)));
-    this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      order.customerId,
+      'order_cancelled',
+      orderCancelledCustomerPush(this.orderCode(orderId), orderId, 'food'),
+    );
+    this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId), orderId));
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -797,12 +873,12 @@ export class OrderService {
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, updated);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
     if (updated.deliveryPartnerId) {
       const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
-      if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode));
+      if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode, orderId));
     }
 
     return type === 'grocery'
@@ -833,9 +909,9 @@ export class OrderService {
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, updated);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })

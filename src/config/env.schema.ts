@@ -20,8 +20,8 @@ export const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.preprocess(cleanString, z.string().min(1, 'JWT_ACCESS_SECRET is required')),
   JWT_REFRESH_SECRET: z.preprocess(cleanString, z.string().min(1, 'JWT_REFRESH_SECRET is required')),
-  JWT_ACCESS_EXPIRES_IN: z.preprocess(cleanString, z.string().default('15m')),
-  JWT_REFRESH_EXPIRES_IN: z.preprocess(cleanString, z.string().default('30d')),
+  JWT_ACCESS_EXPIRES_IN: z.preprocess(cleanString, z.string().default('7d')),
+  JWT_REFRESH_EXPIRES_IN: z.preprocess(cleanString, z.string().default('90d')),
 
   CLOUDINARY_CLOUD_NAME: z.preprocess(cleanString, z.string().default('')),
   CLOUDINARY_API_KEY: z.preprocess(cleanString, z.string().default('')),

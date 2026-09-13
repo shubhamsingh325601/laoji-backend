@@ -29,7 +29,9 @@ export class UpiDeepLinkProvider implements PaymentProvider {
       pn: payeeName,
       am: amount.toFixed(2),
       tr: orderId,
+      tn: `Laoji Order ${orderId.slice(0, 8).toUpperCase()}`,
       cu: 'INR',
+      url: `laojiuser://payment?orderId=${orderId}`,
     });
     return {
       status: 'pending',

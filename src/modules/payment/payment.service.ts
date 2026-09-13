@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { desc, eq, inArray } from 'drizzle-orm';
+import { Subject } from 'rxjs';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { foodOrders, groceryOrders, payments, restaurants, users } from '../../../drizzle/schema';
@@ -10,7 +11,12 @@ import { RazorpayProvider } from './providers/razorpay.provider';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
 import type { PaymentProvider, PaymentStatus } from './payment.types';
 
-type OrderType = 'grocery' | 'food';
+export type OrderType = 'grocery' | 'food';
+
+export interface PaymentSatisfiedEvent {
+  type: OrderType;
+  orderId: string;
+}
 
 // paymentStatus values that mean "the order can proceed" — paid outright,
 // or COD (which is always fine at order time, collected only at delivery).
@@ -18,6 +24,8 @@ const PAYMENT_SATISFIED: PaymentStatus[] = ['paid', 'pending_cod', 'collected'];
 
 @Injectable()
 export class PaymentService {
+  private readonly paymentSatisfied$ = new Subject<PaymentSatisfiedEvent>();
+  public readonly onPaymentSatisfied = this.paymentSatisfied$.asObservable();
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly config: ConfigService,
@@ -100,6 +108,9 @@ export class PaymentService {
       .returning();
 
     await this.setOrderPaymentStatus(type, orderId, result.status);
+    if (this.isSatisfied(result.status)) {
+      this.paymentSatisfied$.next({ type, orderId });
+    }
     return payment;
   }
 
@@ -131,6 +142,7 @@ export class PaymentService {
       .where(eq(payments.id, payment.id))
       .returning();
     await this.setOrderPaymentStatus(type, orderId, 'paid');
+    this.paymentSatisfied$.next({ type, orderId });
     return updated;
   }
 
@@ -212,7 +224,11 @@ export class PaymentService {
       .returning();
 
     const type: OrderType = payment.groceryOrderId ? 'grocery' : 'food';
-    await this.setOrderPaymentStatus(type, (payment.groceryOrderId ?? payment.foodOrderId)!, status);
+    const orderId = (payment.groceryOrderId ?? payment.foodOrderId)!;
+    await this.setOrderPaymentStatus(type, orderId, status);
+    if (status === 'paid') {
+      this.paymentSatisfied$.next({ type, orderId });
+    }
     return updated;
   }
 

@@ -16,6 +16,7 @@ exports.PaymentService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const drizzle_orm_1 = require("drizzle-orm");
+const rxjs_1 = require("rxjs");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const upi_deeplink_provider_1 = require("./providers/upi-deeplink.provider");
@@ -30,6 +31,8 @@ let PaymentService = class PaymentService {
     cod;
     razorpay;
     revenueConfig;
+    paymentSatisfied$ = new rxjs_1.Subject();
+    onPaymentSatisfied = this.paymentSatisfied$.asObservable();
     constructor(db, config, upi, cod, razorpay, revenueConfig) {
         this.db = db;
         this.config = config;
@@ -104,6 +107,9 @@ let PaymentService = class PaymentService {
         })
             .returning();
         await this.setOrderPaymentStatus(type, orderId, result.status);
+        if (this.isSatisfied(result.status)) {
+            this.paymentSatisfied$.next({ type, orderId });
+        }
         return payment;
     }
     async getForOrder(type, orderId, customerId) {
@@ -130,6 +136,7 @@ let PaymentService = class PaymentService {
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id))
             .returning();
         await this.setOrderPaymentStatus(type, orderId, 'paid');
+        this.paymentSatisfied$.next({ type, orderId });
         return updated;
     }
     async markCodCollected(type, orderId) {
@@ -195,7 +202,11 @@ let PaymentService = class PaymentService {
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId))
             .returning();
         const type = payment.groceryOrderId ? 'grocery' : 'food';
-        await this.setOrderPaymentStatus(type, (payment.groceryOrderId ?? payment.foodOrderId), status);
+        const orderId = (payment.groceryOrderId ?? payment.foodOrderId);
+        await this.setOrderPaymentStatus(type, orderId, status);
+        if (status === 'paid') {
+            this.paymentSatisfied$.next({ type, orderId });
+        }
         return updated;
     }
     async listRefundsForAdmin() {

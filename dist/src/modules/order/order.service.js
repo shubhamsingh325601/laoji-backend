@@ -44,6 +44,11 @@ let OrderService = class OrderService {
         this.payments = payments;
         this.notifications = notifications;
         this.revenueConfig = revenueConfig;
+        this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
+            this.handlePaymentSatisfied(type, orderId).catch((err) => {
+                console.error('[OrderService] handlePaymentSatisfied error:', err);
+            });
+        });
     }
     orderCode(orderId) {
         return orderId.slice(0, 8).toUpperCase();
@@ -93,12 +98,7 @@ let OrderService = class OrderService {
             actorRole: 'customer',
             changedBy: customerId,
         });
-        await this.allocation.createAttempt(order.id, candidate.vendorId, 1);
-        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total));
-        const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, candidate.vendorId)).limit(1);
-        if (vendorRow) {
-            this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), dto.items.length));
-        }
+        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total, order.id, 'grocery'));
         return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
     }
     async createFoodOrder(customerId, dto) {
@@ -184,11 +184,7 @@ let OrderService = class OrderService {
             actorRole: 'customer',
             changedBy: customerId,
         });
-        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total));
-        const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, restaurant.vendorId)).limit(1);
-        if (vendorRow) {
-            this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), dto.items.length));
-        }
+        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total, order.id, 'food'));
         return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
     }
     async listMyGroceryOrders(customerId) {
@@ -318,13 +314,46 @@ let OrderService = class OrderService {
         const items = await this.db.select().from(schema_1.foodOrderItems).where((0, drizzle_orm_1.inArray)(schema_1.foodOrderItems.foodOrderId, ids));
         return orders.map((o) => ({ ...o, items: items.filter((i) => i.foodOrderId === o.id) }));
     }
+    async handlePaymentSatisfied(type, orderId) {
+        if (type === 'grocery') {
+            const [order] = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.id, orderId)).limit(1);
+            if (!order || !order.vendorId)
+                return;
+            const [existingAttempt] = await this.db
+                .select()
+                .from(schema_1.allocationAttempts)
+                .where((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.groceryOrderId, orderId))
+                .limit(1);
+            if (!existingAttempt) {
+                await this.allocation.createAttempt(order.id, order.vendorId, 1);
+                const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, order.vendorId)).limit(1);
+                if (vendorRow) {
+                    const items = await this.db.select().from(schema_1.groceryOrderItems).where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.groceryOrderId, order.id));
+                    this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), items.length, order.id, 'grocery'));
+                }
+            }
+        }
+        else {
+            const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, orderId)).limit(1);
+            if (!order || !order.restaurantId)
+                return;
+            const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, order.restaurantId)).limit(1);
+            if (restaurant && restaurant.vendorId) {
+                const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, restaurant.vendorId)).limit(1);
+                if (vendorRow) {
+                    const items = await this.db.select().from(schema_1.foodOrderItems).where((0, drizzle_orm_1.eq)(schema_1.foodOrderItems.foodOrderId, order.id));
+                    this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), items.length, order.id, 'food'));
+                }
+            }
+        }
+    }
     async listVendorIncomingGroceryOrders(userId) {
         const vendor = await this.catalog.requireVendor(userId);
         const rows = await this.db
             .select({ attempt: schema_1.allocationAttempts, order: schema_1.groceryOrders })
             .from(schema_1.allocationAttempts)
             .innerJoin(schema_1.groceryOrders, (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.groceryOrderId, schema_1.groceryOrders.id))
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.vendorId, vendor.id), (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.outcome, 'pending')));
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.vendorId, vendor.id), (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.outcome, 'pending'), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected'])));
         const orders = rows.map((r) => ({ ...r.order, slaDeadline: r.attempt.slaDeadline, attemptId: r.attempt.id }));
         return this.attachGroceryItems(orders);
     }
@@ -374,7 +403,7 @@ let OrderService = class OrderService {
             actorRole: 'vendor',
             changedBy: userId,
         });
-        this.notifications.notifyPush(updated.customerId, 'order_confirmed', (0, order_confirmed_1.orderConfirmedCustomerPush)(this.orderCode(orderId)));
+        this.notifications.notifyPush(updated.customerId, 'order_confirmed', (0, order_confirmed_1.orderConfirmedCustomerPush)(this.orderCode(orderId), orderId, 'grocery'));
         return this.getGroceryOrder(orderId, { userId, role: 'vendor' });
     }
     async rejectGroceryOrder(userId, orderId) {
@@ -443,7 +472,7 @@ let OrderService = class OrderService {
         const orders = await this.db
             .select()
             .from(schema_1.foodOrders)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'placed')))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'placed'), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected'])))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
         return this.attachFoodItems(orders);
     }
@@ -479,7 +508,7 @@ let OrderService = class OrderService {
             actorRole: 'vendor',
             changedBy: userId,
         });
-        this.notifications.notifyPush(order.customerId, 'order_confirmed', (0, order_confirmed_1.orderConfirmedCustomerPush)(this.orderCode(orderId)));
+        this.notifications.notifyPush(order.customerId, 'order_confirmed', (0, order_confirmed_1.orderConfirmedCustomerPush)(this.orderCode(orderId), orderId, 'food'));
         return this.getFoodOrder(orderId, { userId, role: 'vendor' });
     }
     async rejectFoodOrder(userId, orderId) {
@@ -495,8 +524,8 @@ let OrderService = class OrderService {
             changedBy: userId,
         });
         await this.payments.markRefundPendingIfPaid('food', orderId);
-        this.notifications.notifyPush(order.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(this.orderCode(orderId)));
-        this.notifications.notifyPush(userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(this.orderCode(orderId)));
+        this.notifications.notifyPush(order.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(this.orderCode(orderId), orderId, 'food'));
+        this.notifications.notifyPush(userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(this.orderCode(orderId), orderId));
         return this.getFoodOrder(orderId, { userId, role: 'vendor' });
     }
     async advanceFoodOrder(userId, orderId, dto) {
@@ -583,14 +612,14 @@ let OrderService = class OrderService {
         });
         await this.payments.markRefundPendingIfPaid(type, orderId);
         const orderCode = this.orderCode(orderId);
-        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode));
+        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
         const vendorUserId = await this.vendorUserIdForOrder(type, updated);
         if (vendorUserId)
-            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode));
+            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
         if (updated.deliveryPartnerId) {
             const [partner] = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
             if (partner)
-                this.notifications.notifyPush(partner.userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledPartnerPush)(orderCode));
+                this.notifications.notifyPush(partner.userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledPartnerPush)(orderCode, orderId));
         }
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
@@ -618,10 +647,10 @@ let OrderService = class OrderService {
         });
         await this.payments.markRefundPendingIfPaid(type, orderId);
         const orderCode = this.orderCode(orderId);
-        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode));
+        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
         const vendorUserId = await this.vendorUserIdForOrder(type, updated);
         if (vendorUserId)
-            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode));
+            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })
             : this.getFoodOrder(orderId, { userId: customerId, role: 'customer' });
