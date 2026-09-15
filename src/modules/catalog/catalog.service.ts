@@ -337,7 +337,12 @@ export class CatalogService {
     return this.db
       .select()
       .from(products)
-      .where(categoryId ? eq(products.categoryId, categoryId) : undefined);
+      .where(
+        and(
+          eq(products.status, 'active'),
+          categoryId ? eq(products.categoryId, categoryId) : undefined,
+        ),
+      );
   }
 
   async getProduct(id: string) {

@@ -227,8 +227,8 @@ export declare class CustomerOrderController {
     rateFoodOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;

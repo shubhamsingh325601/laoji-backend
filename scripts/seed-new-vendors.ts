@@ -762,51 +762,8 @@ async function main() {
       console.log(`✔ Inserted ${addonsBatch.length} addons`);
     }
 
-    // 9. Master Products & Vendor Products
-    const productRows = metaList.map((m) => ({
-      categoryId: m.masterCategoryId,
-      name: `${vSpec.businessName} - ${m.name}`,
-      brand: vSpec.businessName,
-      description: m.desc,
-      unit: m.unit,
-      size: m.size,
-      mrp: m.mrpPrice,
-      imageUrl: m.image,
-      status: 'active' as const,
-    }));
-
-    const prodNames = productRows.map((p) => p.name);
-    const existingProds = await db.select().from(products).where(inArray(products.name, prodNames));
-    const existingProdMap = new Map(existingProds.map((p) => [p.name, p]));
-
-    const productsToCreate = productRows.filter((p) => !existingProdMap.has(p.name));
-    const createdProducts: any[] = [];
-    if (productsToCreate.length > 0) {
-      for (let i = 0; i < productsToCreate.length; i += 50) {
-        const res = await db.insert(products).values(productsToCreate.slice(i, i + 50)).returning();
-        createdProducts.push(...res);
-      }
-    }
-
-    const allVendorProds = [...existingProds, ...createdProducts];
-    const prodIdByName = new Map(allVendorProds.map((p) => [p.name, p.id]));
-
-    const vendorProdRows = metaList.map((m) => {
-      const pId = prodIdByName.get(`${vSpec.businessName} - ${m.name}`)!;
-      return {
-        vendorId: vendor.id,
-        productId: pId,
-        price: m.mrpPrice,
-        stockQty: 100,
-        isAvailable: true,
-      };
-    });
-
-    await db.delete(vendorProducts).where(eq(vendorProducts.vendorId, vendor.id));
-    for (let i = 0; i < vendorProdRows.length; i += 50) {
-      await db.insert(vendorProducts).values(vendorProdRows.slice(i, i + 50));
-    }
-    console.log(`✔ Linked ${vendorProdRows.length} vendor products`);
+    // Restaurant dishes belong in menu_items, not master grocery products.
+    console.log(`Skipping master grocery products insertion for ${vSpec.businessName}.`);
   }
 
   console.log(`\n====================================================`);

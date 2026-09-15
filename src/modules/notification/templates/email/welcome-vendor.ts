@@ -78,7 +78,7 @@ export function welcomeVendorEmail(params: {
     </div>
 
     <p style="margin-top: 24px; font-size: 14px; color: #475569;">
-      Need any assistance? Our partner support team is here to help at <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600;">support@laojionline.com</a>.
+      Need any assistance? Our partner support team is here to help at <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600;">support@laojionline.com</a> or helpline <a href="tel:+918005803078" style="color: #0A1938; font-weight: 600;">+91 80058 03078</a>.
     </p>
   `;
 

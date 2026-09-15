@@ -287,7 +287,7 @@ let CatalogService = class CatalogService {
         return this.db
             .select()
             .from(schema_1.products)
-            .where(categoryId ? (0, drizzle_orm_1.eq)(schema_1.products.categoryId, categoryId) : undefined);
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), categoryId ? (0, drizzle_orm_1.eq)(schema_1.products.categoryId, categoryId) : undefined));
     }
     async getProduct(id) {
         const [row] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).limit(1);

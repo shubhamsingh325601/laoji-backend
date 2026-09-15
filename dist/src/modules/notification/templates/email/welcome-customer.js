@@ -18,7 +18,7 @@ function welcomeCustomerEmail(params) {
     </div>
 
     <p>You can start shopping immediately via the Laoji app or web platform. No hidden charges — fast delivery right to your doorstep!</p>
-    <p style="margin-top: 24px;">Need help? Our customer care is always available at <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600;">support@laojionline.com</a>.</p>
+    <p style="margin-top: 24px;">Need help? Our customer care is always available at <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600;">support@laojionline.com</a> or toll-free at <a href="tel:+918005803078" style="color: #0A1938; font-weight: 600;">+91 80058 03078</a>.</p>
   `;
     return {
         subject: 'Welcome to Laoji! Your account is ready 🛍️',

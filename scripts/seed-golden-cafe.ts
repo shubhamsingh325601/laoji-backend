@@ -701,54 +701,8 @@ async function main() {
     await db.insert(menuItemVariants).values(variantsBatch.slice(i, i + 50));
   }
 
-  // 9. Batch Insert Master Products
-  console.log('10. Batch inserting Master Products & Vendor Products...');
-  const productRows = metaList.map((m) => ({
-    categoryId: m.masterCategoryId,
-    name: `Golden Cafe ${m.name}`,
-    brand: 'Golden Cafe',
-    description: m.desc,
-    unit: m.unit,
-    size: m.size,
-    mrp: m.mrpPrice,
-    imageUrl: m.image,
-    status: 'active' as const,
-  }));
-
-  const prodNames = productRows.map((p) => p.name);
-  const existingProds = await db.select().from(products).where(inArray(products.name, prodNames));
-  const existingProdMap = new Map(existingProds.map((p) => [p.name, p]));
-
-  const productsToCreate = productRows.filter((p) => !existingProdMap.has(p.name));
-  const createdProducts: any[] = [];
-  if (productsToCreate.length > 0) {
-    for (let i = 0; i < productsToCreate.length; i += 50) {
-      const res = await db.insert(products).values(productsToCreate.slice(i, i + 50)).returning();
-      createdProducts.push(...res);
-    }
-  }
-
-  const allGoldenProds = [...existingProds, ...createdProducts];
-  const prodIdByName = new Map(allGoldenProds.map((p) => [p.name, p.id]));
-
-  // 10. Vendor Products
-  const vendorProdRows = metaList.map((m) => {
-    const pId = prodIdByName.get(`Golden Cafe ${m.name}`)!;
-    return {
-      vendorId: vendor.id,
-      productId: pId,
-      price: m.mrpPrice,
-      stockQty: 100,
-      isAvailable: true,
-    };
-  });
-
-  // Delete existing vendorProducts for vendor.id to prevent conflicts
-  await db.delete(vendorProducts).where(eq(vendorProducts.vendorId, vendor.id));
-
-  for (let i = 0; i < vendorProdRows.length; i += 50) {
-    await db.insert(vendorProducts).values(vendorProdRows.slice(i, i + 50));
-  }
+  // Restaurant dishes belong in menu_items, not master grocery products.
+  console.log('Skipping master grocery products insertion for restaurant dishes.');
 
   console.log(`\n================ SUCCESS ===============`);
   console.log(`Vendor: ${vendor.businessName} (${vendor.id})`);

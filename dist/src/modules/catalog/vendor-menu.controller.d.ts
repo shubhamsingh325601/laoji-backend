@@ -6,12 +6,12 @@ export declare class VendorMenuController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     myRestaurant(user: JwtAccessPayload): Promise<{
-        imageUrl: string | null;
         id: string;
         name: string;
         isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
+        imageUrl: string | null;
         ratingAvg: number;
     }>;
     updateRestaurant(user: JwtAccessPayload, dto: UpdateRestaurantDto): Promise<{
@@ -77,14 +77,14 @@ export declare class VendorMenuController {
         variants: {
             id: string;
             name: string;
-            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
+            isDefault: boolean;
         }[];
-        imageUrl: string | null;
         id: string;
         name: string;
         description: string | null;
+        imageUrl: string | null;
         menuCategoryId: string;
         price: number;
         isVeg: boolean;
