@@ -32,7 +32,7 @@ import { CatalogService } from '../catalog/catalog.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
-import { orderPlacedCustomerPush, orderPlacedVendorPush } from '../notification/templates/push/order-placed';
+import { orderPlacedVendorPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
@@ -132,15 +132,8 @@ export class OrderService {
       changedBy: customerId,
     });
 
-    // Customer receives order placed notification immediately with deep link data.
-    // Vendor notification and allocation attempt are deferred until payment is satisfied
-    // (UPI paid or Cash on Delivery selected), so vendors are never spammed for unpaid orders.
-    this.notifications.notifyPush(
-      customerId,
-      'order_placed',
-      orderPlacedCustomerPush(this.orderCode(order.id), total, order.id, 'grocery'),
-    );
-
+    // Customer and vendor notifications are deferred until payment is satisfied
+    // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
     return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
   }
 
@@ -248,14 +241,8 @@ export class OrderService {
       changedBy: customerId,
     });
 
-    // Customer receives order placed notification immediately with deep link data.
-    // Vendor notification is deferred until payment is satisfied (UPI paid or COD selected).
-    this.notifications.notifyPush(
-      customerId,
-      'order_placed',
-      orderPlacedCustomerPush(this.orderCode(order.id), total, order.id, 'food'),
-    );
-
+    // Customer and vendor notifications are deferred until payment is satisfied
+    // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
     return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
   }
 

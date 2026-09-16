@@ -98,7 +98,6 @@ let OrderService = class OrderService {
             actorRole: 'customer',
             changedBy: customerId,
         });
-        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total, order.id, 'grocery'));
         return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
     }
     async createFoodOrder(customerId, dto) {
@@ -184,7 +183,6 @@ let OrderService = class OrderService {
             actorRole: 'customer',
             changedBy: customerId,
         });
-        this.notifications.notifyPush(customerId, 'order_placed', (0, order_placed_1.orderPlacedCustomerPush)(this.orderCode(order.id), total, order.id, 'food'));
         return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
     }
     async listMyGroceryOrders(customerId) {
