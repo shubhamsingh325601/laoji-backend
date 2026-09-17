@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 const VENDOR_TYPES = ['grocery', 'restaurant', 'both'];
 class VendorRegisterDto {
     phone;
+    email;
     password;
     businessName;
     ownerName;
@@ -29,6 +30,11 @@ __decorate([
     (0, class_validator_1.Matches)(/^[0-9]{10}$/, { message: 'Phone must be a 10-digit number' }),
     __metadata("design:type", String)
 ], VendorRegisterDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEmail)({}, { message: 'Please enter a valid email address' }),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.Length)(4, 100, { message: 'Password must be at least 4 characters' }),

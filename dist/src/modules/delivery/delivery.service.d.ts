@@ -311,13 +311,13 @@ export declare class DeliveryService {
         id: string;
         createdAt: Date;
         userId: string;
-        kycStatus: "pending" | "verified" | "rejected";
-        vehicleType: string;
         aadhaarNumber: string | null;
-        drivingLicense: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        vehicleType: string;
+        drivingLicense: string | null;
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;

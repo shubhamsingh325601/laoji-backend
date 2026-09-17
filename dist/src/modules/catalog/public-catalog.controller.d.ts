@@ -153,13 +153,13 @@ export declare class PublicCatalogController {
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
-        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
         description: string | null;
+        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;

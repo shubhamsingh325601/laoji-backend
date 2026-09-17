@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
 
 const VENDOR_TYPES = ['grocery', 'restaurant', 'both'] as const;
 
@@ -6,6 +6,10 @@ export class VendorRegisterDto {
   @IsString()
   @Matches(/^[0-9]{10}$/, { message: 'Phone must be a 10-digit number' })
   phone: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Please enter a valid email address' })
+  email?: string;
 
   @IsString()
   @Length(4, 100, { message: 'Password must be at least 4 characters' })

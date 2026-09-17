@@ -296,6 +296,19 @@ export class AuthService {
     dto: VendorRegisterDto,
   ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; vendor: any }> {
     const trimmedPhone = dto.phone.trim();
+    const trimmedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
+
+    if (trimmedEmail) {
+      const [emailUser] = await this.db
+        .select()
+        .from(users)
+        .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'vendor')))
+        .limit(1);
+      if (emailUser && emailUser.phone !== trimmedPhone) {
+        throw new ConflictException('An account with this email address already exists.');
+      }
+    }
+
     const [existingUser] = await this.db
       .select()
       .from(users)
@@ -318,7 +331,10 @@ export class AuthService {
 
       await this.db
         .update(users)
-        .set({ passwordHash })
+        .set({
+          passwordHash,
+          ...(trimmedEmail ? { email: trimmedEmail } : {}),
+        })
         .where(eq(users.id, existingUser.id));
       userId = existingUser.id;
     } else {
@@ -326,6 +342,7 @@ export class AuthService {
         .insert(users)
         .values({
           phone: trimmedPhone,
+          email: trimmedEmail,
           role: 'vendor',
           passwordHash,
         })
