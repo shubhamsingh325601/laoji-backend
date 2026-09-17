@@ -43,7 +43,9 @@ export function wrapInLaojiEmailLayout(contentHtml: string, previewText = 'Laoji
               <p style="margin: 2px 0 0 0; font-size: 12px; color: #64706A;">Gaurav Tower, Malviya Nagar, Jaipur, Rajasthan 302017</p>
               <p style="margin: 2px 0 0 0; font-size: 12px; color: #64706A;">
                 Helpdesk: <a href="mailto:support@laojionline.com" style="color: #0A1938; font-weight: 600; text-decoration: none;">support@laojionline.com</a> &bull; 
-                Web: <a href="https://laojionline.com" style="color: #0A1938; font-weight: 600; text-decoration: none;">https://laojionline.com</a>
+                Call: <a href="tel:+918005803078" style="color: #0A1938; font-weight: 600; text-decoration: none;">+91 80058 03078</a><br>
+                Web: <a href="https://laojionline.com" style="color: #0A1938; font-weight: 600; text-decoration: none;">https://laojionline.com</a> &bull; 
+                Instagram: <a href="https://www.instagram.com/laoji_?stkn=MnppcWZraXUyNnU5" style="color: #0A1938; font-weight: 600; text-decoration: none;">@laoji_</a>
               </p>
             </td>
             <td style="vertical-align: middle; text-align: right; width: 90px;">
