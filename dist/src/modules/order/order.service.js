@@ -350,7 +350,7 @@ let OrderService = class OrderService {
             if (!existingAttempt) {
                 await this.allocation.createAttempt(order.id, order.vendorId, 1);
                 const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, order.vendorId)).limit(1);
-                if (vendorRow) {
+                if (vendorRow && vendorRow.userId !== order.customerId) {
                     const items = await this.db.select().from(schema_1.groceryOrderItems).where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.groceryOrderId, order.id));
                     this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), items.length, order.id, 'grocery'));
                 }
@@ -363,7 +363,7 @@ let OrderService = class OrderService {
             const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, order.restaurantId)).limit(1);
             if (restaurant && restaurant.vendorId) {
                 const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, restaurant.vendorId)).limit(1);
-                if (vendorRow) {
+                if (vendorRow && vendorRow.userId !== order.customerId) {
                     const items = await this.db.select().from(schema_1.foodOrderItems).where((0, drizzle_orm_1.eq)(schema_1.foodOrderItems.foodOrderId, order.id));
                     this.notifications.notifyPush(vendorRow.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(this.orderCode(order.id), items.length, order.id, 'food'));
                 }

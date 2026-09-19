@@ -441,7 +441,7 @@ export class OrderService {
       if (!existingAttempt) {
         await this.allocation.createAttempt(order.id, order.vendorId, 1);
         const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, order.vendorId)).limit(1);
-        if (vendorRow) {
+        if (vendorRow && vendorRow.userId !== order.customerId) {
           const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, order.id));
           this.notifications.notifyPush(
             vendorRow.userId,
@@ -457,7 +457,7 @@ export class OrderService {
       const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
       if (restaurant && restaurant.vendorId) {
         const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
-        if (vendorRow) {
+        if (vendorRow && vendorRow.userId !== order.customerId) {
           const items = await this.db.select().from(foodOrderItems).where(eq(foodOrderItems.foodOrderId, order.id));
           this.notifications.notifyPush(
             vendorRow.userId,
