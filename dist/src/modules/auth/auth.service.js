@@ -254,6 +254,17 @@ let AuthService = class AuthService {
     }
     async vendorRegister(dto) {
         const trimmedPhone = dto.phone.trim();
+        const trimmedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
+        if (trimmedEmail) {
+            const [emailUser] = await this.db
+                .select()
+                .from(schema_1.users)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.ilike)(schema_1.users.email, trimmedEmail), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+                .limit(1);
+            if (emailUser && emailUser.phone !== trimmedPhone) {
+                throw new common_1.ConflictException('An account with this email address already exists.');
+            }
+        }
         const [existingUser] = await this.db
             .select()
             .from(schema_1.users)
@@ -272,7 +283,10 @@ let AuthService = class AuthService {
             }
             await this.db
                 .update(schema_1.users)
-                .set({ passwordHash })
+                .set({
+                passwordHash,
+                ...(trimmedEmail ? { email: trimmedEmail } : {}),
+            })
                 .where((0, drizzle_orm_1.eq)(schema_1.users.id, existingUser.id));
             userId = existingUser.id;
         }
@@ -281,6 +295,7 @@ let AuthService = class AuthService {
                 .insert(schema_1.users)
                 .values({
                 phone: trimmedPhone,
+                email: trimmedEmail,
                 role: 'vendor',
                 passwordHash,
             })

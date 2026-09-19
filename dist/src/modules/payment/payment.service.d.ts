@@ -28,12 +28,12 @@ export declare class PaymentService {
     private latestPayment;
     initiate(type: OrderType, orderId: string, customerId: string, method: 'online' | 'cod'): Promise<{
         amount: number;
-        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
-        upiDeepLink: string | null;
-        providerRef: string | null;
         id: string;
+        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
+        upiDeepLink: string | null;
+        providerRef: string | null;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "razorpay" | "cod";
@@ -45,7 +45,7 @@ export declare class PaymentService {
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "razorpay" | "cod";
-        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -59,7 +59,7 @@ export declare class PaymentService {
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "razorpay" | "cod";
-        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -87,7 +87,7 @@ export declare class PaymentService {
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "razorpay" | "cod";
-        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -112,7 +112,7 @@ export declare class PaymentService {
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "razorpay" | "cod";
-        status: "pending" | "paid" | "failed" | "pending_cod" | "collected" | "refund_pending" | "refunded";
+        status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;

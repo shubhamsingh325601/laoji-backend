@@ -725,7 +725,12 @@ let CatalogService = class CatalogService {
     async updateMenuItem(vendorId, id, dto) {
         await this.requireOwnMenuItem(vendorId, id);
         const { addons, variants, ...fields } = dto;
-        const [updated] = await this.db.update(schema_1.menuItems).set(fields).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, id)).returning();
+        const updateData = {
+            ...fields,
+            ...(fields.imageUrl !== undefined ? { imageUrl: fields.imageUrl || null } : {}),
+            ...(fields.description !== undefined ? { description: fields.description || null } : {}),
+        };
+        const [updated] = await this.db.update(schema_1.menuItems).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, id)).returning();
         const finalAddons = addons !== undefined
             ? await this.replaceAddons(id, addons)
             : await this.db.select().from(schema_1.menuItemAddons).where((0, drizzle_orm_1.eq)(schema_1.menuItemAddons.menuItemId, id));

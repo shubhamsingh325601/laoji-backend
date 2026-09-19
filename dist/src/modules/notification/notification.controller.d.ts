@@ -8,9 +8,9 @@ export declare class NotificationController {
     registerDeviceToken(user: JwtAccessPayload, dto: RegisterDeviceTokenDto): Promise<{
         id: string;
         userId: string;
+        updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
-        updatedAt: Date;
     }>;
     contactSupport(user: JwtAccessPayload, dto: ContactSupportDto): Promise<{
         ok: boolean;

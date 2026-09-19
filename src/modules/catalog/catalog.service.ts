@@ -932,7 +932,12 @@ export class CatalogService {
   async updateMenuItem(vendorId: string, id: string, dto: UpdateMenuItemDto) {
     await this.requireOwnMenuItem(vendorId, id);
     const { addons, variants, ...fields } = dto;
-    const [updated] = await this.db.update(menuItems).set(fields).where(eq(menuItems.id, id)).returning();
+    const updateData = {
+      ...fields,
+      ...(fields.imageUrl !== undefined ? { imageUrl: fields.imageUrl || null } : {}),
+      ...(fields.description !== undefined ? { description: fields.description || null } : {}),
+    };
+    const [updated] = await this.db.update(menuItems).set(updateData).where(eq(menuItems.id, id)).returning();
     const finalAddons =
       addons !== undefined
         ? await this.replaceAddons(id, addons)
