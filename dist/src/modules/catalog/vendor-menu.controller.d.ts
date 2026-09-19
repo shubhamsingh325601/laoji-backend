@@ -8,10 +8,10 @@ export declare class VendorMenuController {
     myRestaurant(user: JwtAccessPayload): Promise<{
         id: string;
         name: string;
-        imageUrl: string | null;
         isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
+        imageUrl: string | null;
         ratingAvg: number;
     }>;
     updateRestaurant(user: JwtAccessPayload, dto: UpdateRestaurantDto): Promise<{

@@ -477,7 +477,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -499,7 +499,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -524,7 +524,7 @@ export declare class AdminCatalogController {
         ownerName: string;
         phone: string;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -545,7 +545,9 @@ export declare class AdminCatalogController {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "restaurant" | "grocery" | "both";
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -553,16 +555,14 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
-        isOpen: boolean;
-        businessHours: {
-            day: number;
-            isOpen: boolean;
-            openTime: string;
-            closeTime: string;
-        }[] | null;
+        activity: string;
+        deliveryRadiusKm: number;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        rating: number;
+        ratingCount: number;
+        productCount: number;
         createdAt: Date;
     }>;
     deleteVendor(id: string): Promise<{

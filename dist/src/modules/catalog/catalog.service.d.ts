@@ -14,6 +14,7 @@ export declare class CatalogService {
     private readonly notifications;
     constructor(db: Db, notifications: NotificationService);
     getVendorByUserId(userId: string): Promise<{
+        isOpenNow: boolean;
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
@@ -23,7 +24,7 @@ export declare class CatalogService {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -44,6 +45,7 @@ export declare class CatalogService {
         createdAt: Date;
     } | null>;
     requireVendor(userId: string): Promise<{
+        isOpenNow: boolean;
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
@@ -53,7 +55,7 @@ export declare class CatalogService {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -77,9 +79,9 @@ export declare class CatalogService {
         id: string;
         createdAt: Date;
         userId: string;
-        type: "restaurant" | "grocery" | "both";
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -99,11 +101,12 @@ export declare class CatalogService {
         }[] | null;
     }>;
     updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto): Promise<{
+        isOpenNow: boolean;
         id: string;
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -130,7 +133,7 @@ export declare class CatalogService {
     listVendorsBasic(): Promise<{
         id: string;
         businessName: string;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
     }[]>;
     listRestaurantsBasic(): Promise<{
         id: string;
@@ -789,12 +792,12 @@ export declare class CatalogService {
     }[]>;
     upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto): Promise<{
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
         productId: string;
         stockQty: number;
+        updatedAt: Date;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -897,10 +900,10 @@ export declare class CatalogService {
     getOrCreateRestaurant(vendorId: string): Promise<{
         id: string;
         name: string;
-        imageUrl: string | null;
         isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
+        imageUrl: string | null;
         ratingAvg: number;
     }>;
     recalcRestaurantRating(restaurantId: string): Promise<void>;
@@ -1014,15 +1017,15 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        imageUrl: string | null;
         vendorId: string;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
+        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
         productId: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -1563,7 +1566,7 @@ export declare class CatalogService {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1585,7 +1588,7 @@ export declare class CatalogService {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1610,7 +1613,7 @@ export declare class CatalogService {
         ownerName: string;
         phone: string;
         email: string | null;
-        type: "restaurant" | "grocery" | "both";
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1631,7 +1634,9 @@ export declare class CatalogService {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "restaurant" | "grocery" | "both";
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1639,16 +1644,14 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
-        isOpen: boolean;
-        businessHours: {
-            day: number;
-            isOpen: boolean;
-            openTime: string;
-            closeTime: string;
-        }[] | null;
+        activity: string;
+        deliveryRadiusKm: number;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        rating: number;
+        ratingCount: number;
+        productCount: number;
         createdAt: Date;
     }>;
     deleteAdminVendor(id: string): Promise<{

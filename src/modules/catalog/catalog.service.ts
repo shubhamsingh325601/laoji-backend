@@ -81,8 +81,11 @@ export class CatalogService {
       }
     }
 
+    const isOpenNow = isVendorOpenNow(row);
+
     return {
       ...row,
+      isOpenNow,
       email: user?.email ?? null,
       phone: user?.phone ?? null,
       mustChangePassword: user?.mustChangePassword ?? false,
@@ -162,7 +165,10 @@ export class CatalogService {
       .set({ isOpen: dto.isOpen })
       .where(eq(restaurants.vendorId, vendor.id));
 
-    return updated;
+    return {
+      ...updated,
+      isOpenNow: isVendorOpenNow(updated),
+    };
   }
 
   async deleteVendorAccount(userId: string) {
@@ -1392,19 +1398,20 @@ export class CatalogService {
     if (dto.bankIfsc !== undefined) updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
     if (dto.upiId !== undefined) updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
 
-    const [updated] = await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id)).returning();
-
-    if (dto.phone || dto.email) {
-      await this.db
-        .update(users)
-        .set({
-          phone: dto.phone || undefined,
-          email: dto.email || undefined,
-        })
-        .where(eq(users.id, v.userId));
+    if (Object.keys(updateFields).length > 0) {
+      await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id));
     }
 
-    return updated;
+    if (dto.phone !== undefined || dto.email !== undefined) {
+      const userUpdates: any = {};
+      if (dto.phone !== undefined && dto.phone.trim()) userUpdates.phone = dto.phone.trim();
+      if (dto.email !== undefined) userUpdates.email = dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+      if (Object.keys(userUpdates).length > 0) {
+        await this.db.update(users).set(userUpdates).where(eq(users.id, v.userId));
+      }
+    }
+
+    return this.getAdminVendor(id);
   }
 
   async deleteAdminVendor(id: string) {

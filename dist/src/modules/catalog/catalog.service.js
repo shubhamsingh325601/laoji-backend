@@ -87,8 +87,10 @@ let CatalogService = class CatalogService {
                 ratingCount = 0;
             }
         }
+        const isOpenNow = (0, catalog_types_1.isVendorOpenNow)(row);
         return {
             ...row,
+            isOpenNow,
             email: user?.email ?? null,
             phone: user?.phone ?? null,
             mustChangePassword: user?.mustChangePassword ?? false,
@@ -160,7 +162,10 @@ let CatalogService = class CatalogService {
             .update(schema_1.restaurants)
             .set({ isOpen: dto.isOpen })
             .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id));
-        return updated;
+        return {
+            ...updated,
+            isOpenNow: (0, catalog_types_1.isVendorOpenNow)(updated),
+        };
     }
     async deleteVendorAccount(userId) {
         const vendor = await this.requireVendor(userId);
@@ -1135,17 +1140,20 @@ let CatalogService = class CatalogService {
             updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
         if (dto.upiId !== undefined)
             updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
-        const [updated] = await this.db.update(schema_1.vendors).set(updateFields).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).returning();
-        if (dto.phone || dto.email) {
-            await this.db
-                .update(schema_1.users)
-                .set({
-                phone: dto.phone || undefined,
-                email: dto.email || undefined,
-            })
-                .where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId));
+        if (Object.keys(updateFields).length > 0) {
+            await this.db.update(schema_1.vendors).set(updateFields).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
         }
-        return updated;
+        if (dto.phone !== undefined || dto.email !== undefined) {
+            const userUpdates = {};
+            if (dto.phone !== undefined && dto.phone.trim())
+                userUpdates.phone = dto.phone.trim();
+            if (dto.email !== undefined)
+                userUpdates.email = dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+            if (Object.keys(userUpdates).length > 0) {
+                await this.db.update(schema_1.users).set(userUpdates).where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId));
+            }
+        }
+        return this.getAdminVendor(id);
     }
     async deleteAdminVendor(id) {
         const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).limit(1);
