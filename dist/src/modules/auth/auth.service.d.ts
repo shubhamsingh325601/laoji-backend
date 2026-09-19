@@ -4,6 +4,7 @@ import type { Db } from '../../config/database.module';
 import { OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerRegisterDto } from './dto/customer-auth.dto';
+import { PartnerRegisterDto } from './dto/partner-auth.dto';
 export declare class AuthService {
     private readonly db;
     private readonly jwt;
@@ -33,6 +34,20 @@ export declare class AuthService {
         userId: string;
         role: UserRole;
         user: any;
+    }>;
+    partnerLogin(phone: string, password: string, deviceId?: string): Promise<{
+        tokens: TokenPair;
+        userId: string;
+        role: UserRole;
+        user: any;
+        partner?: any;
+    }>;
+    partnerRegister(dto: PartnerRegisterDto): Promise<{
+        tokens: TokenPair;
+        userId: string;
+        role: UserRole;
+        user: any;
+        partner?: any;
     }>;
     vendorLogin(identifier: {
         email?: string;

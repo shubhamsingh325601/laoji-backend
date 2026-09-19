@@ -3,6 +3,10 @@ import type { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
 export interface ResolvedRevenueConfig {
     commissionPct: number;
     deliveryFeeFlat: number;
+    freeDeliveryThreshold: number;
+    deliveryFeeTier1: number;
+    deliveryFeeTier2: number;
+    deliveryFeeTier3: number;
     codThreshold: number | null;
 }
 export declare class RevenueConfigService {
@@ -15,6 +19,10 @@ export declare class RevenueConfigService {
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
+        freeDeliveryThreshold: number | null;
+        deliveryFeeTier1: number | null;
+        deliveryFeeTier2: number | null;
+        deliveryFeeTier3: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -27,6 +35,10 @@ export declare class RevenueConfigService {
         scopeRefId: string | null;
         commissionPct: number;
         deliveryFeeFlat: number;
+        freeDeliveryThreshold: number | null;
+        deliveryFeeTier1: number | null;
+        deliveryFeeTier2: number | null;
+        deliveryFeeTier3: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -35,4 +47,5 @@ export declare class RevenueConfigService {
     }[]>;
     resolve(vendorId: string, categoryId: string | null, asOf?: Date): Promise<ResolvedRevenueConfig>;
     private toResolved;
+    calculateDeliveryFee(config: ResolvedRevenueConfig, subtotal: number, distanceKm: number): number;
 }

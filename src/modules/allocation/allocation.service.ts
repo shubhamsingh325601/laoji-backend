@@ -27,6 +27,7 @@ export interface CartLine {
 export interface AllocationCandidate {
   vendorId: string;
   unitPrices: Map<string, number>;
+  distance?: number;
 }
 
 @Injectable()
@@ -102,7 +103,7 @@ export class AllocationService {
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => a.totalCost - b.totalCost || a.distance - b.distance);
     const winner = candidates[0];
-    return { vendorId: winner.vendorId, unitPrices: winner.prices };
+    return { vendorId: winner.vendorId, unitPrices: winner.prices, distance: winner.distance };
   }
 
   /** Creates the pending allocation_attempts row and schedules its SLA timeout. */

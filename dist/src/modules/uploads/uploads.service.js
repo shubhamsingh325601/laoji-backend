@@ -125,11 +125,25 @@ let UploadsService = class UploadsService {
     }
     async rollUpKycStatus(userId, role) {
         const docs = await this.db.select().from(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
-        const rolledUp = docs.some((d) => d.status === 'rejected')
-            ? 'rejected'
-            : docs.length > 0 && docs.every((d) => d.status === 'verified')
-                ? 'verified'
-                : 'pending';
+        const mandatoryKeys = role === 'vendor'
+            ? ['aadhaar_front', 'aadhaar_back']
+            : role === 'delivery_partner'
+                ? ['aadhaar_front', 'aadhaar_back']
+                : [];
+        const hasRejected = docs.some((d) => d.status === 'rejected');
+        const allMandatoryUploaded = mandatoryKeys.length > 0 && mandatoryKeys.every((key) => docs.some((d) => d.docType === key));
+        const allMandatoryVerified = allMandatoryUploaded && mandatoryKeys.every((key) => docs.some((d) => d.docType === key && d.status === 'verified'));
+        const allDocsVerified = docs.length > 0 && docs.every((d) => d.status === 'verified');
+        let rolledUp;
+        if (hasRejected) {
+            rolledUp = 'rejected';
+        }
+        else if (allMandatoryVerified && allDocsVerified) {
+            rolledUp = 'verified';
+        }
+        else {
+            rolledUp = 'pending';
+        }
         if (role === 'vendor') {
             await this.db.update(schema_1.vendors).set({ kycStatus: rolledUp }).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId));
         }

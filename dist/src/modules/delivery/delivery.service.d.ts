@@ -169,6 +169,7 @@ export declare class DeliveryService {
             completedAt: Date;
         })[];
     }>;
+    private assignWaitingOrders;
     private findNearestOnlinePartner;
     private pickupPoint;
     triggerAssignment(type: OrderType, orderId: string): Promise<void>;
@@ -185,6 +186,7 @@ export declare class DeliveryService {
         itemCount: number;
         deliveryFee: number;
         pickupName: string;
+        pickupAddress: string;
         pickupPhone: string;
         pickupLat: number | null;
         pickupLng: number | null;
@@ -193,6 +195,15 @@ export declare class DeliveryService {
         dropoffAddress: string;
         dropoffLat: number | null;
         dropoffLng: number | null;
+        instructions: string;
+        total: number;
+        paymentStatus: string;
+        items: {
+            id?: string;
+            name: string;
+            qty: number;
+            price: number;
+        }[];
     }>;
     private assembleAssignmentView;
     listIncoming(userId: string): Promise<{
@@ -209,7 +220,7 @@ export declare class DeliveryService {
         grocery: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -226,7 +237,7 @@ export declare class DeliveryService {
         food: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -311,6 +322,7 @@ export declare class DeliveryService {
         id: string;
         createdAt: Date;
         userId: string;
+        updatedAt: Date;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
@@ -321,7 +333,6 @@ export declare class DeliveryService {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
-        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;

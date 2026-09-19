@@ -36,7 +36,7 @@ import { orderPlacedVendorPush } from '../notification/templates/push/order-plac
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
-import { isVendorOpenNow } from '../catalog/catalog.types';
+import { haversineKm, isVendorOpenNow } from '../catalog/catalog.types';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -96,7 +96,7 @@ export class OrderService {
     // flagged in CLAUDE.md, not silently assumed correct for every cart.
     const [firstProduct] = await this.db.select().from(products).where(eq(products.id, dto.items[0].productId)).limit(1);
     const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
-    const deliveryFee = revenue.deliveryFeeFlat;
+    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
     const commissionPct = revenue.commissionPct;
     const total = subtotal + deliveryFee;
 
@@ -153,7 +153,7 @@ export class OrderService {
     // whether checkout is allowed, not just the stored column.
     const [restaurantVendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
     if (!restaurant.isOpen || !restaurantVendor || !isVendorOpenNow(restaurantVendor)) {
-      throw new BadRequestException('Restaurant not available');
+      throw new BadRequestException('This restaurant is currently closed and not accepting new orders');
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
@@ -213,7 +213,10 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const deliveryFee = revenue.deliveryFeeFlat;
+    const distanceKm = restaurantVendor
+      ? haversineKm(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng)
+      : 1;
+    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
     const commissionPct = revenue.commissionPct;
     const total = subtotal + deliveryFee;
     const [order] = await this.db
@@ -249,15 +252,21 @@ export class OrderService {
   // ---------- Customer: read own orders ----------
 
   async listMyGroceryOrders(customerId: string) {
-    return this.db
+    const orders = await this.db
       .select()
       .from(groceryOrders)
       .where(eq(groceryOrders.customerId, customerId))
       .orderBy(desc(groceryOrders.createdAt));
+    return this.attachGroceryItems(orders);
   }
 
   async listMyFoodOrders(customerId: string) {
-    return this.db.select().from(foodOrders).where(eq(foodOrders.customerId, customerId)).orderBy(desc(foodOrders.createdAt));
+    const orders = await this.db
+      .select()
+      .from(foodOrders)
+      .where(eq(foodOrders.customerId, customerId))
+      .orderBy(desc(foodOrders.createdAt));
+    return this.attachFoodItems(orders);
   }
 
   async getGroceryOrder(id: string, requester: { userId: string; role: string }) {
@@ -272,7 +281,8 @@ export class OrderService {
       .where(eq(orderStatusHistory.groceryOrderId, id))
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
-    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer }, requester);
+    const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
+    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner }, requester);
   }
 
   async getFoodOrder(id: string, requester: { userId: string; role: string }) {
@@ -288,9 +298,10 @@ export class OrderService {
       .where(eq(orderStatusHistory.foodOrderId, id))
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
+    const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
     const [rating] = await this.db.select().from(foodOrderRatings).where(eq(foodOrderRatings.foodOrderId, id)).limit(1);
     return this.withOtpVisibility(
-      { ...order, items, history: await this.enrichHistory(history), customer, myRating: rating ?? null },
+      { ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner, myRating: rating ?? null },
       requester,
     );
   }
@@ -363,15 +374,24 @@ export class OrderService {
     });
   }
 
-  // No customer "name" field exists anywhere yet (accounts are phone+OTP
-  // only, no profile/name capture in any phase so far) — phone stands in
-  // for it. Addresses only store one formattedAddress string, not
-  // line1/area/city, so those are left blank rather than guessed at.
+  private async getDeliveryPartnerSummary(deliveryPartnerId: string | null) {
+    if (!deliveryPartnerId) return null;
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, deliveryPartnerId)).limit(1);
+    if (!partner) return null;
+    const [user] = await this.db.select().from(users).where(eq(users.id, partner.userId)).limit(1);
+    return {
+      id: partner.id,
+      name: user?.name || user?.phone || 'Delivery Partner',
+      phone: user?.phone || '',
+      vehicleType: partner.vehicleType || 'Bike',
+    };
+  }
+
   private async customerSummary(customerId: string, deliveryAddressId: string) {
     const [user] = await this.db.select().from(users).where(eq(users.id, customerId)).limit(1);
     const [address] = await this.db.select().from(addresses).where(eq(addresses.id, deliveryAddressId)).limit(1);
     return {
-      name: user?.phone ?? 'Customer',
+      name: user?.name || user?.phone || 'Customer',
       phone: user?.phone ?? '',
       line1: address?.formattedAddress ?? '',
       area: '',
@@ -607,8 +627,8 @@ export class OrderService {
       changedBy: userId,
     });
 
-    // Vendor's last manual action — hand off to Delivery for partner matching.
-    if (dto.status === 'handed_over') {
+    // Auto-match delivery partner as soon as order is preparing, ready, or handed over
+    if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
       await this.delivery.triggerAssignment('grocery', orderId);
     }
 
@@ -753,7 +773,8 @@ export class OrderService {
       changedBy: userId,
     });
 
-    if (dto.status === 'handed_over') {
+    // Auto-match delivery partner as soon as order is preparing, ready, or handed over
+    if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
       await this.delivery.triggerAssignment('food', orderId);
     }
 

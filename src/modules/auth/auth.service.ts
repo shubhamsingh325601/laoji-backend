@@ -27,6 +27,7 @@ import { parseDurationMs } from '../../common/utils/duration';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerRegisterDto } from './dto/customer-auth.dto';
+import { PartnerRegisterDto } from './dto/partner-auth.dto';
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -203,6 +204,123 @@ export class AuthService {
     const tokens = await this.issueTokens(created.id, 'customer', dto.deviceId);
     const { passwordHash: _hash, ...safeUser } = created;
     return { tokens, userId: created.id, role: 'customer', user: safeUser };
+  }
+
+  async partnerLogin(
+    phone: string,
+    password: string,
+    deviceId?: string,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any; partner?: any }> {
+    const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'delivery_partner')))
+      .limit(1);
+
+    if (!user) {
+      throw new UnauthorizedException('No partner account found with this phone number. Please register.');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Password is not set for this account. Please reset password or contact support.');
+    }
+
+    const matches = await bcrypt.compare(password, user.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Incorrect password. Please try again.');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.role, deviceId);
+    let [partner] = await this.db
+      .select()
+      .from(deliveryPartners)
+      .where(eq(deliveryPartners.userId, user.id))
+      .limit(1);
+
+    if (!partner) {
+      [partner] = await this.db
+        .insert(deliveryPartners)
+        .values({
+          userId: user.id,
+          vehicleType: 'bike',
+          kycStatus: 'pending',
+        })
+        .returning();
+    }
+
+    const { passwordHash: _hash, ...safeUser } = user;
+    return { tokens, userId: user.id, role: user.role, user: safeUser, partner };
+  }
+
+  async partnerRegister(
+    dto: PartnerRegisterDto,
+  ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any; partner?: any }> {
+    const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+    const [existing] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'delivery_partner')))
+      .limit(1);
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    let user: typeof users.$inferSelect;
+
+    if (existing) {
+      if (existing.passwordHash) {
+        throw new ConflictException('A partner account with this phone number already exists. Please log in.');
+      }
+      const updates: { passwordHash: string; name?: string } = { passwordHash };
+      if (dto.name?.trim()) {
+        updates.name = dto.name.trim();
+      }
+      const [updated] = await this.db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, existing.id))
+        .returning();
+      user = updated;
+    } else {
+      const [created] = await this.db
+        .insert(users)
+        .values({
+          phone: cleanPhone,
+          role: 'delivery_partner',
+          passwordHash,
+          name: dto.name?.trim() || null,
+        })
+        .returning();
+      user = created;
+    }
+
+    let [partner] = await this.db
+      .select()
+      .from(deliveryPartners)
+      .where(eq(deliveryPartners.userId, user.id))
+      .limit(1);
+
+    if (!partner) {
+      [partner] = await this.db
+        .insert(deliveryPartners)
+        .values({
+          userId: user.id,
+          vehicleType: dto.vehicleType || 'bike',
+          kycStatus: 'pending',
+        })
+        .returning();
+    } else if (dto.vehicleType && partner.vehicleType !== dto.vehicleType) {
+      const [updatedPartner] = await this.db
+        .update(deliveryPartners)
+        .set({ vehicleType: dto.vehicleType })
+        .where(eq(deliveryPartners.id, partner.id))
+        .returning();
+      partner = updatedPartner;
+    }
+
+    const tokens = await this.issueTokens(user.id, 'delivery_partner', dto.deviceId);
+    const { passwordHash: _hash, ...safeUser } = user;
+    return { tokens, userId: user.id, role: 'delivery_partner', user: safeUser, partner };
   }
 
   async vendorLogin(

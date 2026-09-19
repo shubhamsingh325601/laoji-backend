@@ -40,6 +40,9 @@ let NotificationService = NotificationService_1 = class NotificationService {
         this.email = email;
     }
     async registerDeviceToken(userId, fcmToken, platform) {
+        await this.db
+            .delete(schema_1.deviceTokens)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.deviceTokens.fcmToken, fcmToken), (0, drizzle_orm_1.ne)(schema_1.deviceTokens.userId, userId)));
         const [existing] = await this.db
             .select()
             .from(schema_1.deviceTokens)
@@ -56,8 +59,27 @@ let NotificationService = NotificationService_1 = class NotificationService {
         const [created] = await this.db.insert(schema_1.deviceTokens).values({ userId, fcmToken, platform }).returning();
         return created;
     }
+    async unregisterDeviceToken(userId, fcmToken) {
+        if (fcmToken) {
+            await this.db
+                .delete(schema_1.deviceTokens)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.deviceTokens.userId, userId), (0, drizzle_orm_1.eq)(schema_1.deviceTokens.fcmToken, fcmToken)));
+        }
+        else {
+            await this.db
+                .delete(schema_1.deviceTokens)
+                .where((0, drizzle_orm_1.eq)(schema_1.deviceTokens.userId, userId));
+        }
+    }
     notifyPush(userId, template, message) {
-        this.jobQueue.schedule(`notify-push:${(0, crypto_1.randomUUID)()}`, 0, () => this.dispatchPush(userId, template, message));
+        const payloadWithRecipient = {
+            ...message,
+            data: {
+                ...(message.data || {}),
+                recipientUserId: userId,
+            },
+        };
+        this.jobQueue.schedule(`notify-push:${(0, crypto_1.randomUUID)()}`, 0, () => this.dispatchPush(userId, template, payloadWithRecipient));
     }
     notifyEmail(userId, template, message) {
         this.jobQueue.schedule(`notify-email:${(0, crypto_1.randomUUID)()}`, 0, () => this.dispatchEmail(userId, template, message));
@@ -231,6 +253,38 @@ let NotificationService = NotificationService_1 = class NotificationService {
                 createdAt: r.createdAt,
             };
         });
+    }
+    async listForUser(userId, limit = 50) {
+        const rows = await this.db
+            .select()
+            .from(schema_1.notificationLog)
+            .where((0, drizzle_orm_1.eq)(schema_1.notificationLog.userId, userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.notificationLog.createdAt))
+            .limit(limit);
+        return rows.map((r) => {
+            const payload = (r.payloadJson || {});
+            return {
+                id: r.id,
+                channel: r.channel,
+                template: r.template,
+                title: payload.title || (r.template === 'order_placed' ? 'New Order' : 'Notification'),
+                body: payload.body || payload.message || payload.text || '',
+                data: payload.data || {},
+                imageUrl: payload.imageUrl || null,
+                status: r.status,
+                createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString(),
+            };
+        });
+    }
+    async deleteForUser(userId, id) {
+        await this.db
+            .delete(schema_1.notificationLog)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.notificationLog.id, id), (0, drizzle_orm_1.eq)(schema_1.notificationLog.userId, userId)));
+    }
+    async clearAllForUser(userId) {
+        await this.db
+            .delete(schema_1.notificationLog)
+            .where((0, drizzle_orm_1.eq)(schema_1.notificationLog.userId, userId));
     }
 };
 exports.NotificationService = NotificationService;

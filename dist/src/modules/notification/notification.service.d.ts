@@ -14,10 +14,11 @@ export declare class NotificationService {
     registerDeviceToken(userId: string, fcmToken: string, platform: Platform): Promise<{
         id: string;
         userId: string;
-        updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
+        updatedAt: Date;
     }>;
+    unregisterDeviceToken(userId: string, fcmToken?: string): Promise<void>;
     notifyPush(userId: string, template: string, message: PushMessage): void;
     notifyEmail(userId: string, template: string, message: EmailMessage): void;
     notifySms(userId: string, template: string, message: {
@@ -66,20 +67,33 @@ export declare class NotificationService {
         link?: string;
     }): Promise<{
         sentCount: number;
-        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
-        channels: ("push" | "email" | "sms")[];
+        target: "customer" | "vendor" | "delivery_partner" | "all" | "restaurant" | "user";
+        channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
     listRecentForAdmin(limit?: number): Promise<{
         id: string;
         userId: string;
         userLabel: string;
-        channel: "push" | "email" | "sms";
+        channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "failed" | "queued" | "sent";
+        status: "queued" | "sent" | "failed";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;
+    listForUser(userId: string, limit?: number): Promise<{
+        id: string;
+        channel: "email" | "push" | "sms";
+        template: string;
+        title: any;
+        body: any;
+        data: any;
+        imageUrl: any;
+        status: "queued" | "sent" | "failed";
+        createdAt: string;
+    }[]>;
+    deleteForUser(userId: string, id: string): Promise<void>;
+    clearAllForUser(userId: string): Promise<void>;
 }
 export {};

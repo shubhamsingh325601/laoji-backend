@@ -17,7 +17,15 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
-const DEFAULT_CONFIG = { commissionPct: 0.1, deliveryFeeFlat: 30, codThreshold: null };
+const DEFAULT_CONFIG = {
+    commissionPct: 0.1,
+    deliveryFeeFlat: 15,
+    freeDeliveryThreshold: 99,
+    deliveryFeeTier1: 10,
+    deliveryFeeTier2: 15,
+    deliveryFeeTier3: 20,
+    codThreshold: null,
+};
 let RevenueConfigService = class RevenueConfigService {
     db;
     constructor(db) {
@@ -31,6 +39,10 @@ let RevenueConfigService = class RevenueConfigService {
             scopeRefId: dto.scope === 'global' ? null : dto.scopeRefId,
             commissionPct: dto.commissionPct,
             deliveryFeeFlat: dto.deliveryFeeFlat,
+            freeDeliveryThreshold: dto.freeDeliveryThreshold ?? 99,
+            deliveryFeeTier1: dto.deliveryFeeTier1 ?? 10,
+            deliveryFeeTier2: dto.deliveryFeeTier2 ?? 15,
+            deliveryFeeTier3: dto.deliveryFeeTier3 ?? 20,
             codThreshold: dto.codThreshold ?? null,
             notes: dto.notes ?? null,
             effectiveFrom: new Date(dto.effectiveFrom),
@@ -65,7 +77,27 @@ let RevenueConfigService = class RevenueConfigService {
         return DEFAULT_CONFIG;
     }
     toResolved(row) {
-        return { commissionPct: row.commissionPct, deliveryFeeFlat: row.deliveryFeeFlat, codThreshold: row.codThreshold };
+        return {
+            commissionPct: row.commissionPct,
+            deliveryFeeFlat: row.deliveryFeeFlat,
+            freeDeliveryThreshold: row.freeDeliveryThreshold ?? 99,
+            deliveryFeeTier1: row.deliveryFeeTier1 ?? 10,
+            deliveryFeeTier2: row.deliveryFeeTier2 ?? 15,
+            deliveryFeeTier3: row.deliveryFeeTier3 ?? 20,
+            codThreshold: row.codThreshold,
+        };
+    }
+    calculateDeliveryFee(config, subtotal, distanceKm) {
+        if (subtotal >= (config.freeDeliveryThreshold ?? 99)) {
+            return 0;
+        }
+        if (distanceKm <= 3) {
+            return config.deliveryFeeTier1 ?? 10;
+        }
+        if (distanceKm <= 5) {
+            return config.deliveryFeeTier2 ?? 15;
+        }
+        return config.deliveryFeeTier3 ?? 20;
     }
 };
 exports.RevenueConfigService = RevenueConfigService;

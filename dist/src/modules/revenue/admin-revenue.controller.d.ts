@@ -13,6 +13,10 @@ export declare class AdminRevenueController {
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
+        freeDeliveryThreshold: number | null;
+        deliveryFeeTier1: number | null;
+        deliveryFeeTier2: number | null;
+        deliveryFeeTier3: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -25,6 +29,10 @@ export declare class AdminRevenueController {
         scopeRefId: string | null;
         commissionPct: number;
         deliveryFeeFlat: number;
+        freeDeliveryThreshold: number | null;
+        deliveryFeeTier1: number | null;
+        deliveryFeeTier2: number | null;
+        deliveryFeeTier3: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;

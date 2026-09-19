@@ -22,6 +22,26 @@ export class CreateRevenueConfigDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  freeDeliveryThreshold?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  deliveryFeeTier1?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  deliveryFeeTier2?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  deliveryFeeTier3?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   codThreshold?: number;
 
   @IsOptional()

@@ -29,9 +29,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -43,9 +43,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -71,9 +77,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -85,6 +91,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -96,7 +108,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -110,10 +122,10 @@ export declare class OrderService {
         deliveryOtp: string | null;
         createdAt: Date;
     }>;
-    listMyGroceryOrders(customerId: string): Promise<{
+    listMyGroceryOrders(customerId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -126,11 +138,19 @@ export declare class OrderService {
         deliveryPartnerId: string | null;
         deliveryOtp: string | null;
         createdAt: Date;
-    }[]>;
-    listMyFoodOrders(customerId: string): Promise<{
+    } & {
+        items: {
+            id: string;
+            groceryOrderId: string;
+            productId: string;
+            qty: number;
+            unitPrice: number;
+        }[];
+    })[]>;
+    listMyFoodOrders(customerId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -143,7 +163,16 @@ export declare class OrderService {
         deliveryPartnerId: string | null;
         deliveryOtp: string | null;
         createdAt: Date;
-    }[]>;
+    } & {
+        items: {
+            id: string;
+            foodOrderId: string;
+            menuItemId: string;
+            qty: number;
+            unitPrice: number;
+            addonsJson: unknown;
+        }[];
+    })[]>;
     getGroceryOrder(id: string, requester: {
         userId: string;
         role: string;
@@ -158,9 +187,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -172,9 +201,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -203,9 +238,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -217,6 +252,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -228,7 +269,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -248,14 +289,15 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        restaurantId: string;
         customerId: string;
+        restaurantId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
     }>;
     private withOtpVisibility;
     private enrichHistory;
+    private getDeliveryPartnerSummary;
     private customerSummary;
     private assertOrderAccess;
     private attachGroceryItems;
@@ -266,7 +308,7 @@ export declare class OrderService {
         attemptId: string;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -291,7 +333,7 @@ export declare class OrderService {
     listVendorHistoryGroceryOrders(userId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -316,7 +358,7 @@ export declare class OrderService {
     listVendorHistoryFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -342,7 +384,7 @@ export declare class OrderService {
     listVendorActiveGroceryOrders(userId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -375,9 +417,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -389,9 +431,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -421,9 +469,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -435,9 +483,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -462,9 +516,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -476,9 +530,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -496,7 +556,7 @@ export declare class OrderService {
     listVendorIncomingFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -522,7 +582,7 @@ export declare class OrderService {
     listVendorActiveFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -558,9 +618,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -572,6 +632,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -583,7 +649,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -609,9 +675,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -623,6 +689,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -634,7 +706,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -660,9 +732,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -674,6 +746,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -685,7 +763,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -711,9 +789,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -725,6 +803,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -736,7 +820,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -758,7 +842,7 @@ export declare class OrderService {
             customerName: string;
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -776,7 +860,7 @@ export declare class OrderService {
             customerName: string;
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -801,9 +885,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -815,9 +899,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -842,9 +932,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -856,6 +946,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -867,7 +963,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -892,9 +988,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -906,9 +1002,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -933,9 +1035,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -947,6 +1049,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -958,7 +1066,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -983,9 +1091,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -997,9 +1105,15 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -1024,9 +1138,9 @@ export declare class OrderService {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -1038,6 +1152,12 @@ export declare class OrderService {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -1049,7 +1169,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;

@@ -50,6 +50,9 @@ export class FcmPushProvider {
           notification: {
             sound: 'default',
             priority: 'high',
+            channelId: 'default',
+            icon: 'notification_icon',
+            color: '#0A1938',
             ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
           },
         },

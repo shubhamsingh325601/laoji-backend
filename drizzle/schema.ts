@@ -635,6 +635,10 @@ export const revenueConfig = pgTable('revenue_config', {
   // replaces. A distance/tiered delivery-fee rule isn't implemented (small
   // single-city MVP scope); flagged, not silently modeled as if it existed.
   deliveryFeeFlat: doublePrecision('delivery_fee_flat').notNull(),
+  freeDeliveryThreshold: doublePrecision('free_delivery_threshold').default(99),
+  deliveryFeeTier1: doublePrecision('delivery_fee_tier1').default(10), // <= 3km
+  deliveryFeeTier2: doublePrecision('delivery_fee_tier2').default(15), // 3-5km
+  deliveryFeeTier3: doublePrecision('delivery_fee_tier3').default(20), // > 5km
   // Max order total eligible for COD; null = no cap.
   codThreshold: doublePrecision('cod_threshold'),
   // Free-text "why this rule exists" — surfaced in Admin's version-history

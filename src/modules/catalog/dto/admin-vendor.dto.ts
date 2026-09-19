@@ -47,6 +47,26 @@ export class CreateAdminVendorDto {
   @IsOptional()
   @IsIn(['unverified', 'pending', 'verified', 'rejected'])
   kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccount?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 export class UpdateAdminVendorDto {
@@ -107,4 +127,24 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   activity?: 'active' | 'inactive';
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccount?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }

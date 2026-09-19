@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -58,11 +58,36 @@ export class CatalogService {
     const [row] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
     if (!row) return null;
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+    // Dynamic rating calculation from real food order reviews / restaurant data
+    const [rest] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, row.id)).limit(1);
+    let ratingAvg = 4.8;
+    let ratingCount = 0;
+    if (rest) {
+      const [agg] = await this.db
+        .select({
+          count: sql<number>`count(*)::int`,
+          avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+        })
+        .from(foodOrderRatings)
+        .where(eq(foodOrderRatings.restaurantId, rest.id));
+
+      if (agg && Number(agg.count) > 0) {
+        ratingAvg = Math.round(Number(agg.avg) * 10) / 10;
+        ratingCount = Number(agg.count);
+      } else if (rest.ratingAvg && Number(rest.ratingAvg) > 0) {
+        ratingAvg = Math.round(Number(rest.ratingAvg) * 10) / 10;
+        ratingCount = 0;
+      }
+    }
+
     return {
       ...row,
       email: user?.email ?? null,
       phone: user?.phone ?? null,
       mustChangePassword: user?.mustChangePassword ?? false,
+      ratingAvg,
+      ratingCount,
     };
   }
 
@@ -121,11 +146,22 @@ export class CatalogService {
   // the weekly schedule together, since that screen saves both at once.
   async updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto) {
     const vendor = await this.requireVendor(userId);
+    const updateData: { isOpen: boolean; businessHours?: any } = { isOpen: dto.isOpen };
+    if (dto.schedule !== undefined) {
+      updateData.businessHours = dto.schedule;
+    }
     const [updated] = await this.db
       .update(vendors)
-      .set({ isOpen: dto.isOpen, businessHours: dto.schedule ?? null })
+      .set(updateData)
       .where(eq(vendors.id, vendor.id))
       .returning();
+
+    // Keep restaurants table in sync if this vendor operates a restaurant
+    await this.db
+      .update(restaurants)
+      .set({ isOpen: dto.isOpen })
+      .where(eq(restaurants.vendorId, vendor.id));
+
     return updated;
   }
 
@@ -554,27 +590,74 @@ export class CatalogService {
   // ---------- Public: customer browse (restaurants + menu) ----------
 
   async publicListRestaurants(lat: number, lng: number) {
-    const inRadius = await this.vendorsInRadius(lat, lng);
-    const vendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+    const allVendors = await this.db.select().from(vendors);
+    const nearbyVendors = allVendors.filter(
+      (v) => haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
+    );
+    const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
+    const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
     if (vendorIds.length === 0) return [];
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(restaurants)
-      .where(and(inArray(restaurants.vendorId, vendorIds), eq(restaurants.isOpen, true)));
+      .where(inArray(restaurants.vendorId, vendorIds));
+
+    const restIds = rows.map((r) => r.id);
+    const ratingsMap = new Map<string, { count: number; avg: number }>();
+    if (restIds.length > 0) {
+      const aggRows = await this.db
+        .select({
+          restaurantId: foodOrderRatings.restaurantId,
+          count: sql<number>`count(*)::int`,
+          avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+        })
+        .from(foodOrderRatings)
+        .where(inArray(foodOrderRatings.restaurantId, restIds))
+        .groupBy(foodOrderRatings.restaurantId);
+
+      for (const agg of aggRows) {
+        ratingsMap.set(agg.restaurantId, {
+          count: Number(agg.count),
+          avg: Math.round(Number(agg.avg) * 10) / 10,
+        });
+      }
+    }
+
+    return rows.map((r) => {
+      const v = vendorMap.get(r.vendorId);
+      const openNow = r.isOpen && (v ? isVendorOpenNow(v) : false);
+      const agg = ratingsMap.get(r.id);
+      const dynamicRating = agg && agg.count > 0 ? agg.avg : (r.ratingAvg > 0 ? Math.round(r.ratingAvg * 10) / 10 : 4.8);
+      const dynamicCount = agg ? agg.count : 0;
+      return {
+        ...r,
+        ratingAvg: dynamicRating,
+        ratingCount: dynamicCount,
+        isOpen: openNow,
+      };
+    });
   }
 
   async publicGetRestaurant(id: string) {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, id)).limit(1);
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
-    // Detail page is shown even when closed (so the customer sees *why*
-    // ordering is blocked) — unlike the list/browse endpoints, which drop
-    // closed vendors entirely. `restaurant.isOpen` is a manually-toggled
-    // column that can go stale against the real weekly schedule, so this
-    // recomputes the true current status rather than trusting it.
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
     const openNow = restaurant.isOpen && (vendor ? isVendorOpenNow(vendor) : false);
+
+    const [ratingsAgg] = await this.db
+      .select({
+        count: sql<number>`count(*)::int`,
+        avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+      })
+      .from(foodOrderRatings)
+      .where(eq(foodOrderRatings.restaurantId, id));
+
+    const dynamicRating = ratingsAgg && Number(ratingsAgg.count) > 0
+      ? Math.round(Number(ratingsAgg.avg) * 10) / 10
+      : (restaurant.ratingAvg > 0 ? Math.round(restaurant.ratingAvg * 10) / 10 : 4.8);
+    const dynamicCount = ratingsAgg ? Number(ratingsAgg.count) : 0;
 
     const cats = await this.db
       .select()
@@ -603,6 +686,8 @@ export class CatalogService {
 
     return {
       ...restaurant,
+      ratingAvg: dynamicRating,
+      ratingCount: dynamicCount,
       isOpen: openNow,
       menuCategories: cats.map((cat) => ({
         ...cat,
@@ -1102,6 +1187,11 @@ export class CatalogService {
       email: user.email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
       deliveryRadiusKm: vendor.radiusKm,
@@ -1138,6 +1228,11 @@ export class CatalogService {
       email: user.email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
       deliveryRadiusKm: vendor.radiusKm,
@@ -1214,6 +1309,11 @@ export class CatalogService {
         ownerName: dto.ownerName.trim(),
         type: dto.type,
         shopAddress: dto.shopAddress?.trim() || null,
+        gstNumber: dto.gstNumber?.trim() || null,
+        aadhaarNumber: dto.aadhaarNumber?.trim() || null,
+        bankAccount: dto.bankAccount?.trim() || null,
+        bankIfsc: dto.bankIfsc?.trim().toUpperCase() || null,
+        upiId: dto.upiId?.trim() || null,
         pickupLat: dto.pickupLat ?? 16.705,
         pickupLng: dto.pickupLng ?? 74.2433,
         radiusKm: dto.deliveryRadiusKm ?? 5,
@@ -1258,6 +1358,11 @@ export class CatalogService {
       email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
       deliveryRadiusKm: vendor.radiusKm,
@@ -1281,6 +1386,11 @@ export class CatalogService {
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
     if (dto.kycStatus !== undefined && dto.kycStatus !== 'unverified') updateFields.kycStatus = dto.kycStatus;
     if (dto.activity !== undefined) updateFields.isOpen = dto.activity === 'active';
+    if (dto.gstNumber !== undefined) updateFields.gstNumber = dto.gstNumber ? dto.gstNumber.trim() : null;
+    if (dto.aadhaarNumber !== undefined) updateFields.aadhaarNumber = dto.aadhaarNumber ? dto.aadhaarNumber.trim() : null;
+    if (dto.bankAccount !== undefined) updateFields.bankAccount = dto.bankAccount ? dto.bankAccount.trim() : null;
+    if (dto.bankIfsc !== undefined) updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
+    if (dto.upiId !== undefined) updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
 
     const [updated] = await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id)).returning();
 

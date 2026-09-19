@@ -68,7 +68,7 @@ let OrderService = class OrderService {
         const subtotal = dto.items.reduce((sum, line) => sum + (candidate.unitPrices.get(line.productId) ?? 0) * line.qty, 0);
         const [firstProduct] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, dto.items[0].productId)).limit(1);
         const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
-        const deliveryFee = revenue.deliveryFeeFlat;
+        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
         const commissionPct = revenue.commissionPct;
         const total = subtotal + deliveryFee;
         const [order] = await this.db
@@ -113,7 +113,7 @@ let OrderService = class OrderService {
             throw new common_1.BadRequestException('Restaurant not available');
         const [restaurantVendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, restaurant.vendorId)).limit(1);
         if (!restaurant.isOpen || !restaurantVendor || !(0, catalog_types_1.isVendorOpenNow)(restaurantVendor)) {
-            throw new common_1.BadRequestException('Restaurant not available');
+            throw new common_1.BadRequestException('This restaurant is currently closed and not accepting new orders');
         }
         const menuItemIds = dto.items.map((i) => i.menuItemId);
         const items = await this.db.select().from(schema_1.menuItems).where((0, drizzle_orm_1.inArray)(schema_1.menuItems.id, menuItemIds));
@@ -158,7 +158,10 @@ let OrderService = class OrderService {
             };
         });
         const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-        const deliveryFee = revenue.deliveryFeeFlat;
+        const distanceKm = restaurantVendor
+            ? (0, catalog_types_1.haversineKm)(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng)
+            : 1;
+        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
         const commissionPct = revenue.commissionPct;
         const total = subtotal + deliveryFee;
         const [order] = await this.db
@@ -186,14 +189,20 @@ let OrderService = class OrderService {
         return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
     }
     async listMyGroceryOrders(customerId) {
-        return this.db
+        const orders = await this.db
             .select()
             .from(schema_1.groceryOrders)
             .where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, customerId))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
+        return this.attachGroceryItems(orders);
     }
     async listMyFoodOrders(customerId) {
-        return this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, customerId)).orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
+        const orders = await this.db
+            .select()
+            .from(schema_1.foodOrders)
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, customerId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
+        return this.attachFoodItems(orders);
     }
     async getGroceryOrder(id, requester) {
         const [order] = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.id, id)).limit(1);
@@ -207,7 +216,8 @@ let OrderService = class OrderService {
             .where((0, drizzle_orm_1.eq)(schema_1.orderStatusHistory.groceryOrderId, id))
             .orderBy(schema_1.orderStatusHistory.changedAt);
         const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer }, requester);
+        const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
+        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner }, requester);
     }
     async getFoodOrder(id, requester) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, id)).limit(1);
@@ -222,8 +232,9 @@ let OrderService = class OrderService {
             .where((0, drizzle_orm_1.eq)(schema_1.orderStatusHistory.foodOrderId, id))
             .orderBy(schema_1.orderStatusHistory.changedAt);
         const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
+        const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
         const [rating] = await this.db.select().from(schema_1.foodOrderRatings).where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.foodOrderId, id)).limit(1);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, myRating: rating ?? null }, requester);
+        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner, myRating: rating ?? null }, requester);
     }
     async rateFoodOrder(customerId, foodOrderId, dto) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, foodOrderId)).limit(1);
@@ -275,11 +286,25 @@ let OrderService = class OrderService {
             return { ...h, actorName };
         });
     }
+    async getDeliveryPartnerSummary(deliveryPartnerId) {
+        if (!deliveryPartnerId)
+            return null;
+        const [partner] = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, deliveryPartnerId)).limit(1);
+        if (!partner)
+            return null;
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, partner.userId)).limit(1);
+        return {
+            id: partner.id,
+            name: user?.name || user?.phone || 'Delivery Partner',
+            phone: user?.phone || '',
+            vehicleType: partner.vehicleType || 'Bike',
+        };
+    }
     async customerSummary(customerId, deliveryAddressId) {
         const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, customerId)).limit(1);
         const [address] = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.id, deliveryAddressId)).limit(1);
         return {
-            name: user?.phone ?? 'Customer',
+            name: user?.name || user?.phone || 'Customer',
             phone: user?.phone ?? '',
             line1: address?.formattedAddress ?? '',
             area: '',
@@ -438,7 +463,7 @@ let OrderService = class OrderService {
             actorRole: 'vendor',
             changedBy: userId,
         });
-        if (dto.status === 'handed_over') {
+        if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
             await this.delivery.triggerAssignment('grocery', orderId);
         }
         return this.getGroceryOrder(orderId, { userId, role: 'vendor' });
@@ -537,7 +562,7 @@ let OrderService = class OrderService {
             actorRole: 'vendor',
             changedBy: userId,
         });
-        if (dto.status === 'handed_over') {
+        if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
             await this.delivery.triggerAssignment('food', orderId);
         }
         return this.getFoodOrder(orderId, { userId, role: 'vendor' });

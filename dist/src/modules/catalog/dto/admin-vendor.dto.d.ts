@@ -10,6 +10,11 @@ export declare class CreateAdminVendorDto {
     deliveryRadiusKm?: number;
     commissionPct?: number;
     kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    gstNumber?: string;
+    aadhaarNumber?: string;
+    bankAccount?: string;
+    bankIfsc?: string;
+    upiId?: string;
 }
 export declare class UpdateAdminVendorDto {
     businessName?: string;
@@ -26,4 +31,9 @@ export declare class UpdateAdminVendorDto {
     maxDiscountCap?: number;
     kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
     activity?: 'active' | 'inactive';
+    gstNumber?: string;
+    aadhaarNumber?: string;
+    bankAccount?: string;
+    bankIfsc?: string;
+    upiId?: string;
 }

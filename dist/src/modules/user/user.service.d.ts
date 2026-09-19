@@ -37,7 +37,7 @@ export declare class UserService {
         recentOrders: ({
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -53,7 +53,7 @@ export declare class UserService {
         } | {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -70,10 +70,10 @@ export declare class UserService {
         createdAt: Date;
     }>;
     createUser(dto: CreateAdminUserDto): Promise<{
-        phone: string | null;
-        email: string | null;
         id: string;
         name: string | null;
+        phone: string | null;
+        email: string | null;
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";

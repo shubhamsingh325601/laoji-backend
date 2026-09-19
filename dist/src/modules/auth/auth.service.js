@@ -181,6 +181,105 @@ let AuthService = class AuthService {
         const { passwordHash: _hash, ...safeUser } = created;
         return { tokens, userId: created.id, role: 'customer', user: safeUser };
     }
+    async partnerLogin(phone, password, deviceId) {
+        const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+        const [user] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner')))
+            .limit(1);
+        if (!user) {
+            throw new common_1.UnauthorizedException('No partner account found with this phone number. Please register.');
+        }
+        if (!user.passwordHash) {
+            throw new common_1.UnauthorizedException('Password is not set for this account. Please reset password or contact support.');
+        }
+        const matches = await bcrypt.compare(password, user.passwordHash);
+        if (!matches) {
+            throw new common_1.UnauthorizedException('Incorrect password. Please try again.');
+        }
+        const tokens = await this.issueTokens(user.id, user.role, deviceId);
+        let [partner] = await this.db
+            .select()
+            .from(schema_1.deliveryPartners)
+            .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.userId, user.id))
+            .limit(1);
+        if (!partner) {
+            [partner] = await this.db
+                .insert(schema_1.deliveryPartners)
+                .values({
+                userId: user.id,
+                vehicleType: 'bike',
+                kycStatus: 'pending',
+            })
+                .returning();
+        }
+        const { passwordHash: _hash, ...safeUser } = user;
+        return { tokens, userId: user.id, role: user.role, user: safeUser, partner };
+    }
+    async partnerRegister(dto) {
+        const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+        const [existing] = await this.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner')))
+            .limit(1);
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+        let user;
+        if (existing) {
+            if (existing.passwordHash) {
+                throw new common_1.ConflictException('A partner account with this phone number already exists. Please log in.');
+            }
+            const updates = { passwordHash };
+            if (dto.name?.trim()) {
+                updates.name = dto.name.trim();
+            }
+            const [updated] = await this.db
+                .update(schema_1.users)
+                .set(updates)
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, existing.id))
+                .returning();
+            user = updated;
+        }
+        else {
+            const [created] = await this.db
+                .insert(schema_1.users)
+                .values({
+                phone: cleanPhone,
+                role: 'delivery_partner',
+                passwordHash,
+                name: dto.name?.trim() || null,
+            })
+                .returning();
+            user = created;
+        }
+        let [partner] = await this.db
+            .select()
+            .from(schema_1.deliveryPartners)
+            .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.userId, user.id))
+            .limit(1);
+        if (!partner) {
+            [partner] = await this.db
+                .insert(schema_1.deliveryPartners)
+                .values({
+                userId: user.id,
+                vehicleType: dto.vehicleType || 'bike',
+                kycStatus: 'pending',
+            })
+                .returning();
+        }
+        else if (dto.vehicleType && partner.vehicleType !== dto.vehicleType) {
+            const [updatedPartner] = await this.db
+                .update(schema_1.deliveryPartners)
+                .set({ vehicleType: dto.vehicleType })
+                .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, partner.id))
+                .returning();
+            partner = updatedPartner;
+        }
+        const tokens = await this.issueTokens(user.id, 'delivery_partner', dto.deviceId);
+        const { passwordHash: _hash, ...safeUser } = user;
+        return { tokens, userId: user.id, role: 'delivery_partner', user: safeUser, partner };
+    }
     async vendorLogin(identifier, password, deviceId) {
         const email = typeof identifier === 'object' ? identifier.email : undefined;
         const phone = typeof identifier === 'object' ? identifier.phone : identifier;

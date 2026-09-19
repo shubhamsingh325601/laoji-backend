@@ -17,11 +17,13 @@ export declare class CatalogService {
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
+        ratingAvg: number;
+        ratingCount: number;
         id: string;
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -45,11 +47,13 @@ export declare class CatalogService {
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
+        ratingAvg: number;
+        ratingCount: number;
         id: string;
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -73,9 +77,9 @@ export declare class CatalogService {
         id: string;
         createdAt: Date;
         userId: string;
+        type: "restaurant" | "grocery" | "both";
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -99,7 +103,7 @@ export declare class CatalogService {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -126,7 +130,7 @@ export declare class CatalogService {
     listVendorsBasic(): Promise<{
         id: string;
         businessName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
     }[]>;
     listRestaurantsBasic(): Promise<{
         id: string;
@@ -785,12 +789,12 @@ export declare class CatalogService {
     }[]>;
     upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto): Promise<{
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
         productId: string;
         stockQty: number;
-        updatedAt: Date;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -836,15 +840,18 @@ export declare class CatalogService {
     }>;
     private aggregateByProduct;
     publicListRestaurants(lat: number, lng: number): Promise<{
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
         imageUrl: string | null;
-        ratingAvg: number;
-        isOpen: boolean;
     }[]>;
     publicGetRestaurant(id: string): Promise<{
+        ratingAvg: number;
+        ratingCount: number;
         isOpen: boolean;
         menuCategories: {
             items: {
@@ -881,7 +888,6 @@ export declare class CatalogService {
         name: string;
         cuisineTags: string | null;
         imageUrl: string | null;
-        ratingAvg: number;
     }>;
     publicSearch(lat: number, lng: number, query: string): Promise<{
         products: any[];
@@ -891,10 +897,10 @@ export declare class CatalogService {
     getOrCreateRestaurant(vendorId: string): Promise<{
         id: string;
         name: string;
+        imageUrl: string | null;
         isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
         ratingAvg: number;
     }>;
     recalcRestaurantRating(restaurantId: string): Promise<void>;
@@ -962,9 +968,9 @@ export declare class CatalogService {
         variants: {
             id: string;
             name: string;
+            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
-            isDefault: boolean;
         }[];
         id: string;
         name: string;
@@ -1008,15 +1014,15 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        vendorId: string;
         imageUrl: string | null;
+        vendorId: string;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         categoryId: string;
         unit: string;
         size: string | null;
         productId: string | null;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -1557,8 +1563,13 @@ export declare class CatalogService {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
@@ -1574,8 +1585,13 @@ export declare class CatalogService {
         ownerName: string;
         phone: string | null;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
@@ -1594,8 +1610,13 @@ export declare class CatalogService {
         ownerName: string;
         phone: string;
         email: string | null;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
@@ -1610,7 +1631,7 @@ export declare class CatalogService {
         userId: string;
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
+        type: "restaurant" | "grocery" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;

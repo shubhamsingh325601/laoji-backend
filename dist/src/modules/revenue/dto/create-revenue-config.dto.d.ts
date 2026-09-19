@@ -4,6 +4,10 @@ export declare class CreateRevenueConfigDto {
     scopeRefId?: string;
     commissionPct: number;
     deliveryFeeFlat: number;
+    freeDeliveryThreshold?: number;
+    deliveryFeeTier1?: number;
+    deliveryFeeTier2?: number;
+    deliveryFeeTier3?: number;
     codThreshold?: number;
     notes?: string;
     effectiveFrom: string;

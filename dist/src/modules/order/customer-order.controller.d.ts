@@ -17,9 +17,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -31,9 +31,15 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -47,10 +53,10 @@ export declare class CustomerOrderController {
         deliveryOtp: string | null;
         createdAt: Date;
     }>;
-    myGroceryOrders(user: JwtAccessPayload): Promise<{
+    myGroceryOrders(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -63,7 +69,15 @@ export declare class CustomerOrderController {
         deliveryPartnerId: string | null;
         deliveryOtp: string | null;
         createdAt: Date;
-    }[]>;
+    } & {
+        items: {
+            id: string;
+            groceryOrderId: string;
+            productId: string;
+            qty: number;
+            unitPrice: number;
+        }[];
+    })[]>;
     groceryOrder(user: JwtAccessPayload, id: string): Promise<{
         items: {
             id: string;
@@ -75,9 +89,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -89,9 +103,15 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -117,9 +137,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -131,6 +151,12 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -142,7 +168,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -156,10 +182,10 @@ export declare class CustomerOrderController {
         deliveryOtp: string | null;
         createdAt: Date;
     }>;
-    myFoodOrders(user: JwtAccessPayload): Promise<{
+    myFoodOrders(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -172,7 +198,16 @@ export declare class CustomerOrderController {
         deliveryPartnerId: string | null;
         deliveryOtp: string | null;
         createdAt: Date;
-    }[]>;
+    } & {
+        items: {
+            id: string;
+            foodOrderId: string;
+            menuItemId: string;
+            qty: number;
+            unitPrice: number;
+            addonsJson: unknown;
+        }[];
+    })[]>;
     foodOrder(user: JwtAccessPayload, id: string): Promise<{
         items: {
             id: string;
@@ -185,9 +220,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -199,6 +234,12 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -210,7 +251,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -227,8 +268,8 @@ export declare class CustomerOrderController {
     rateFoodOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        restaurantId: string;
         customerId: string;
+        restaurantId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -244,9 +285,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -258,9 +299,15 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -285,9 +332,9 @@ export declare class CustomerOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -299,6 +346,12 @@ export declare class CustomerOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -310,7 +363,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;

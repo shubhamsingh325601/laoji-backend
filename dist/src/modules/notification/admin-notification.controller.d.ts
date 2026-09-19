@@ -7,17 +7,17 @@ export declare class AdminNotificationController {
         id: string;
         userId: string;
         userLabel: string;
-        channel: "push" | "email" | "sms";
+        channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "failed" | "queued" | "sent";
+        status: "queued" | "sent" | "failed";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;
     sendNotification(dto: SendAdminNotificationDto): Promise<{
         sentCount: number;
-        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "user" | "all";
-        channels: ("push" | "email" | "sms")[];
+        target: "customer" | "vendor" | "delivery_partner" | "all" | "restaurant" | "user";
+        channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
 }

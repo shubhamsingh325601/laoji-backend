@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -12,9 +12,41 @@ import { ContactSupportDto } from './dto/contact-support.dto';
 export class NotificationController {
   constructor(private readonly notifications: NotificationService) {}
 
+  @Get()
+  getMyNotifications(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(100, Math.max(1, parseInt(limit, 10) || 50)) : 50;
+    return this.notifications.listForUser(user.sub, parsedLimit);
+  }
+
+  @Delete(':id')
+  async deleteNotification(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+    await this.notifications.deleteForUser(user.sub, id);
+    return { ok: true };
+  }
+
+  @Delete()
+  async clearAllNotifications(@CurrentUser() user: JwtAccessPayload) {
+    await this.notifications.clearAllForUser(user.sub);
+    return { ok: true };
+  }
+
   @Post('device-token')
   registerDeviceToken(@CurrentUser() user: JwtAccessPayload, @Body() dto: RegisterDeviceTokenDto) {
     return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform);
+  }
+
+  @Delete('device-token')
+  async unregisterDeviceToken(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('fcmToken') queryToken?: string,
+    @Body() body?: { fcmToken?: string },
+  ) {
+    const fcmToken = queryToken || body?.fcmToken;
+    await this.notifications.unregisterDeviceToken(user.sub, fcmToken);
+    return { ok: true };
   }
 
   // Post-Phase-11 MVP-completion pass (Customer Support) — used by all

@@ -8,14 +8,23 @@ import type { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
 export interface ResolvedRevenueConfig {
   commissionPct: number;
   deliveryFeeFlat: number;
+  freeDeliveryThreshold: number;
+  deliveryFeeTier1: number; // <= 3km
+  deliveryFeeTier2: number; // 3-5km
+  deliveryFeeTier3: number; // > 5km
   codThreshold: number | null;
 }
 
-// Falls back to the pre-Phase-8 hardcoded constants (10% commission, ₹30
-// flat delivery fee) whenever an admin hasn't configured anything yet —
-// keeps checkout working exactly as before with zero rules on record,
-// rather than throwing on every order.
-const DEFAULT_CONFIG: ResolvedRevenueConfig = { commissionPct: 0.1, deliveryFeeFlat: 30, codThreshold: null };
+// Defaults: 10% commission, ₹99 free delivery threshold, ₹10 (0-3km), ₹15 (3-5km), ₹20 (5+km).
+const DEFAULT_CONFIG: ResolvedRevenueConfig = {
+  commissionPct: 0.1,
+  deliveryFeeFlat: 15,
+  freeDeliveryThreshold: 99,
+  deliveryFeeTier1: 10,
+  deliveryFeeTier2: 15,
+  deliveryFeeTier3: 20,
+  codThreshold: null,
+};
 
 @Injectable()
 export class RevenueConfigService {
@@ -29,6 +38,10 @@ export class RevenueConfigService {
         scopeRefId: dto.scope === 'global' ? null : dto.scopeRefId,
         commissionPct: dto.commissionPct,
         deliveryFeeFlat: dto.deliveryFeeFlat,
+        freeDeliveryThreshold: dto.freeDeliveryThreshold ?? 99,
+        deliveryFeeTier1: dto.deliveryFeeTier1 ?? 10,
+        deliveryFeeTier2: dto.deliveryFeeTier2 ?? 15,
+        deliveryFeeTier3: dto.deliveryFeeTier3 ?? 20,
         codThreshold: dto.codThreshold ?? null,
         notes: dto.notes ?? null,
         effectiveFrom: new Date(dto.effectiveFrom),
@@ -75,6 +88,38 @@ export class RevenueConfigService {
   }
 
   private toResolved(row: typeof revenueConfig.$inferSelect): ResolvedRevenueConfig {
-    return { commissionPct: row.commissionPct, deliveryFeeFlat: row.deliveryFeeFlat, codThreshold: row.codThreshold };
+    return {
+      commissionPct: row.commissionPct,
+      deliveryFeeFlat: row.deliveryFeeFlat,
+      freeDeliveryThreshold: row.freeDeliveryThreshold ?? 99,
+      deliveryFeeTier1: row.deliveryFeeTier1 ?? 10,
+      deliveryFeeTier2: row.deliveryFeeTier2 ?? 15,
+      deliveryFeeTier3: row.deliveryFeeTier3 ?? 20,
+      codThreshold: row.codThreshold,
+    };
+  }
+
+  /**
+   * Calculates delivery fee based on order subtotal and distance in km:
+   * - Subtotal >= freeDeliveryThreshold (default ₹99): FREE (₹0).
+   * - Distance <= 3 km: deliveryFeeTier1 (default ₹10).
+   * - Distance 3-5 km: deliveryFeeTier2 (default ₹15).
+   * - Distance > 5 km: deliveryFeeTier3 (default ₹20).
+   */
+  calculateDeliveryFee(
+    config: ResolvedRevenueConfig,
+    subtotal: number,
+    distanceKm: number,
+  ): number {
+    if (subtotal >= (config.freeDeliveryThreshold ?? 99)) {
+      return 0;
+    }
+    if (distanceKm <= 3) {
+      return config.deliveryFeeTier1 ?? 10;
+    }
+    if (distanceKm <= 5) {
+      return config.deliveryFeeTier2 ?? 15;
+    }
+    return config.deliveryFeeTier3 ?? 20;
   }
 }

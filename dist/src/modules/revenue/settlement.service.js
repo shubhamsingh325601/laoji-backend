@@ -44,7 +44,7 @@ let SettlementService = class SettlementService {
             .values({
             ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
             vendorPayout: order.subtotal - order.platformCommission,
-            deliveryPayout: order.deliveryFee,
+            deliveryPayout: order.deliveryFee > 0 ? order.deliveryFee : 15,
             platformShare: order.platformCommission,
             commissionPctSnapshot: order.commissionPct,
         })
@@ -100,13 +100,22 @@ let SettlementService = class SettlementService {
         if (vendor.kycStatus !== 'verified') {
             throw new common_1.BadRequestException('KYC verification required before withdrawal. Please upload your Aadhaar card (front and back) to complete verification.');
         }
+        if (!vendor.bankAccount && !vendor.upiId) {
+            throw new common_1.BadRequestException('Please add your Bank Account or UPI ID before requesting a withdrawal so we know where to send your funds.');
+        }
         const settlementsList = await this.listForVendor(vendor.id);
         const totalEarnings = settlementsList.reduce((sum, s) => sum + s.vendorPayout, 0);
+        const destinationLabel = vendor.upiId
+            ? `UPI ID (${vendor.upiId})`
+            : `Bank Account (•••• ${vendor.bankAccount?.slice(-4) || ''}, IFSC: ${vendor.bankIfsc || 'N/A'})`;
         return {
             success: true,
-            message: 'Withdrawal request submitted successfully. Funds will be transferred to your registered bank / UPI account.',
+            message: `Withdrawal request submitted successfully. Funds will be transferred to your registered ${destinationLabel} within 24 hours.`,
             availableBalance: totalEarnings,
             kycStatus: vendor.kycStatus,
+            payoutMethod: vendor.upiId ? 'upi' : 'bank',
+            payoutDestination: vendor.upiId || vendor.bankAccount,
+            bankIfsc: vendor.bankIfsc ?? null,
         };
     }
     async requestPartnerWithdrawal(userId) {

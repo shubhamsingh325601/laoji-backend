@@ -18,7 +18,7 @@ export declare class DeliveryOrderController {
         grocery: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -35,7 +35,7 @@ export declare class DeliveryOrderController {
         food: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -58,6 +58,7 @@ export declare class DeliveryOrderController {
         itemCount: number;
         deliveryFee: number;
         pickupName: string;
+        pickupAddress: string;
         pickupPhone: string;
         pickupLat: number | null;
         pickupLng: number | null;
@@ -66,6 +67,15 @@ export declare class DeliveryOrderController {
         dropoffAddress: string;
         dropoffLat: number | null;
         dropoffLng: number | null;
+        instructions: string;
+        total: number;
+        paymentStatus: string;
+        items: {
+            id?: string;
+            name: string;
+            qty: number;
+            price: number;
+        }[];
     }>;
     accept(user: JwtAccessPayload, type: 'grocery' | 'food', id: string): Promise<{
         ok: boolean;

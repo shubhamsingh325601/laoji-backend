@@ -9,7 +9,7 @@ export declare class AdminOrderController {
             customerName: string;
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -27,7 +27,7 @@ export declare class AdminOrderController {
             customerName: string;
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -52,9 +52,9 @@ export declare class AdminOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -66,9 +66,15 @@ export declare class AdminOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -93,9 +99,9 @@ export declare class AdminOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -107,6 +113,12 @@ export declare class AdminOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -118,7 +130,7 @@ export declare class AdminOrderController {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -143,9 +155,9 @@ export declare class AdminOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -157,9 +169,15 @@ export declare class AdminOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -184,9 +202,9 @@ export declare class AdminOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
+            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -198,6 +216,12 @@ export declare class AdminOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -209,7 +233,7 @@ export declare class AdminOrderController {
         };
         id: string;
         customerId: string;
-        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;

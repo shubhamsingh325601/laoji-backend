@@ -142,10 +142,10 @@ const GOLDEN_CAFE_DATA: MenuCategorySpec[] = [
     ],
   },
   {
-    category: 'Rice, Pulav & Biryani',
-    description: 'Fragrant basmati rice specialties and spiced biryanis',
+    category: 'Rice & Pulav',
+    description: 'Fragrant basmati rice specialties and spiced pulaos',
     image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500',
-    masterCat: 'Rice & Biryani',
+    masterCat: 'Rice & Pulav',
     items: [
       { name: 'Steam Rice', desc: 'Fluffy steamed long-grain basmati rice (स्टीम राइस)', half: 50, full: 90 },
       { name: 'Zeera Rice', desc: 'Basmati rice tempered with aromatic cumin & ghee (जीरा राइस)', half: 60, full: 110 },
@@ -157,7 +157,6 @@ const GOLDEN_CAFE_DATA: MenuCategorySpec[] = [
       { name: 'Veg Pulao', desc: 'Basmati rice cooked with garden fresh vegetables (वेज पुलाव)', half: 70, full: 130 },
       { name: 'Meetha Chawal', desc: 'Sweet saffron flavored aromatic dessert rice (मीठा चावल)', half: 60, full: 110 },
       { name: 'Fried Rice', desc: 'Indo-Chinese wok-tossed vegetable fried rice (फ्राईड राइस)', half: 80, full: 150 },
-      { name: 'Veg Biryani', desc: 'Layered aromatic basmati rice with spiced vegetables (वेज बिरयानी)', half: 80, full: 150 },
       { name: 'Schezwan Rice', desc: 'Zesty rice tossed in fiery Schezwan chili sauce (सेजवान राइस)', half: 80, full: 150 },
     ],
   },

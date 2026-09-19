@@ -71,7 +71,7 @@ let AllocationService = AllocationService_1 = class AllocationService {
             return null;
         candidates.sort((a, b) => a.totalCost - b.totalCost || a.distance - b.distance);
         const winner = candidates[0];
-        return { vendorId: winner.vendorId, unitPrices: winner.prices };
+        return { vendorId: winner.vendorId, unitPrices: winner.prices, distance: winner.distance };
     }
     async createAttempt(groceryOrderId, vendorId, attemptNo) {
         const slaDeadline = new Date(Date.now() + allocation_constants_1.ALLOCATION_SLA_SECONDS * 1000);

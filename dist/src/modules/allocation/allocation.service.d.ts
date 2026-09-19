@@ -9,6 +9,7 @@ export interface CartLine {
 export interface AllocationCandidate {
     vendorId: string;
     unitPrices: Map<string, number>;
+    distance?: number;
 }
 export declare class AllocationService {
     private readonly db;
@@ -154,7 +155,7 @@ export declare class AllocationService {
             }, {}, {}>;
         };
         dialect: "pg";
-    }>, import("drizzle-orm/node-postgres").NodePgQueryResultHKT, undefined, undefined, undefined, Record<"allocation_attempts", "not-null">, [], false, "where" | "leftJoin" | "rightJoin" | "innerJoin" | "fullJoin">, "where" | "leftJoin" | "rightJoin" | "innerJoin" | "fullJoin">;
+    }>, import("drizzle-orm/node-postgres").NodePgQueryResultHKT, undefined, undefined, undefined, Record<"allocation_attempts", "not-null">, [], false, "leftJoin" | "rightJoin" | "innerJoin" | "fullJoin" | "where">, "leftJoin" | "rightJoin" | "innerJoin" | "fullJoin" | "where">;
     private reallocate;
     private markFailed;
 }

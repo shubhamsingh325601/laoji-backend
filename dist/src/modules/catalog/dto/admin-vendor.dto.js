@@ -24,6 +24,11 @@ class CreateAdminVendorDto {
     deliveryRadiusKm;
     commissionPct;
     kycStatus;
+    gstNumber;
+    aadhaarNumber;
+    bankAccount;
+    bankIfsc;
+    upiId;
 }
 exports.CreateAdminVendorDto = CreateAdminVendorDto;
 __decorate([
@@ -83,6 +88,31 @@ __decorate([
     (0, class_validator_1.IsIn)(['unverified', 'pending', 'verified', 'rejected']),
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "kycStatus", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "gstNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "aadhaarNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "bankIfsc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "upiId", void 0);
 class UpdateAdminVendorDto {
     businessName;
     ownerName;
@@ -98,6 +128,11 @@ class UpdateAdminVendorDto {
     maxDiscountCap;
     kycStatus;
     activity;
+    gstNumber;
+    aadhaarNumber;
+    bankAccount;
+    bankIfsc;
+    upiId;
 }
 exports.UpdateAdminVendorDto = UpdateAdminVendorDto;
 __decorate([
@@ -172,4 +207,29 @@ __decorate([
     (0, class_validator_1.IsIn)(['active', 'inactive']),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "activity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "gstNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "aadhaarNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "bankIfsc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "upiId", void 0);
 //# sourceMappingURL=admin-vendor.dto.js.map

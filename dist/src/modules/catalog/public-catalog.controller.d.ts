@@ -181,15 +181,18 @@ export declare class PublicCatalogController {
         createdAt: Date;
     }>;
     restaurants(lat?: string, lng?: string): Promise<{
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
         imageUrl: string | null;
-        ratingAvg: number;
-        isOpen: boolean;
     }[]>;
     restaurant(id: string): Promise<{
+        ratingAvg: number;
+        ratingCount: number;
         isOpen: boolean;
         menuCategories: {
             items: {
@@ -226,7 +229,6 @@ export declare class PublicCatalogController {
         name: string;
         cuisineTags: string | null;
         imageUrl: string | null;
-        ratingAvg: number;
     }>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: any[];
