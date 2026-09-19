@@ -88,7 +88,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         return {
             id: partner.id,
             userId: partner.userId,
-            name: null,
+            name: user?.name ?? null,
             phone: user?.phone ?? null,
             kycStatus: partner.kycStatus,
             vehicleType: partner.vehicleType,

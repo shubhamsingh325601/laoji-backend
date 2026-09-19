@@ -182,7 +182,11 @@ let AuthService = class AuthService {
         return { tokens, userId: created.id, role: 'customer', user: safeUser };
     }
     async partnerLogin(phone, password, deviceId) {
-        const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+        let cleanPhone = phone.replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 12 && cleanPhone.startsWith('91'))
+            cleanPhone = cleanPhone.slice(2);
+        if (cleanPhone.length === 11 && cleanPhone.startsWith('0'))
+            cleanPhone = cleanPhone.slice(1);
         const [user] = await this.db
             .select()
             .from(schema_1.users)
@@ -218,7 +222,11 @@ let AuthService = class AuthService {
         return { tokens, userId: user.id, role: user.role, user: safeUser, partner };
     }
     async partnerRegister(dto) {
-        const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+        let cleanPhone = dto.phone.replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 12 && cleanPhone.startsWith('91'))
+            cleanPhone = cleanPhone.slice(2);
+        if (cleanPhone.length === 11 && cleanPhone.startsWith('0'))
+            cleanPhone = cleanPhone.slice(1);
         const [existing] = await this.db
             .select()
             .from(schema_1.users)

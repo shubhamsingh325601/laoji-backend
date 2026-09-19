@@ -116,7 +116,7 @@ export class DeliveryService {
     return {
       id: partner.id,
       userId: partner.userId,
-      name: null as string | null,
+      name: user?.name ?? null,
       phone: user?.phone ?? null,
       kycStatus: partner.kycStatus,
       vehicleType: partner.vehicleType,

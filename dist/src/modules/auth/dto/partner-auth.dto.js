@@ -19,7 +19,7 @@ class PartnerLoginDto {
 exports.PartnerLoginDto = PartnerLoginDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^[0-9]{10}$/, { message: 'Phone must be a 10-digit number' }),
+    (0, class_validator_1.Matches)(/^(\+?91|0)?[0-9]{10}$/, { message: 'Phone must be a valid 10-digit mobile number' }),
     __metadata("design:type", String)
 ], PartnerLoginDto.prototype, "phone", void 0);
 __decorate([
@@ -42,7 +42,7 @@ class PartnerRegisterDto {
 exports.PartnerRegisterDto = PartnerRegisterDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^[0-9]{10}$/, { message: 'Phone must be a 10-digit number' }),
+    (0, class_validator_1.Matches)(/^(\+?91|0)?[0-9]{10}$/, { message: 'Phone must be a valid 10-digit mobile number' }),
     __metadata("design:type", String)
 ], PartnerRegisterDto.prototype, "phone", void 0);
 __decorate([

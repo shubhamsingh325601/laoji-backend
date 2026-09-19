@@ -9,7 +9,7 @@ export declare class VendorOrderController {
         attemptId: string;
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -34,7 +34,7 @@ export declare class VendorOrderController {
     groceryActive(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -59,7 +59,7 @@ export declare class VendorOrderController {
     groceryHistory(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -92,9 +92,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -114,7 +114,7 @@ export declare class VendorOrderController {
         } | null;
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -139,9 +139,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -161,7 +161,7 @@ export declare class VendorOrderController {
         } | null;
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -189,9 +189,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -211,7 +211,7 @@ export declare class VendorOrderController {
         } | null;
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -236,9 +236,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -258,7 +258,7 @@ export declare class VendorOrderController {
         } | null;
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -275,7 +275,7 @@ export declare class VendorOrderController {
     foodIncoming(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -301,7 +301,7 @@ export declare class VendorOrderController {
     foodActive(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -327,7 +327,7 @@ export declare class VendorOrderController {
     foodHistory(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -362,9 +362,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -393,7 +393,7 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -419,9 +419,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -450,7 +450,7 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -476,9 +476,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -507,7 +507,7 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -533,9 +533,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -564,7 +564,7 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
@@ -590,9 +590,9 @@ export declare class VendorOrderController {
         history: {
             actorName: string;
             id: string;
-            status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
-            foodOrderId: string | null;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -621,7 +621,7 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
-        status: "failed" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "cancelled";
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;

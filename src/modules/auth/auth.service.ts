@@ -211,7 +211,10 @@ export class AuthService {
     password: string,
     deviceId?: string,
   ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any; partner?: any }> {
-    const cleanPhone = phone.trim().replace(/^(\+91|0)/, '');
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) cleanPhone = cleanPhone.slice(2);
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) cleanPhone = cleanPhone.slice(1);
+
     const [user] = await this.db
       .select()
       .from(users)
@@ -256,7 +259,10 @@ export class AuthService {
   async partnerRegister(
     dto: PartnerRegisterDto,
   ): Promise<{ tokens: TokenPair; userId: string; role: UserRole; user: any; partner?: any }> {
-    const cleanPhone = dto.phone.trim().replace(/^(\+91|0)/, '');
+    let cleanPhone = dto.phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) cleanPhone = cleanPhone.slice(2);
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) cleanPhone = cleanPhone.slice(1);
+
     const [existing] = await this.db
       .select()
       .from(users)
