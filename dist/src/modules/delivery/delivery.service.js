@@ -416,6 +416,11 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             : (vendor?.pickupLat && address?.lat
                 ? ((0, catalog_types_1.haversineKm)(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 3 ? 10 : (0, catalog_types_1.haversineKm)(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 5 ? 15 : 20)
                 : 15);
+        const rawPaymentStatus = (order.paymentStatus ?? 'pending').toLowerCase().trim();
+        const isCod = rawPaymentStatus === 'pending_cod' || rawPaymentStatus === 'cod';
+        const isPaid = rawPaymentStatus === 'paid' || rawPaymentStatus === 'collected';
+        const paymentMethod = isCod ? 'cod' : 'online';
+        const collectCashAmount = isCod ? (order.total ?? 0) : 0;
         return {
             id: order.id,
             type,
@@ -435,7 +440,11 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             dropoffLng: address?.lng ?? null,
             instructions: order.instructions ?? '',
             total: order.total ?? 0,
-            paymentStatus: order.paymentStatus ?? 'pending',
+            paymentStatus: rawPaymentStatus,
+            isCod,
+            isPaid,
+            paymentMethod,
+            collectCashAmount,
             items: itemsList,
         };
     }

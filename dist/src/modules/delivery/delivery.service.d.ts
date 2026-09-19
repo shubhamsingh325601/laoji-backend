@@ -198,6 +198,10 @@ export declare class DeliveryService {
         instructions: string;
         total: number;
         paymentStatus: string;
+        isCod: boolean;
+        isPaid: boolean;
+        paymentMethod: "cod" | "online";
+        collectCashAmount: number;
         items: {
             id?: string;
             name: string;
@@ -319,11 +323,11 @@ export declare class DeliveryService {
         name: string;
         phone: string;
         email: string | null;
-        vehicleType: string;
         id: string;
         createdAt: Date;
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
+        vehicleType: string;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;

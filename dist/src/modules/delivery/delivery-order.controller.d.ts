@@ -70,6 +70,10 @@ export declare class DeliveryOrderController {
         instructions: string;
         total: number;
         paymentStatus: string;
+        isCod: boolean;
+        isPaid: boolean;
+        paymentMethod: "cod" | "online";
+        collectCashAmount: number;
         items: {
             id?: string;
             name: string;

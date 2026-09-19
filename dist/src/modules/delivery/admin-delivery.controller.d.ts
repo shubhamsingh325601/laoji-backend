@@ -50,11 +50,11 @@ export declare class AdminDeliveryController {
         name: string;
         phone: string;
         email: string | null;
-        vehicleType: string;
         id: string;
         createdAt: Date;
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
+        vehicleType: string;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;
