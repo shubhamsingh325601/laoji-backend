@@ -23,6 +23,8 @@ class VendorRegisterDto {
     pickupLat;
     pickupLng;
     radiusKm;
+    businessType;
+    imageUrl;
 }
 exports.VendorRegisterDto = VendorRegisterDto;
 __decorate([
@@ -78,4 +80,14 @@ __decorate([
     (0, class_validator_1.Max)(50),
     __metadata("design:type", Number)
 ], VendorRegisterDto.prototype, "radiusKm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "businessType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "imageUrl", void 0);
 //# sourceMappingURL=vendor-register.dto.js.map

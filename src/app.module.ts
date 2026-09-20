@@ -16,6 +16,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { RevenueModule } from './modules/revenue/revenue.module';
 import { OrderModule } from './modules/order/order.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -68,6 +69,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     RevenueModule,
     OrderModule,
     DashboardModule,
+    AreaManagerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

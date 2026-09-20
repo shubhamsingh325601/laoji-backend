@@ -53,4 +53,12 @@ export class UpsertVendorProfileDto {
   @IsOptional()
   @IsString()
   upiId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
 }

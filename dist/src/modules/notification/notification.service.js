@@ -138,6 +138,9 @@ let NotificationService = NotificationService_1 = class NotificationService {
             this.logger.warn(`Failed to write notification_log for user ${userId}: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
+    async sendDirectEmail(to, message) {
+        return this.email.send(to, message);
+    }
     async sendWelcomeCustomerEmail(user) {
         if (!user.email)
             return;

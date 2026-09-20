@@ -422,6 +422,8 @@ let AuthService = class AuthService {
                 businessName: dto.businessName,
                 ownerName: dto.ownerName,
                 type: dto.type,
+                businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
+                ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
                 shopAddress: dto.shopAddress ?? undefined,
                 pickupLat: dto.pickupLat,
                 pickupLng: dto.pickupLng,
@@ -439,6 +441,8 @@ let AuthService = class AuthService {
                 businessName: dto.businessName,
                 ownerName: dto.ownerName,
                 type: dto.type,
+                businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
+                imageUrl: dto.imageUrl ?? null,
                 shopAddress: dto.shopAddress ?? null,
                 pickupLat: dto.pickupLat,
                 pickupLng: dto.pickupLng,
@@ -530,12 +534,12 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Invalid or expired refresh token');
         }
         if (row.revokedAt) {
-            const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 60_000;
-            if (!rotatedRecently) {
-                await this.db
-                    .update(schema_1.authTokens)
-                    .set({ revokedAt: new Date() })
-                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, row.userId), (0, drizzle_orm_1.isNull)(schema_1.authTokens.revokedAt)));
+            const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 120_000;
+            if (rotatedRecently) {
+                const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, row.userId)).limit(1);
+                if (user) {
+                    return this.issueTokens(user.id, user.role, row.deviceId ?? undefined);
+                }
             }
             throw new common_1.UnauthorizedException('Refresh token has already been rotated');
         }

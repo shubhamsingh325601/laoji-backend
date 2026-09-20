@@ -1,6 +1,6 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { DeliveryService } from './delivery.service';
-import { AdvanceDeliveryStatusDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
+import { AdvanceDeliveryStatusDto, ReportNotHandedOverDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
 export declare class DeliveryOrderController {
     private readonly delivery;
     constructor(delivery: DeliveryService);
@@ -18,7 +18,7 @@ export declare class DeliveryOrderController {
         grocery: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -35,7 +35,7 @@ export declare class DeliveryOrderController {
         food: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -92,5 +92,24 @@ export declare class DeliveryOrderController {
     }>;
     verifyDelivery(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: VerifyDeliveryDto): Promise<{
         ok: boolean;
+    }>;
+    reportNotHandedOver(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: ReportNotHandedOverDto): Promise<{
+        success: boolean;
+        message: string;
+        escalation: {
+            sent: boolean;
+            reason: string;
+            manager?: undefined;
+        } | {
+            sent: boolean;
+            manager: {
+                id: string;
+                name: string;
+                email: string;
+                phone: string;
+                pincode: string;
+            };
+            reason?: undefined;
+        };
     }>;
 }

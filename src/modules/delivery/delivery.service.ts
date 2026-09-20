@@ -38,6 +38,7 @@ import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { SettlementService } from '../revenue/settlement.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
+import { AreaManagerService } from '../area-manager/area-manager.service';
 import { DELIVERY_SLA_SECONDS, MAX_DELIVERY_ASSIGNMENT_ATTEMPTS } from './delivery.constants';
 
 type OrderType = 'grocery' | 'food';
@@ -54,6 +55,7 @@ export class DeliveryService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly settlements: SettlementService,
+    private readonly areaManagerService: AreaManagerService,
   ) {}
 
   private orderCode(orderId: string): string {
@@ -120,7 +122,9 @@ export class DeliveryService {
       phone: user?.phone ?? null,
       kycStatus: partner.kycStatus,
       vehicleType: partner.vehicleType,
-      vehicleLabel: null as string | null,
+      vehicleNumber: partner.vehicleNumber ?? null,
+      vehicleModel: partner.vehicleModel ?? null,
+      vehicleLabel: partner.vehicleModel ? `${partner.vehicleModel} (${partner.vehicleNumber || partner.vehicleType})` : null,
       isOnline: partner.isOnline,
       currentLat: partner.currentLat,
       currentLng: partner.currentLng,
@@ -133,17 +137,30 @@ export class DeliveryService {
     };
   }
 
-  async upsertProfile(userId: string, vehicleType: string) {
+  async upsertProfile(userId: string, vehicleType: string, vehicleNumber?: string, vehicleModel?: string) {
     const existing = await this.getPartnerByUserId(userId);
     if (existing) {
       const [updated] = await this.db
         .update(deliveryPartners)
-        .set({ vehicleType })
+        .set({
+          vehicleType,
+          ...(vehicleNumber !== undefined ? { vehicleNumber } : {}),
+          ...(vehicleModel !== undefined ? { vehicleModel } : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(deliveryPartners.id, existing.id))
         .returning();
       return this.enrichProfile(updated);
     }
-    const [created] = await this.db.insert(deliveryPartners).values({ userId, vehicleType }).returning();
+    const [created] = await this.db
+      .insert(deliveryPartners)
+      .values({
+        userId,
+        vehicleType,
+        vehicleNumber: vehicleNumber ?? null,
+        vehicleModel: vehicleModel ?? null,
+      })
+      .returning();
     return this.enrichProfile(created);
   }
 
@@ -917,5 +934,38 @@ export class DeliveryService {
 
   async listPartnersBasic() {
     return this.listPartnersAdmin();
+  }
+
+  async reportNotHandedOver(userId: string, type: OrderType, orderId: string, reason?: string) {
+    const partner = await this.requirePartner(userId);
+    const order = await this.requireOwnActiveOrder(type, orderId, partner.id);
+
+    const [customer] = await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1);
+    const [partnerUser] = await this.db.select().from(users).where(eq(users.id, partner.userId)).limit(1);
+    const [address] = await this.db.select().from(addresses).where(eq(addresses.id, order.deliveryAddressId)).limit(1);
+
+    const orderCode = this.orderCode(orderId);
+    const formattedAddr = address?.formattedAddress || '';
+    const pinMatch = formattedAddr.match(/\b\d{6}\b/);
+    const pincode = pinMatch ? pinMatch[0] : '325601';
+
+    const escalation = await this.areaManagerService.dispatchHandoverEscalation({
+      orderCode,
+      orderType: type,
+      customerName: customer?.name || undefined,
+      customerPhone: customer?.phone || undefined,
+      riderName: partnerUser?.name || undefined,
+      riderPhone: partnerUser?.phone || undefined,
+      address: formattedAddr || undefined,
+      pincode,
+      reason: reason || 'Customer not reachable / Handover incomplete',
+      reportedAt: new Date(),
+    });
+
+    return {
+      success: true,
+      message: 'Escalation email sent to Area Manager',
+      escalation,
+    };
   }
 }

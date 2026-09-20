@@ -122,9 +122,14 @@ let CatalogService = class CatalogService {
                 pickupLat: dto.pickupLat,
                 pickupLng: dto.pickupLng,
                 ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+                ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+                ...(dto.businessType !== undefined ? { businessType: dto.businessType } : {}),
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, existing.id))
                 .returning();
+            if (dto.imageUrl) {
+                await this.db.update(schema_1.restaurants).set({ imageUrl: dto.imageUrl }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, existing.id));
+            }
             return updated;
         }
         const [created] = await this.db
@@ -143,8 +148,13 @@ let CatalogService = class CatalogService {
             pickupLat: dto.pickupLat,
             pickupLng: dto.pickupLng,
             ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+            imageUrl: dto.imageUrl ?? null,
+            businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
         })
             .returning();
+        if (dto.imageUrl) {
+            await this.db.update(schema_1.restaurants).set({ imageUrl: dto.imageUrl }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, created.id));
+        }
         return created;
     }
     async updateBusinessHours(userId, dto) {
@@ -519,6 +529,7 @@ let CatalogService = class CatalogService {
             const dynamicCount = agg ? agg.count : 0;
             return {
                 ...r,
+                imageUrl: r.imageUrl || v?.imageUrl || null,
                 ratingAvg: dynamicRating,
                 ratingCount: dynamicCount,
                 isOpen: openNow,
@@ -561,6 +572,7 @@ let CatalogService = class CatalogService {
             : [];
         return {
             ...restaurant,
+            imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
             ratingAvg: dynamicRating,
             ratingCount: dynamicCount,
             isOpen: openNow,

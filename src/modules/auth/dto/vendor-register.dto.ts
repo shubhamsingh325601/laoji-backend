@@ -45,4 +45,12 @@ export class VendorRegisterDto {
   @Min(0.5)
   @Max(50)
   radiusKm?: number;
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

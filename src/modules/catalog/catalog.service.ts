@@ -118,9 +118,15 @@ export class CatalogService {
           pickupLat: dto.pickupLat,
           pickupLng: dto.pickupLng,
           ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+          ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+          ...(dto.businessType !== undefined ? { businessType: dto.businessType } : {}),
         })
         .where(eq(vendors.id, existing.id))
         .returning();
+
+      if (dto.imageUrl) {
+        await this.db.update(restaurants).set({ imageUrl: dto.imageUrl }).where(eq(restaurants.vendorId, existing.id));
+      }
       return updated;
     }
     const [created] = await this.db
@@ -139,8 +145,14 @@ export class CatalogService {
         pickupLat: dto.pickupLat,
         pickupLng: dto.pickupLng,
         ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+        imageUrl: dto.imageUrl ?? null,
+        businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
       })
       .returning();
+
+    if (dto.imageUrl) {
+      await this.db.update(restaurants).set({ imageUrl: dto.imageUrl }).where(eq(restaurants.vendorId, created.id));
+    }
     return created;
   }
 
@@ -638,6 +650,7 @@ export class CatalogService {
       const dynamicCount = agg ? agg.count : 0;
       return {
         ...r,
+        imageUrl: r.imageUrl || v?.imageUrl || null,
         ratingAvg: dynamicRating,
         ratingCount: dynamicCount,
         isOpen: openNow,
@@ -692,6 +705,7 @@ export class CatalogService {
 
     return {
       ...restaurant,
+      imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
       ratingAvg: dynamicRating,
       ratingCount: dynamicCount,
       isOpen: openNow,

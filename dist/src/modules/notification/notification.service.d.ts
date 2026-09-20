@@ -14,9 +14,9 @@ export declare class NotificationService {
     registerDeviceToken(userId: string, fcmToken: string, platform: Platform): Promise<{
         id: string;
         userId: string;
+        updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
-        updatedAt: Date;
     }>;
     unregisterDeviceToken(userId: string, fcmToken?: string): Promise<void>;
     notifyPush(userId: string, template: string, message: PushMessage): void;
@@ -30,6 +30,7 @@ export declare class NotificationService {
     private dispatchEmail;
     private dispatchSms;
     private log;
+    sendDirectEmail(to: string, message: EmailMessage): Promise<import("./notification.types").EmailSendResult>;
     sendWelcomeCustomerEmail(user: {
         id: string;
         name?: string;
@@ -67,7 +68,7 @@ export declare class NotificationService {
         link?: string;
     }): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "all" | "restaurant" | "user";
+        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
@@ -78,7 +79,7 @@ export declare class NotificationService {
         channel: "email" | "push" | "sms";
         template: string;
         payload: unknown;
-        status: "queued" | "sent" | "failed";
+        status: "failed" | "queued" | "sent";
         sentAt: Date | null;
         createdAt: Date;
     }[]>;
@@ -90,7 +91,7 @@ export declare class NotificationService {
         body: any;
         data: any;
         imageUrl: any;
-        status: "queued" | "sent" | "failed";
+        status: "failed" | "queued" | "sent";
         createdAt: string;
     }[]>;
     deleteForUser(userId: string, id: string): Promise<void>;

@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SignatureRequestDto = exports.UPLOAD_TYPES = void 0;
 const class_validator_1 = require("class-validator");
-exports.UPLOAD_TYPES = ['kyc', 'products', 'menu', 'suggestions'];
+exports.UPLOAD_TYPES = ['kyc', 'products', 'menu', 'suggestions', 'business'];
 class SignatureRequestDto {
     type;
 }

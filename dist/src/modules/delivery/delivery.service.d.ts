@@ -3,6 +3,7 @@ import { JobQueueService } from '../allocation/job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { SettlementService } from '../revenue/settlement.service';
+import { AreaManagerService } from '../area-manager/area-manager.service';
 type OrderType = 'grocery' | 'food';
 export declare class DeliveryService {
     private readonly db;
@@ -10,8 +11,9 @@ export declare class DeliveryService {
     private readonly payments;
     private readonly notifications;
     private readonly settlements;
+    private readonly areaManagerService;
     private readonly logger;
-    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService, settlements: SettlementService);
+    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService, settlements: SettlementService, areaManagerService: AreaManagerService);
     private orderCode;
     private vendorUserIdForOrder;
     getPartnerByUserId(userId: string): Promise<{
@@ -19,6 +21,8 @@ export declare class DeliveryService {
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;
@@ -35,6 +39,8 @@ export declare class DeliveryService {
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;
@@ -47,13 +53,15 @@ export declare class DeliveryService {
         createdAt: Date;
     }>;
     private enrichProfile;
-    upsertProfile(userId: string, vehicleType: string): Promise<{
+    upsertProfile(userId: string, vehicleType: string, vehicleNumber?: string, vehicleModel?: string): Promise<{
         id: string;
         userId: string;
         name: string | null;
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -72,6 +80,8 @@ export declare class DeliveryService {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -90,6 +100,8 @@ export declare class DeliveryService {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -108,6 +120,8 @@ export declare class DeliveryService {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -224,7 +238,7 @@ export declare class DeliveryService {
         grocery: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -241,7 +255,7 @@ export declare class DeliveryService {
         food: {
             id: string;
             customerId: string;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -325,18 +339,20 @@ export declare class DeliveryService {
         email: string | null;
         id: string;
         createdAt: Date;
+        updatedAt: Date;
         userId: string;
-        kycStatus: "pending" | "verified" | "rejected";
-        vehicleType: string;
         aadhaarNumber: string | null;
-        drivingLicense: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
+        drivingLicense: string | null;
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
-        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;
@@ -351,6 +367,8 @@ export declare class DeliveryService {
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;
@@ -381,5 +399,24 @@ export declare class DeliveryService {
         totalDeliveries: number;
         createdAt: Date;
     }[]>;
+    reportNotHandedOver(userId: string, type: OrderType, orderId: string, reason?: string): Promise<{
+        success: boolean;
+        message: string;
+        escalation: {
+            sent: boolean;
+            reason: string;
+            manager?: undefined;
+        } | {
+            sent: boolean;
+            manager: {
+                id: string;
+                name: string;
+                email: string;
+                phone: string;
+                pincode: string;
+            };
+            reason?: undefined;
+        };
+    }>;
 }
 export {};

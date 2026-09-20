@@ -25,6 +25,8 @@ class UpsertVendorProfileDto {
     bankAccount;
     bankIfsc;
     upiId;
+    imageUrl;
+    businessType;
 }
 exports.UpsertVendorProfileDto = UpsertVendorProfileDto;
 __decorate([
@@ -90,4 +92,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpsertVendorProfileDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "businessType", void 0);
 //# sourceMappingURL=vendor-profile.dto.js.map

@@ -13,7 +13,7 @@ export declare class NotificationController {
         body: any;
         data: any;
         imageUrl: any;
-        status: "queued" | "sent" | "failed";
+        status: "failed" | "queued" | "sent";
         createdAt: string;
     }[]>;
     deleteNotification(user: JwtAccessPayload, id: string): Promise<{
@@ -25,9 +25,9 @@ export declare class NotificationController {
     registerDeviceToken(user: JwtAccessPayload, dto: RegisterDeviceTokenDto): Promise<{
         id: string;
         userId: string;
+        updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
-        updatedAt: Date;
     }>;
     unregisterDeviceToken(user: JwtAccessPayload, queryToken?: string, body?: {
         fcmToken?: string;

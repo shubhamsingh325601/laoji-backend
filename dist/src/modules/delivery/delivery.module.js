@@ -12,6 +12,7 @@ const allocation_module_1 = require("../allocation/allocation.module");
 const payment_module_1 = require("../payment/payment.module");
 const notification_module_1 = require("../notification/notification.module");
 const revenue_module_1 = require("../revenue/revenue.module");
+const area_manager_module_1 = require("../area-manager/area-manager.module");
 const delivery_service_1 = require("./delivery.service");
 const delivery_partner_controller_1 = require("./delivery-partner.controller");
 const delivery_order_controller_1 = require("./delivery-order.controller");
@@ -22,7 +23,7 @@ let DeliveryModule = class DeliveryModule {
 exports.DeliveryModule = DeliveryModule;
 exports.DeliveryModule = DeliveryModule = __decorate([
     (0, common_1.Module)({
-        imports: [allocation_module_1.AllocationModule, payment_module_1.PaymentModule, notification_module_1.NotificationModule, revenue_module_1.RevenueModule],
+        imports: [allocation_module_1.AllocationModule, payment_module_1.PaymentModule, notification_module_1.NotificationModule, revenue_module_1.RevenueModule, area_manager_module_1.AreaManagerModule],
         controllers: [delivery_partner_controller_1.DeliveryPartnerController, delivery_order_controller_1.DeliveryOrderController, delivery_earnings_controller_1.DeliveryEarningsController, admin_delivery_controller_1.AdminDeliveryController],
         providers: [delivery_service_1.DeliveryService],
         exports: [delivery_service_1.DeliveryService],

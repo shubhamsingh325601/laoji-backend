@@ -10,5 +10,7 @@ export declare class VendorRegisterDto {
     pickupLat: number;
     pickupLng: number;
     radiusKm?: number;
+    businessType?: string;
+    imageUrl?: string;
 }
 export {};

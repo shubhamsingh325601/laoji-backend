@@ -15,7 +15,7 @@ export class DeliveryPartnerController {
 
   @Post('me')
   upsertProfile(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpsertDeliveryPartnerDto) {
-    return this.delivery.upsertProfile(user.sub, dto.vehicleType);
+    return this.delivery.upsertProfile(user.sub, dto.vehicleType, dto.vehicleNumber, dto.vehicleModel);
   }
 
   @Get('me')

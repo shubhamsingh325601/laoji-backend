@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.foodOrderRatings = exports.settlements = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -103,6 +103,8 @@ exports.vendors = (0, pg_core_1.pgTable)('vendors', {
     radiusKm: (0, pg_core_1.doublePrecision)('radius_km').notNull().default(5),
     isOpen: (0, pg_core_1.boolean)('is_open').notNull().default(true),
     businessHours: (0, pg_core_1.jsonb)('business_hours').$type(),
+    imageUrl: (0, pg_core_1.text)('image_url'),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull().default('grocery'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.deliveryPartners = (0, pg_core_1.pgTable)('delivery_partners', {
@@ -113,6 +115,8 @@ exports.deliveryPartners = (0, pg_core_1.pgTable)('delivery_partners', {
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     kycStatus: (0, exports.kycDocumentStatusEnum)('kyc_status').notNull().default('pending'),
     vehicleType: (0, pg_core_1.varchar)('vehicle_type', { length: 30 }).notNull(),
+    vehicleNumber: (0, pg_core_1.varchar)('vehicle_number', { length: 50 }),
+    vehicleModel: (0, pg_core_1.varchar)('vehicle_model', { length: 100 }),
     aadhaarNumber: (0, pg_core_1.varchar)('aadhaar_number', { length: 20 }),
     drivingLicense: (0, pg_core_1.varchar)('driving_license', { length: 50 }),
     bankAccount: (0, pg_core_1.varchar)('bank_account', { length: 50 }),
@@ -465,4 +469,14 @@ exports.foodOrderRatings = (0, pg_core_1.pgTable)('food_order_ratings', {
     comment: (0, pg_core_1.text)('comment'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.check)('food_order_ratings_rating_range', (0, drizzle_orm_1.sql) `${table.rating} between 1 and 5`)]);
+exports.areaManagers = (0, pg_core_1.pgTable)('area_managers', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    name: (0, pg_core_1.varchar)('name', { length: 200 }).notNull(),
+    email: (0, pg_core_1.varchar)('email', { length: 255 }).notNull().unique(),
+    phone: (0, pg_core_1.varchar)('phone', { length: 20 }).notNull(),
+    pincode: (0, pg_core_1.varchar)('pincode', { length: 20 }).notNull().default('325601'),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 //# sourceMappingURL=schema.js.map

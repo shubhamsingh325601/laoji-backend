@@ -488,6 +488,8 @@ export class AuthService {
           businessName: dto.businessName,
           ownerName: dto.ownerName,
           type: dto.type,
+          businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
+          ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
           shopAddress: dto.shopAddress ?? undefined,
           pickupLat: dto.pickupLat,
           pickupLng: dto.pickupLng,
@@ -504,6 +506,8 @@ export class AuthService {
           businessName: dto.businessName,
           ownerName: dto.ownerName,
           type: dto.type,
+          businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
+          imageUrl: dto.imageUrl ?? null,
           shopAddress: dto.shopAddress ?? null,
           pickupLat: dto.pickupLat,
           pickupLng: dto.pickupLng,
@@ -628,16 +632,14 @@ export class AuthService {
     }
 
     if (row.revokedAt) {
-      // If rotated within last 60s, it's likely a concurrent request / network retry race condition.
-      // Do NOT kill all sessions across the user's devices in that window.
-      const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 60_000;
-      if (!rotatedRecently) {
-        // Reuse of an older already-rotated refresh token — treat as theft, kill every
-        // session for this user (TRD Section 10: "detect reuse = revoke session").
-        await this.db
-          .update(authTokens)
-          .set({ revokedAt: new Date() })
-          .where(and(eq(authTokens.userId, row.userId), isNull(authTokens.revokedAt)));
+      // If rotated within last 120s, it's a concurrent request / network retry race condition.
+      // Gracefully re-issue tokens so the client doesn't get logged out!
+      const rotatedRecently = Date.now() - new Date(row.revokedAt).getTime() < 120_000;
+      if (rotatedRecently) {
+        const [user] = await this.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
+        if (user) {
+          return this.issueTokens(user.id, user.role, row.deviceId ?? undefined);
+        }
       }
       throw new UnauthorizedException('Refresh token has already been rotated');
     }

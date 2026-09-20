@@ -47,6 +47,9 @@ let DeliveryOrderController = class DeliveryOrderController {
     verifyDelivery(user, type, id, dto) {
         return this.delivery.verifyDelivery(user.sub, type, id, dto.otp);
     }
+    reportNotHandedOver(user, type, id, dto) {
+        return this.delivery.reportNotHandedOver(user.sub, type, id, dto?.reason);
+    }
 };
 exports.DeliveryOrderController = DeliveryOrderController;
 __decorate([
@@ -111,6 +114,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, delivery_order_dto_1.VerifyDeliveryDto]),
     __metadata("design:returntype", void 0)
 ], DeliveryOrderController.prototype, "verifyDelivery", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/report-not-handed-over'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, delivery_order_dto_1.ReportNotHandedOverDto]),
+    __metadata("design:returntype", void 0)
+], DeliveryOrderController.prototype, "reportNotHandedOver", null);
 exports.DeliveryOrderController = DeliveryOrderController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('delivery_partner'),

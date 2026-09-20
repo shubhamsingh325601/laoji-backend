@@ -26,7 +26,7 @@ let DeliveryPartnerController = class DeliveryPartnerController {
         this.delivery = delivery;
     }
     upsertProfile(user, dto) {
-        return this.delivery.upsertProfile(user.sub, dto.vehicleType);
+        return this.delivery.upsertProfile(user.sub, dto.vehicleType, dto.vehicleNumber, dto.vehicleModel);
     }
     myProfile(user) {
         return this.delivery.getEnrichedProfile(user.sub);

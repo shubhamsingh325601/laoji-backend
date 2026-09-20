@@ -158,9 +158,9 @@ export declare class PublicCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -181,6 +181,7 @@ export declare class PublicCatalogController {
         createdAt: Date;
     }>;
     restaurants(lat?: string, lng?: string): Promise<{
+        imageUrl: string | null;
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
@@ -188,9 +189,9 @@ export declare class PublicCatalogController {
         vendorId: string;
         name: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
     }[]>;
     restaurant(id: string): Promise<{
+        imageUrl: string | null;
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
@@ -228,7 +229,6 @@ export declare class PublicCatalogController {
         vendorId: string;
         name: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
     }>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: any[];

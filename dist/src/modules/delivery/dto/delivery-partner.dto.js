@@ -13,6 +13,8 @@ exports.UpdateLocationDto = exports.SetOnlineDto = exports.UpsertDeliveryPartner
 const class_validator_1 = require("class-validator");
 class UpsertDeliveryPartnerDto {
     vehicleType;
+    vehicleNumber;
+    vehicleModel;
 }
 exports.UpsertDeliveryPartnerDto = UpsertDeliveryPartnerDto;
 __decorate([
@@ -20,6 +22,18 @@ __decorate([
     (0, class_validator_1.Length)(1, 30),
     __metadata("design:type", String)
 ], UpsertDeliveryPartnerDto.prototype, "vehicleType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 50),
+    __metadata("design:type", String)
+], UpsertDeliveryPartnerDto.prototype, "vehicleNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 100),
+    __metadata("design:type", String)
+], UpsertDeliveryPartnerDto.prototype, "vehicleModel", void 0);
 class SetOnlineDto {
     isOnline;
 }

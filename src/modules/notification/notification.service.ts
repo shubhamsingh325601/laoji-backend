@@ -145,6 +145,11 @@ export class NotificationService {
     }
   }
 
+  // Direct email sending for alerts, area managers, etc.
+  async sendDirectEmail(to: string, message: EmailMessage) {
+    return this.email.send(to, message);
+  }
+
   // Welcome emails with corporate signature for invited users
   async sendWelcomeCustomerEmail(user: { id: string; name?: string; email?: string; phone?: string }) {
     if (!user.email) return;

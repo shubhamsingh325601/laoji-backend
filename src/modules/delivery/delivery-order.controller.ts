@@ -6,7 +6,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { DeliveryService } from './delivery.service';
-import { AdvanceDeliveryStatusDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
+import { AdvanceDeliveryStatusDto, ReportNotHandedOverDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('delivery_partner')
@@ -58,5 +58,15 @@ export class DeliveryOrderController {
     @Body() dto: VerifyDeliveryDto,
   ) {
     return this.delivery.verifyDelivery(user.sub, type, id, dto.otp);
+  }
+
+  @Post(':type/:id/report-not-handed-over')
+  reportNotHandedOver(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+    @Body() dto: ReportNotHandedOverDto,
+  ) {
+    return this.delivery.reportNotHandedOver(user.sub, type, id, dto?.reason);
   }
 }

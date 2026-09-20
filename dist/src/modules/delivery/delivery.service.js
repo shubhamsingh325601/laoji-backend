@@ -31,6 +31,7 @@ const delivered_1 = require("../notification/templates/push/delivered");
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const settlement_service_1 = require("../revenue/settlement.service");
 const settlement_summary_1 = require("../notification/templates/email/settlement-summary");
+const area_manager_service_1 = require("../area-manager/area-manager.service");
 const delivery_constants_1 = require("./delivery.constants");
 const DELIVERY_SEQUENCE = ['delivery_assigned', 'picked_up', 'out_for_delivery', 'delivered'];
 let DeliveryService = DeliveryService_1 = class DeliveryService {
@@ -39,13 +40,15 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
     payments;
     notifications;
     settlements;
+    areaManagerService;
     logger = new common_1.Logger(DeliveryService_1.name);
-    constructor(db, jobQueue, payments, notifications, settlements) {
+    constructor(db, jobQueue, payments, notifications, settlements, areaManagerService) {
         this.db = db;
         this.jobQueue = jobQueue;
         this.payments = payments;
         this.notifications = notifications;
         this.settlements = settlements;
+        this.areaManagerService = areaManagerService;
     }
     orderCode(orderId) {
         return orderId.slice(0, 8).toUpperCase();
@@ -92,7 +95,9 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             phone: user?.phone ?? null,
             kycStatus: partner.kycStatus,
             vehicleType: partner.vehicleType,
-            vehicleLabel: null,
+            vehicleNumber: partner.vehicleNumber ?? null,
+            vehicleModel: partner.vehicleModel ?? null,
+            vehicleLabel: partner.vehicleModel ? `${partner.vehicleModel} (${partner.vehicleNumber || partner.vehicleType})` : null,
             isOnline: partner.isOnline,
             currentLat: partner.currentLat,
             currentLng: partner.currentLng,
@@ -104,17 +109,30 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             updatedAt: partner.updatedAt,
         };
     }
-    async upsertProfile(userId, vehicleType) {
+    async upsertProfile(userId, vehicleType, vehicleNumber, vehicleModel) {
         const existing = await this.getPartnerByUserId(userId);
         if (existing) {
             const [updated] = await this.db
                 .update(schema_1.deliveryPartners)
-                .set({ vehicleType })
+                .set({
+                vehicleType,
+                ...(vehicleNumber !== undefined ? { vehicleNumber } : {}),
+                ...(vehicleModel !== undefined ? { vehicleModel } : {}),
+                updatedAt: new Date(),
+            })
                 .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, existing.id))
                 .returning();
             return this.enrichProfile(updated);
         }
-        const [created] = await this.db.insert(schema_1.deliveryPartners).values({ userId, vehicleType }).returning();
+        const [created] = await this.db
+            .insert(schema_1.deliveryPartners)
+            .values({
+            userId,
+            vehicleType,
+            vehicleNumber: vehicleNumber ?? null,
+            vehicleModel: vehicleModel ?? null,
+        })
+            .returning();
         return this.enrichProfile(created);
     }
     async getEnrichedProfile(userId) {
@@ -729,6 +747,34 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
     async listPartnersBasic() {
         return this.listPartnersAdmin();
     }
+    async reportNotHandedOver(userId, type, orderId, reason) {
+        const partner = await this.requirePartner(userId);
+        const order = await this.requireOwnActiveOrder(type, orderId, partner.id);
+        const [customer] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, order.customerId)).limit(1);
+        const [partnerUser] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, partner.userId)).limit(1);
+        const [address] = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.id, order.deliveryAddressId)).limit(1);
+        const orderCode = this.orderCode(orderId);
+        const formattedAddr = address?.formattedAddress || '';
+        const pinMatch = formattedAddr.match(/\b\d{6}\b/);
+        const pincode = pinMatch ? pinMatch[0] : '325601';
+        const escalation = await this.areaManagerService.dispatchHandoverEscalation({
+            orderCode,
+            orderType: type,
+            customerName: customer?.name || undefined,
+            customerPhone: customer?.phone || undefined,
+            riderName: partnerUser?.name || undefined,
+            riderPhone: partnerUser?.phone || undefined,
+            address: formattedAddr || undefined,
+            pincode,
+            reason: reason || 'Customer not reachable / Handover incomplete',
+            reportedAt: new Date(),
+        });
+        return {
+            success: true,
+            message: 'Escalation email sent to Area Manager',
+            escalation,
+        };
+    }
 };
 exports.DeliveryService = DeliveryService;
 exports.DeliveryService = DeliveryService = DeliveryService_1 = __decorate([
@@ -737,6 +783,7 @@ exports.DeliveryService = DeliveryService = DeliveryService_1 = __decorate([
     __metadata("design:paramtypes", [Object, job_queue_service_1.JobQueueService,
         payment_service_1.PaymentService,
         notification_service_1.NotificationService,
-        settlement_service_1.SettlementService])
+        settlement_service_1.SettlementService,
+        area_manager_service_1.AreaManagerService])
 ], DeliveryService);
 //# sourceMappingURL=delivery.service.js.map

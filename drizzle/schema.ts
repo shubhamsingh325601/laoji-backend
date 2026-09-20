@@ -183,6 +183,8 @@ export const vendors = pgTable('vendors', {
   businessHours: jsonb('business_hours').$type<
     { day: number; isOpen: boolean; openTime: string; closeTime: string }[]
   >(),
+  imageUrl: text('image_url'),
+  businessType: varchar('business_type', { length: 50 }).notNull().default('grocery'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -199,6 +201,8 @@ export const deliveryPartners = pgTable('delivery_partners', {
   // Reuses kyc_document_status's value set, same as vendors.kycStatus.
   kycStatus: kycDocumentStatusEnum('kyc_status').notNull().default('pending'),
   vehicleType: varchar('vehicle_type', { length: 30 }).notNull(),
+  vehicleNumber: varchar('vehicle_number', { length: 50 }),
+  vehicleModel: varchar('vehicle_model', { length: 100 }),
   aadhaarNumber: varchar('aadhaar_number', { length: 20 }),
   drivingLicense: varchar('driving_license', { length: 50 }),
   bankAccount: varchar('bank_account', { length: 50 }),
@@ -729,3 +733,14 @@ export const foodOrderRatings = pgTable(
   },
   (table) => [check('food_order_ratings_rating_range', sql`${table.rating} between 1 and 5`)],
 );
+
+export const areaManagers = pgTable('area_managers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  pincode: varchar('pincode', { length: 20 }).notNull().default('325601'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

@@ -12,5 +12,7 @@ export declare class UpsertVendorProfileDto {
     bankAccount?: string;
     bankIfsc?: string;
     upiId?: string;
+    imageUrl?: string;
+    businessType?: string;
 }
 export {};
