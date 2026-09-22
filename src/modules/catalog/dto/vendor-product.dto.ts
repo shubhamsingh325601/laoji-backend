@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
 
 export class UpsertVendorProductDto {
   @IsUUID()
@@ -15,6 +15,16 @@ export class UpsertVendorProductDto {
   @IsOptional()
   @IsBoolean()
   isAvailable?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  offerTag?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  lowStockThreshold?: number;
 }
 
 export class UpdateVendorProductDto {
@@ -31,4 +41,14 @@ export class UpdateVendorProductDto {
   @IsOptional()
   @IsBoolean()
   isAvailable?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  offerTag?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  lowStockThreshold?: number;
 }

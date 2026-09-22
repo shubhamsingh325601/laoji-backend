@@ -10,6 +10,7 @@ import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
+import { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('vendor')
@@ -57,6 +58,12 @@ export class VendorCatalogController {
   async upsertListing(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpsertVendorProductDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
     return this.catalog.upsertVendorProduct(vendor.id, dto);
+  }
+
+  @Post('vendor/products/new')
+  async createNewProduct(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateGroceryProductDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createVendorProduct(vendor.id, dto);
   }
 
   @Patch('vendor/products/:id')

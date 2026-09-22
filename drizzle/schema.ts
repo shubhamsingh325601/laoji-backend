@@ -256,6 +256,8 @@ export const vendorProducts = pgTable(
     price: doublePrecision('price').notNull(),
     stockQty: integer('stock_qty').notNull().default(0),
     isAvailable: boolean('is_available').notNull().default(true),
+    offerTag: varchar('offer_tag', { length: 100 }),
+    lowStockThreshold: integer('low_stock_threshold'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)],

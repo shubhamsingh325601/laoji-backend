@@ -30,6 +30,7 @@ import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type {
   CreateMenuCategoryDto,
@@ -485,6 +486,9 @@ export class CatalogService {
           price: dto.price,
           stockQty: dto.stockQty,
           isAvailable: dto.isAvailable ?? existing.isAvailable,
+          offerTag: dto.offerTag !== undefined ? dto.offerTag || null : existing.offerTag,
+          lowStockThreshold:
+            dto.lowStockThreshold !== undefined ? dto.lowStockThreshold : existing.lowStockThreshold,
           updatedAt: new Date(),
         })
         .where(eq(vendorProducts.id, existing.id))
@@ -500,9 +504,34 @@ export class CatalogService {
         price: dto.price,
         stockQty: dto.stockQty,
         isAvailable: dto.isAvailable ?? true,
+        offerTag: dto.offerTag || null,
+        lowStockThreshold: dto.lowStockThreshold,
       })
       .returning();
     return created;
+  }
+
+  async createVendorProduct(vendorId: string, dto: CreateGroceryProductDto) {
+    const product = await this.createProduct({
+      categoryId: dto.categoryId,
+      name: dto.name,
+      brand: dto.brand,
+      unit: dto.unit,
+      size: dto.size,
+      mrp: dto.mrp,
+      imageUrl: dto.imageUrl,
+    });
+
+    const listing = await this.upsertVendorProduct(vendorId, {
+      productId: product.id,
+      price: dto.price,
+      stockQty: dto.stockQty,
+      isAvailable: true,
+      offerTag: dto.offerTag,
+      lowStockThreshold: dto.lowStockThreshold,
+    });
+
+    return { ...listing, product };
   }
 
   private async requireOwnVendorProduct(vendorId: string, id: string) {
