@@ -52,7 +52,6 @@ export declare class AdminDeliveryController {
         email: string | null;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         userId: string;
         aadhaarNumber: string | null;
         bankAccount: string | null;
@@ -66,6 +65,7 @@ export declare class AdminDeliveryController {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateAdminDeliveryPartnerDto): Promise<{
         id: string;

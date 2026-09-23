@@ -1,0 +1,1 @@
+ALTER TABLE "categories" ADD COLUMN "business_type" varchar(50);

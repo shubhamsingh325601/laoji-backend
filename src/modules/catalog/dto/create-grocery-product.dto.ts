@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
+import { IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
 
 export class CreateGroceryProductDto {
   @IsUUID()
@@ -46,4 +46,10 @@ export class CreateGroceryProductDto {
   @IsInt()
   @Min(0)
   lowStockThreshold?: number;
+
+  // Business-type-specific fields from the add-product form; checked
+  // against that form in product-forms.ts#readProductAttributes.
+  @IsOptional()
+  @IsObject()
+  attributes?: Record<string, unknown>;
 }

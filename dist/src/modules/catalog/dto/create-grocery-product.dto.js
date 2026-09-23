@@ -9,83 +9,83 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateVendorProductDto = exports.UpsertVendorProductDto = void 0;
+exports.CreateGroceryProductDto = void 0;
 const class_validator_1 = require("class-validator");
-class UpsertVendorProductDto {
-    productId;
+class CreateGroceryProductDto {
+    categoryId;
+    name;
+    brand;
+    unit;
+    size;
+    mrp;
+    imageUrl;
     price;
     stockQty;
-    isAvailable;
     offerTag;
     lowStockThreshold;
+    attributes;
 }
-exports.UpsertVendorProductDto = UpsertVendorProductDto;
+exports.CreateGroceryProductDto = CreateGroceryProductDto;
 __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
-], UpsertVendorProductDto.prototype, "productId", void 0);
+], CreateGroceryProductDto.prototype, "categoryId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
-], UpsertVendorProductDto.prototype, "price", void 0);
-__decorate([
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
-], UpsertVendorProductDto.prototype, "stockQty", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], UpsertVendorProductDto.prototype, "isAvailable", void 0);
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 200),
+    __metadata("design:type", String)
+], CreateGroceryProductDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Length)(0, 100),
     __metadata("design:type", String)
-], UpsertVendorProductDto.prototype, "offerTag", void 0);
+], CreateGroceryProductDto.prototype, "brand", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 50),
+    __metadata("design:type", String)
+], CreateGroceryProductDto.prototype, "unit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
-], UpsertVendorProductDto.prototype, "lowStockThreshold", void 0);
-class UpdateVendorProductDto {
-    price;
-    stockQty;
-    isAvailable;
-    offerTag;
-    lowStockThreshold;
-}
-exports.UpdateVendorProductDto = UpdateVendorProductDto;
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateGroceryProductDto.prototype, "size", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
-], UpdateVendorProductDto.prototype, "price", void 0);
+], CreateGroceryProductDto.prototype, "mrp", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateGroceryProductDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateGroceryProductDto.prototype, "price", void 0);
+__decorate([
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
-], UpdateVendorProductDto.prototype, "stockQty", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], UpdateVendorProductDto.prototype, "isAvailable", void 0);
+], CreateGroceryProductDto.prototype, "stockQty", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.Length)(0, 100),
     __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "offerTag", void 0);
+], CreateGroceryProductDto.prototype, "offerTag", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
-], UpdateVendorProductDto.prototype, "lowStockThreshold", void 0);
-//# sourceMappingURL=vendor-product.dto.js.map
+], CreateGroceryProductDto.prototype, "lowStockThreshold", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], CreateGroceryProductDto.prototype, "attributes", void 0);
+//# sourceMappingURL=create-grocery-product.dto.js.map

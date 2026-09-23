@@ -85,10 +85,10 @@ export declare class VendorMenuController {
         name: string;
         imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{
         addons: {

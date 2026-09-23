@@ -29,14 +29,14 @@ export declare class AreaManagerService {
         updatedAt: Date;
     }>;
     create(dto: CreateAreaManagerDto): Promise<{
-        name: string;
-        email: string;
-        phone: string;
-        pincode: string;
-        isActive: boolean;
         id: string;
+        name: string;
+        phone: string;
+        email: string;
         createdAt: Date;
         updatedAt: Date;
+        pincode: string;
+        isActive: boolean;
     }>;
     update(id: string, dto: UpdateAreaManagerDto): Promise<{
         id: string;

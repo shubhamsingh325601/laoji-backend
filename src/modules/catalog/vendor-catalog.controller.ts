@@ -11,6 +11,8 @@ import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
+import { CreateVendorCategoryDto } from './dto/category.dto';
+import { productFormFor } from './product-forms';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('vendor')
@@ -43,9 +45,28 @@ export class VendorCatalogController {
     return this.catalog.deleteVendorAccount(user.sub);
   }
 
+  @Get('vendor/catalog/categories')
+  async myCategories(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.listVendorCategories(vendor);
+  }
+
+  @Post('vendor/catalog/categories')
+  async createCategory(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateVendorCategoryDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createVendorCategory(vendor, dto.name);
+  }
+
+  @Get('vendor/catalog/product-form')
+  async productForm(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return productFormFor(vendor.businessType);
+  }
+
   @Get('vendor/catalog/products')
-  browseMasterCatalog(@Query('categoryId') categoryId?: string) {
-    return this.catalog.listProducts(categoryId);
+  async browseMasterCatalog(@CurrentUser() user: JwtAccessPayload, @Query('categoryId') categoryId?: string) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.listVendorCatalogProducts(vendor, categoryId);
   }
 
   @Get('vendor/products')
@@ -63,7 +84,7 @@ export class VendorCatalogController {
   @Post('vendor/products/new')
   async createNewProduct(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateGroceryProductDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.createVendorProduct(vendor.id, dto);
+    return this.catalog.createVendorProduct(vendor, dto);
   }
 
   @Patch('vendor/products/:id')

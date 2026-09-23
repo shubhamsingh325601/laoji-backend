@@ -113,6 +113,27 @@
       "when": 1790094942026,
       "tag": "0015_violet_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790094942027,
+      "tag": "0014_breezy_professor_monster",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790156159354,
+      "tag": "0017_category_business_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790156998241,
+      "tag": "0018_product_attributes",
+      "breakpoints": true
     }
   ]
 }
