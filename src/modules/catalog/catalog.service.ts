@@ -632,18 +632,60 @@ export class CatalogService {
   }
 
   async updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto) {
-    await this.requireOwnVendorProduct(vendorId, id);
+    const row = await this.requireOwnVendorProduct(vendorId, id);
+
+    const productUpdates: Record<string, any> = {};
+    if (dto.name !== undefined) productUpdates.name = dto.name;
+    if (dto.brand !== undefined) productUpdates.brand = dto.brand || null;
+    if (dto.categoryId !== undefined) productUpdates.categoryId = dto.categoryId;
+    if (dto.unit !== undefined) productUpdates.unit = dto.unit;
+    if (dto.size !== undefined) productUpdates.size = dto.size || null;
+    if (dto.mrp !== undefined) productUpdates.mrp = dto.mrp;
+    if (dto.imageUrl !== undefined) productUpdates.imageUrl = dto.imageUrl || null;
+    if (dto.description !== undefined) productUpdates.description = dto.description || null;
+
+    if (Object.keys(productUpdates).length > 0) {
+      await this.db.update(products).set(productUpdates).where(eq(products.id, row.productId));
+    }
+
+    const listingUpdates: Record<string, any> = { updatedAt: new Date() };
+    if (dto.price !== undefined) listingUpdates.price = dto.price;
+    if (dto.stockQty !== undefined) listingUpdates.stockQty = dto.stockQty;
+    if (dto.isAvailable !== undefined) listingUpdates.isAvailable = dto.isAvailable;
+    if (dto.offerTag !== undefined) listingUpdates.offerTag = dto.offerTag || null;
+    if (dto.lowStockThreshold !== undefined) listingUpdates.lowStockThreshold = dto.lowStockThreshold;
+
     const [updated] = await this.db
       .update(vendorProducts)
-      .set({ ...dto, updatedAt: new Date() })
+      .set(listingUpdates)
       .where(eq(vendorProducts.id, id))
       .returning();
-    return updated;
+
+    const [product] = await this.db.select().from(products).where(eq(products.id, row.productId)).limit(1);
+    return { ...updated, product };
   }
 
   async deleteVendorProduct(vendorId: string, id: string) {
-    await this.requireOwnVendorProduct(vendorId, id);
+    const row = await this.requireOwnVendorProduct(vendorId, id);
     await this.db.delete(vendorProducts).where(eq(vendorProducts.id, id));
+
+    const [orderItem] = await this.db
+      .select({ id: groceryOrderItems.id })
+      .from(groceryOrderItems)
+      .where(eq(groceryOrderItems.productId, row.productId))
+      .limit(1);
+
+    if (!orderItem) {
+      const otherListings = await this.db
+        .select()
+        .from(vendorProducts)
+        .where(eq(vendorProducts.productId, row.productId))
+        .limit(1);
+      if (otherListings.length === 0) {
+        await this.db.delete(products).where(eq(products.id, row.productId));
+      }
+    }
+    return { success: true };
   }
 
   async createVendorCustomProduct(vendorId: string, dto: CreateVendorCustomProductDto) {

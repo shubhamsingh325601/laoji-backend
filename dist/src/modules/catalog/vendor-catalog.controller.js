@@ -56,6 +56,12 @@ let VendorCatalogController = class VendorCatalogController {
         const vendor = await this.catalog.requireVendor(user.sub);
         return this.catalog.createVendorCategory(vendor, dto.name);
     }
+    updateVendorCategory(id, dto) {
+        return this.catalog.updateCategory(id, dto);
+    }
+    deleteVendorCategory(id) {
+        return this.catalog.deleteCategory(id);
+    }
     async productForm(user) {
         const vendor = await this.catalog.requireVendor(user.sub);
         return (0, product_forms_1.productFormFor)(vendor.businessType);
@@ -170,6 +176,21 @@ __decorate([
     __metadata("design:paramtypes", [Object, category_dto_2.CreateVendorCategoryDto]),
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "createCategory", null);
+__decorate([
+    (0, common_1.Patch)('vendor/catalog/categories/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, category_dto_1.UpdateCategoryDto]),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "updateVendorCategory", null);
+__decorate([
+    (0, common_1.Delete)('vendor/catalog/categories/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "deleteVendorCategory", null);
 __decorate([
     (0, common_1.Get)('vendor/catalog/product-form'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

@@ -63,6 +63,16 @@ export class VendorCatalogController {
     return this.catalog.createVendorCategory(vendor, dto.name);
   }
 
+  @Patch('vendor/catalog/categories/:id')
+  updateVendorCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.catalog.updateCategory(id, dto);
+  }
+
+  @Delete('vendor/catalog/categories/:id')
+  deleteVendorCategory(@Param('id') id: string) {
+    return this.catalog.deleteCategory(id);
+  }
+
   @Get('vendor/catalog/product-form')
   async productForm(@CurrentUser() user: JwtAccessPayload) {
     const vendor = await this.catalog.requireVendor(user.sub);

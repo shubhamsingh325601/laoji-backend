@@ -511,17 +511,65 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateVendorProduct(vendorId, id, dto) {
-        await this.requireOwnVendorProduct(vendorId, id);
+        const row = await this.requireOwnVendorProduct(vendorId, id);
+        const productUpdates = {};
+        if (dto.name !== undefined)
+            productUpdates.name = dto.name;
+        if (dto.brand !== undefined)
+            productUpdates.brand = dto.brand || null;
+        if (dto.categoryId !== undefined)
+            productUpdates.categoryId = dto.categoryId;
+        if (dto.unit !== undefined)
+            productUpdates.unit = dto.unit;
+        if (dto.size !== undefined)
+            productUpdates.size = dto.size || null;
+        if (dto.mrp !== undefined)
+            productUpdates.mrp = dto.mrp;
+        if (dto.imageUrl !== undefined)
+            productUpdates.imageUrl = dto.imageUrl || null;
+        if (dto.description !== undefined)
+            productUpdates.description = dto.description || null;
+        if (Object.keys(productUpdates).length > 0) {
+            await this.db.update(schema_1.products).set(productUpdates).where((0, drizzle_orm_1.eq)(schema_1.products.id, row.productId));
+        }
+        const listingUpdates = { updatedAt: new Date() };
+        if (dto.price !== undefined)
+            listingUpdates.price = dto.price;
+        if (dto.stockQty !== undefined)
+            listingUpdates.stockQty = dto.stockQty;
+        if (dto.isAvailable !== undefined)
+            listingUpdates.isAvailable = dto.isAvailable;
+        if (dto.offerTag !== undefined)
+            listingUpdates.offerTag = dto.offerTag || null;
+        if (dto.lowStockThreshold !== undefined)
+            listingUpdates.lowStockThreshold = dto.lowStockThreshold;
         const [updated] = await this.db
             .update(schema_1.vendorProducts)
-            .set({ ...dto, updatedAt: new Date() })
+            .set(listingUpdates)
             .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id))
             .returning();
-        return updated;
+        const [product] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, row.productId)).limit(1);
+        return { ...updated, product };
     }
     async deleteVendorProduct(vendorId, id) {
-        await this.requireOwnVendorProduct(vendorId, id);
+        const row = await this.requireOwnVendorProduct(vendorId, id);
         await this.db.delete(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id));
+        const [orderItem] = await this.db
+            .select({ id: schema_1.groceryOrderItems.id })
+            .from(schema_1.groceryOrderItems)
+            .where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, row.productId))
+            .limit(1);
+        if (!orderItem) {
+            const otherListings = await this.db
+                .select()
+                .from(schema_1.vendorProducts)
+                .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, row.productId))
+                .limit(1);
+            if (otherListings.length === 0) {
+                await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, row.productId));
+            }
+        }
+        return { success: true };
     }
     async createVendorCustomProduct(vendorId, dto) {
         const [product] = await this.db

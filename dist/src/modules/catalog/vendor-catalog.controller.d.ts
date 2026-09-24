@@ -11,6 +11,7 @@ export declare class VendorCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
+        imageUrl: string | null;
         id: string;
         createdAt: Date;
         userId: string;
@@ -34,7 +35,6 @@ export declare class VendorCatalogController {
             openTime: string;
             closeTime: string;
         }[] | null;
-        imageUrl: string | null;
         businessType: string;
     }>;
     myProfile(user: JwtAccessPayload): Promise<{
@@ -114,11 +114,22 @@ export declare class VendorCatalogController {
         businessType: string | null;
     }[]>;
     createCategory(user: JwtAccessPayload, dto: CreateVendorCategoryDto): Promise<{
+        name: string;
+        imageUrl: string | null;
         id: string;
+        businessType: string | null;
+        parentId: string | null;
+    }>;
+    updateVendorCategory(id: string, dto: UpdateCategoryDto): Promise<{
+        id: string;
+        parentId: string | null;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
-        parentId: string | null;
+    }>;
+    deleteVendorCategory(id: string): Promise<{
+        success: boolean;
+        message: string;
     }>;
     productForm(user: JwtAccessPayload): Promise<import("./product-forms").ProductForm>;
     browseMasterCatalog(user: JwtAccessPayload, categoryId?: string): Promise<{
@@ -161,30 +172,55 @@ export declare class VendorCatalogController {
         updatedAt: Date;
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
-        id: string;
-        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
+        id: string;
+        vendorId: string;
         updatedAt: Date;
     }>;
     createNewProduct(user: JwtAccessPayload, dto: CreateGroceryProductDto): Promise<{
         product: {
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            description: string | null;
+            brand: string | null;
             categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
+            imageUrl: string | null;
+            description: string | null;
+            id: string;
+            status: "active" | "inactive";
+            createdAt: Date;
             attributes: Record<string, string | number | boolean> | null;
+        };
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        id: string;
+        vendorId: string;
+        updatedAt: Date;
+    }>;
+    updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
+        product: {
+            id: string;
+            categoryId: string;
+            brand: string | null;
+            name: string;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            imageUrl: string | null;
+            attributes: Record<string, string | number | boolean> | null;
+            status: "active" | "inactive";
+            createdAt: Date;
         };
         id: string;
         vendorId: string;
@@ -196,18 +232,9 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
-    updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
-        id: string;
-        vendorId: string;
-        productId: string;
-        price: number;
-        stockQty: number;
-        isAvailable: boolean;
-        offerTag: string | null;
-        lowStockThreshold: number | null;
-        updatedAt: Date;
+    deleteListing(user: JwtAccessPayload, id: string): Promise<{
+        success: boolean;
     }>;
-    deleteListing(user: JwtAccessPayload, id: string): Promise<void>;
     listCategories(): import("drizzle-orm/pg-core").PgSelectBase<"categories", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -396,9 +423,9 @@ export declare class VendorCatalogController {
         }>;
     }>;
     createCategoryFlat(dto: CreateCategoryDto): Promise<{
-        id: string;
         name: string;
         imageUrl: string | null;
+        id: string;
         businessType: string | null;
         parentId: string | null;
     }>;
@@ -415,27 +442,27 @@ export declare class VendorCatalogController {
     }>;
     createCustomProduct(user: JwtAccessPayload, dto: CreateVendorCustomProductDto): Promise<{
         product: {
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            description: string | null;
+            brand: string | null;
             categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
+            imageUrl: string | null;
+            description: string | null;
+            id: string;
+            status: "active" | "inactive";
+            createdAt: Date;
             attributes: Record<string, string | number | boolean> | null;
         };
-        id: string;
-        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
+        id: string;
+        vendorId: string;
         updatedAt: Date;
     }>;
     updateCustomProduct(user: JwtAccessPayload, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
@@ -454,16 +481,16 @@ export declare class VendorCatalogController {
         success: boolean;
     }>;
     submitSuggestion(user: JwtAccessPayload, dto: CreateProductSuggestionDto): Promise<{
-        id: string;
+        productId: string | null;
         name: string;
-        status: "pending" | "rejected" | "approved";
-        createdAt: Date;
-        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        imageUrl: string | null;
+        id: string;
+        status: "pending" | "rejected" | "approved";
+        createdAt: Date;
         vendorId: string;
-        productId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;

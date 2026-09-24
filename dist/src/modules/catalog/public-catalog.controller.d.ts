@@ -192,17 +192,17 @@ export declare class PublicCatalogController {
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
+        brand: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        imageUrl: string | null;
+        description: string | null;
+        id: string;
+        status: "active" | "inactive";
+        createdAt: Date;
         attributes: Record<string, string | number | boolean> | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{

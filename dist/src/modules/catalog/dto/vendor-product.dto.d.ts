@@ -7,6 +7,14 @@ export declare class UpsertVendorProductDto {
     lowStockThreshold?: number;
 }
 export declare class UpdateVendorProductDto {
+    name?: string;
+    brand?: string;
+    categoryId?: string;
+    unit?: string;
+    size?: string;
+    mrp?: number;
+    imageUrl?: string;
+    description?: string;
     price?: number;
     stockQty?: number;
     isAvailable?: boolean;
