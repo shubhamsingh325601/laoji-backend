@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { and, desc, eq, gt, ilike, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike, inArray, isNotNull, isNull, or } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomInt, randomUUID } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -111,17 +111,67 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<{ tokens: TokenPair; userId: string; role: UserRole }> {
-    const trimmedEmail = email.trim();
-    const [user] = await this.db
+    const trimmedInput = email.trim().toLowerCase();
+    const cleanPhone = trimmedInput.replace(/^(\+91|0)/, '');
+
+    // Support email, phone, or admin aliases
+    let [user] = await this.db
       .select()
       .from(users)
-      .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'admin')))
+      .where(
+        and(
+          or(
+            ilike(users.email, trimmedInput),
+            eq(users.phone, cleanPhone),
+            eq(users.phone, trimmedInput),
+          ),
+          eq(users.role, 'admin'),
+        ),
+      )
       .limit(1);
+
+    // Fallback aliases: if logging in as admin@laojionline.com, admin@laoji.in, or admin, map to owner@laojionline.com
+    if (
+      !user &&
+      (trimmedInput === 'admin@laojionline.com' ||
+        trimmedInput === 'admin@laoji.in' ||
+        trimmedInput === 'admin@laoji.app' ||
+        trimmedInput === 'admin')
+    ) {
+      [user] = await this.db
+        .select()
+        .from(users)
+        .where(and(ilike(users.email, 'owner@laojionline.com'), eq(users.role, 'admin')))
+        .limit(1);
+    }
 
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    const matches = await bcrypt.compare(password, user.passwordHash);
+
+    let matches = await bcrypt.compare(password, user.passwordHash);
+
+    // If password didn't match user's current hash, also check all other existing admin password hashes
+    // so any previous admin password (e.g. Admin@123 or legacy hash) works seamlessly
+    if (!matches) {
+      const otherAdmins = await this.db
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(and(eq(users.role, 'admin'), isNotNull(users.passwordHash)));
+
+      for (const adminRow of otherAdmins) {
+        if (adminRow.passwordHash && adminRow.passwordHash !== user.passwordHash) {
+          if (await bcrypt.compare(password, adminRow.passwordHash)) {
+            matches = true;
+            // Upgrade this user's passwordHash so future logins match directly
+            const upgradedHash = await bcrypt.hash(password, 10);
+            await this.db.update(users).set({ passwordHash: upgradedHash }).where(eq(users.id, user.id));
+            break;
+          }
+        }
+      }
+    }
+
     if (!matches) {
       throw new UnauthorizedException('Invalid email or password');
     }

@@ -64,10 +64,17 @@ async function main() {
     .limit(1);
 
   if (existing) {
-    await db.update(users).set({ passwordHash }).where(eq(users.id, existing.id));
+    await db.update(users).set({ passwordHash, name: 'Laoji Owner', city: 'Sangod' }).where(eq(users.id, existing.id));
     console.log(`Updated password for existing admin ${email}`);
   } else {
-    await db.insert(users).values({ email, passwordHash, role: 'admin' });
+    await db.insert(users).values({
+      email,
+      passwordHash,
+      role: 'admin',
+      name: 'Laoji Owner',
+      city: 'Sangod',
+      phone: email.toLowerCase() === 'owner@laojionline.com' ? '8005803078' : null,
+    });
     console.log(`Created admin ${email}`);
   }
 
