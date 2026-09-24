@@ -368,7 +368,7 @@ const GOLDEN_CAFE_DATA: MenuCategorySpec[] = [
   {
     category: 'Maggi',
     description: 'Everyones favorite 2-minute noodles prepared with custom toppings',
-    image: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=500',
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500',
     masterCat: 'Fast Food & Chinese',
     items: [
       { name: 'Plain Maggi', desc: 'Classic savory Maggi noodles (प्लेन मैगी)', price: 50 },

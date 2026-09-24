@@ -253,7 +253,7 @@ const VENDORS_DATA: VendorDataSpec[] = [
       },
       {
         category: 'Maggi',
-        image: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=500',
+        image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500',
         masterCat: 'Fast Food & Maggi',
         items: [
           { name: 'Veg Maggi', desc: 'Classic noodles cooked with garden vegetables (वेज मैगी)', price: 40, hasStandardAddons: true },
@@ -431,7 +431,7 @@ const VENDORS_DATA: VendorDataSpec[] = [
       },
       {
         category: 'Maggi & Pasta',
-        image: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=500',
+        image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500',
         masterCat: 'Pasta & Maggi',
         items: [
           { name: 'Desi Butter Masala Maggi', desc: 'Classic Maggi noodles cooked with butter and aromatic vegetables', price: 49 },
