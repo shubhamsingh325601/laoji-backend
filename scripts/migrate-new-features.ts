@@ -9,6 +9,9 @@ async function main() {
     ALTER TABLE vendors ADD COLUMN IF NOT EXISTS image_url text;
     ALTER TABLE vendors ADD COLUMN IF NOT EXISTS business_type varchar(50) DEFAULT 'grocery';
 
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS business_type varchar(50);
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes jsonb;
+
     ALTER TABLE delivery_partners ADD COLUMN IF NOT EXISTS vehicle_number varchar(50);
     ALTER TABLE delivery_partners ADD COLUMN IF NOT EXISTS vehicle_model varchar(100);
 
@@ -23,7 +26,7 @@ async function main() {
       updated_at timestamp with time zone NOT NULL DEFAULT now()
     );
   `);
-  console.log('Successfully applied database migrations for vendors, delivery partners, and area managers.');
+  console.log('Successfully applied database migrations for vendors, categories, products, delivery partners, and area managers.');
   await pool.end();
 }
 

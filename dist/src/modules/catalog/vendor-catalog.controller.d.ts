@@ -5,11 +5,12 @@ import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import { CreateVendorCustomProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
+import { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
+import { CreateVendorCategoryDto } from './dto/category.dto';
 export declare class VendorCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
-        imageUrl: string | null;
         id: string;
         createdAt: Date;
         userId: string;
@@ -33,6 +34,7 @@ export declare class VendorCatalogController {
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
         businessType: string;
     }>;
     myProfile(user: JwtAccessPayload): Promise<{
@@ -104,203 +106,22 @@ export declare class VendorCatalogController {
         success: boolean;
         message: string;
     }>;
-    browseMasterCatalog(categoryId?: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"products", {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        categoryId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "category_id";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        brand: import("drizzle-orm/pg-core").PgColumn<{
-            name: "brand";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 200;
-        }>;
-        description: import("drizzle-orm/pg-core").PgColumn<{
-            name: "description";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        unit: import("drizzle-orm/pg-core").PgColumn<{
-            name: "unit";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-        size: import("drizzle-orm/pg-core").PgColumn<{
-            name: "size";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-        mrp: import("drizzle-orm/pg-core").PgColumn<{
-            name: "mrp";
-            tableName: "products";
-            dataType: "number";
-            columnType: "PgDoublePrecision";
-            data: number;
-            driverParam: string | number;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        status: import("drizzle-orm/pg-core").PgColumn<{
-            name: "status";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgEnumColumn";
-            data: "active" | "inactive";
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: ["active", "inactive"];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        createdAt: import("drizzle-orm/pg-core").PgColumn<{
-            name: "created_at";
-            tableName: "products";
-            dataType: "date";
-            columnType: "PgTimestamp";
-            data: Date;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-    }, "single", Record<"products", "not-null">, false, "where", {
+    myCategories(user: JwtAccessPayload): Promise<{
+        id: string;
+        parentId: string | null;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+    }[]>;
+    createCategory(user: JwtAccessPayload, dto: CreateVendorCategoryDto): Promise<{
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+    }>;
+    productForm(user: JwtAccessPayload): Promise<import("./product-forms").ProductForm>;
+    browseMasterCatalog(user: JwtAccessPayload, categoryId?: string): Promise<{
         id: string;
         categoryId: string;
         brand: string | null;
@@ -310,205 +131,10 @@ export declare class VendorCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
-    }[], {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        categoryId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "category_id";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        brand: import("drizzle-orm/pg-core").PgColumn<{
-            name: "brand";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 200;
-        }>;
-        description: import("drizzle-orm/pg-core").PgColumn<{
-            name: "description";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        unit: import("drizzle-orm/pg-core").PgColumn<{
-            name: "unit";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-        size: import("drizzle-orm/pg-core").PgColumn<{
-            name: "size";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-        mrp: import("drizzle-orm/pg-core").PgColumn<{
-            name: "mrp";
-            tableName: "products";
-            dataType: "number";
-            columnType: "PgDoublePrecision";
-            data: number;
-            driverParam: string | number;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        status: import("drizzle-orm/pg-core").PgColumn<{
-            name: "status";
-            tableName: "products";
-            dataType: "string";
-            columnType: "PgEnumColumn";
-            data: "active" | "inactive";
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: ["active", "inactive"];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        createdAt: import("drizzle-orm/pg-core").PgColumn<{
-            name: "created_at";
-            tableName: "products";
-            dataType: "date";
-            columnType: "PgTimestamp";
-            data: Date;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-    }>, "where">;
+    }[]>;
     myListings(user: JwtAccessPayload): Promise<{
         product: {
             id: string;
@@ -520,6 +146,7 @@ export declare class VendorCatalogController {
             size: string | null;
             mrp: number | null;
             imageUrl: string | null;
+            attributes: Record<string, string | number | boolean> | null;
             status: "active" | "inactive";
             createdAt: Date;
         };
@@ -529,15 +156,44 @@ export declare class VendorCatalogController {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
+        id: string;
+        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        updatedAt: Date;
+    }>;
+    createNewProduct(user: JwtAccessPayload, dto: CreateGroceryProductDto): Promise<{
+        product: {
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            description: string | null;
+            categoryId: string;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+        };
         id: string;
         vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -547,6 +203,8 @@ export declare class VendorCatalogController {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     deleteListing(user: JwtAccessPayload, id: string): Promise<void>;
@@ -621,11 +279,31 @@ export declare class VendorCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }, "single", Record<"categories", "not-null">, false, never, {
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -697,11 +375,31 @@ export declare class VendorCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }>;
-    createCategory(dto: CreateCategoryDto): Promise<{
+    createCategoryFlat(dto: CreateCategoryDto): Promise<{
+        id: string;
         name: string;
         imageUrl: string | null;
-        id: string;
+        businessType: string | null;
         parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
@@ -709,6 +407,7 @@ export declare class VendorCatalogController {
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
@@ -716,24 +415,27 @@ export declare class VendorCatalogController {
     }>;
     createCustomProduct(user: JwtAccessPayload, dto: CreateVendorCustomProductDto): Promise<{
         product: {
-            name: string;
+            id: string;
             brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            description: string | null;
             categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
-            description: string | null;
-            imageUrl: string | null;
-            id: string;
-            status: "active" | "inactive";
-            createdAt: Date;
+            attributes: Record<string, string | number | boolean> | null;
         };
+        id: string;
+        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
-        id: string;
-        vendorId: string;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     updateCustomProduct(user: JwtAccessPayload, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
@@ -744,22 +446,24 @@ export declare class VendorCatalogController {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     deleteCustomProduct(user: JwtAccessPayload, productId: string): Promise<{
         success: boolean;
     }>;
     submitSuggestion(user: JwtAccessPayload, dto: CreateProductSuggestionDto): Promise<{
-        productId: string | null;
+        id: string;
         name: string;
+        status: "pending" | "rejected" | "approved";
+        createdAt: Date;
+        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
-        imageUrl: string | null;
-        id: string;
-        status: "pending" | "rejected" | "approved";
-        createdAt: Date;
         vendorId: string;
+        productId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;

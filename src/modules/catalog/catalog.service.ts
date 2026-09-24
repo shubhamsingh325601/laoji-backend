@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -22,7 +22,14 @@ import {
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
-import { haversineKm, isVendorOpenNow } from './catalog.types';
+import {
+  BUSINESS_TYPE_ROOT_CATEGORY,
+  categoryBusinessType,
+  haversineKm,
+  isCategoryVisibleTo,
+  isVendorOpenNow,
+} from './catalog.types';
+import { productFormFor, readProductAttributes } from './product-forms';
 import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -35,6 +42,7 @@ import type {
   UpdateVendorProductDto,
   UpsertVendorProductDto,
 } from './dto/vendor-product.dto';
+import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type {
   CreateMenuCategoryDto,
@@ -296,11 +304,13 @@ export class CatalogService {
     for (const p of allProducts) {
       countByCategory.set(p.categoryId, (countByCategory.get(p.categoryId) ?? 0) + 1);
     }
+    const byId = new Map(all.map((c) => [c.id, c]));
     const roots = all.filter((c) => !c.parentId);
     return roots.map((root) => ({
       id: root.id,
       name: root.name,
       imageUrl: root.imageUrl,
+      businessType: categoryBusinessType(root, byId),
       subcategories: all
         .filter((c) => c.parentId === root.id)
         .map((sub) => ({
@@ -308,6 +318,7 @@ export class CatalogService {
           name: sub.name,
           imageUrl: sub.imageUrl,
           parentId: sub.parentId,
+          businessType: categoryBusinessType(sub, byId),
           productCount: countByCategory.get(sub.id) ?? 0,
         })),
     }));
@@ -410,7 +421,7 @@ export class CatalogService {
     return row;
   }
 
-  async createProduct(dto: CreateProductDto) {
+  async createProduct(dto: CreateProductDto & { attributes?: Record<string, string | number | boolean> | null }) {
     const [row] = await this.db.insert(products).values(dto).returning();
     return row;
   }
@@ -465,6 +476,76 @@ export class CatalogService {
     return { success: true, message: `Product "${prod.name}" deleted successfully.` };
   }
 
+  // ---------- Vendor: categories & catalog for its business type ----------
+
+  private async categoryIdsVisibleTo(businessType: string) {
+    const all = await this.listCategoriesFlat();
+    const byId = new Map(all.map((c) => [c.id, c]));
+    return {
+      all,
+      visible: new Set(
+        all.filter((c) => isCategoryVisibleTo(categoryBusinessType(c, byId), businessType)).map((c) => c.id),
+      ),
+    };
+  }
+
+  // Categories a vendor can file products under: leaves only (a root with
+  // subcategories is just a grouping), limited to its business type.
+  async listVendorCategories(vendor: { businessType: string }) {
+    const { all, visible } = await this.categoryIdsVisibleTo(vendor.businessType);
+    const parentIds = new Set(all.map((c) => c.parentId));
+    return all.filter((c) => visible.has(c.id) && !parentIds.has(c.id));
+  }
+
+  // For when none of the business type's categories fit. Filed under that
+  // type's root category (created on first use); an existing category with
+  // the same name is returned instead of creating a duplicate.
+  async createVendorCategory(vendor: { businessType: string }, name: string) {
+    const rootName = BUSINESS_TYPE_ROOT_CATEGORY[vendor.businessType];
+    if (!rootName) {
+      throw new BadRequestException('Restaurants manage menu categories from the menu screen');
+    }
+    const trimmed = name.trim();
+    if (!trimmed) throw new BadRequestException('Category name is required');
+    const existing = (await this.listVendorCategories(vendor)).find(
+      (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (existing) return existing;
+
+    let [root] = await this.db
+      .select()
+      .from(categories)
+      .where(
+        and(
+          isNull(categories.parentId),
+          eq(categories.businessType, vendor.businessType),
+          ilike(categories.name, rootName),
+        ),
+      )
+      .limit(1);
+    if (!root) {
+      [root] = await this.db
+        .insert(categories)
+        .values({ name: rootName, businessType: vendor.businessType })
+        .returning();
+    }
+    const [created] = await this.db
+      .insert(categories)
+      .values({ name: trimmed, parentId: root.id, businessType: vendor.businessType })
+      .returning();
+    return created;
+  }
+
+  // Master catalog as a vendor browses it: only products in its business
+  // type's categories, so a clothing store isn't shown groceries.
+  async listVendorCatalogProducts(vendor: { businessType: string }, categoryId?: string) {
+    const [{ visible }, rows] = await Promise.all([
+      this.categoryIdsVisibleTo(vendor.businessType),
+      this.listProducts(categoryId),
+    ]);
+    return rows.filter((p) => visible.has(p.categoryId));
+  }
+
   // ---------- Vendor: own stock/price/availability ----------
 
   async listVendorProducts(vendorId: string) {
@@ -490,6 +571,9 @@ export class CatalogService {
           price: dto.price,
           stockQty: dto.stockQty,
           isAvailable: dto.isAvailable ?? existing.isAvailable,
+          offerTag: dto.offerTag !== undefined ? dto.offerTag || null : existing.offerTag,
+          lowStockThreshold:
+            dto.lowStockThreshold !== undefined ? dto.lowStockThreshold : existing.lowStockThreshold,
           updatedAt: new Date(),
         })
         .where(eq(vendorProducts.id, existing.id))
@@ -505,9 +589,39 @@ export class CatalogService {
         price: dto.price,
         stockQty: dto.stockQty,
         isAvailable: dto.isAvailable ?? true,
+        offerTag: dto.offerTag || null,
+        lowStockThreshold: dto.lowStockThreshold,
       })
       .returning();
     return created;
+  }
+
+  async createVendorProduct(vendor: { id: string; businessType: string }, dto: CreateGroceryProductDto) {
+    const attributes =
+      dto.attributes === undefined
+        ? null
+        : readProductAttributes(productFormFor(vendor.businessType), { ...dto, attributes: dto.attributes });
+    const product = await this.createProduct({
+      categoryId: dto.categoryId,
+      name: dto.name,
+      brand: dto.brand,
+      unit: dto.unit,
+      size: dto.size,
+      mrp: dto.mrp,
+      imageUrl: dto.imageUrl,
+      attributes,
+    });
+
+    const listing = await this.upsertVendorProduct(vendor.id, {
+      productId: product.id,
+      price: dto.price,
+      stockQty: dto.stockQty,
+      isAvailable: true,
+      offerTag: dto.offerTag,
+      lowStockThreshold: dto.lowStockThreshold,
+    });
+
+    return { ...listing, product };
   }
 
   private async requireOwnVendorProduct(vendorId: string, id: string) {

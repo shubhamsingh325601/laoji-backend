@@ -53,6 +53,7 @@ const crypto_1 = require("crypto");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const catalog_types_1 = require("./catalog.types");
+const product_forms_1 = require("./product-forms");
 const notification_service_1 = require("../notification/notification.service");
 const product_suggestion_1 = require("../notification/templates/push/product-suggestion");
 let CatalogService = class CatalogService {
@@ -254,11 +255,13 @@ let CatalogService = class CatalogService {
         for (const p of allProducts) {
             countByCategory.set(p.categoryId, (countByCategory.get(p.categoryId) ?? 0) + 1);
         }
+        const byId = new Map(all.map((c) => [c.id, c]));
         const roots = all.filter((c) => !c.parentId);
         return roots.map((root) => ({
             id: root.id,
             name: root.name,
             imageUrl: root.imageUrl,
+            businessType: (0, catalog_types_1.categoryBusinessType)(root, byId),
             subcategories: all
                 .filter((c) => c.parentId === root.id)
                 .map((sub) => ({
@@ -266,6 +269,7 @@ let CatalogService = class CatalogService {
                 name: sub.name,
                 imageUrl: sub.imageUrl,
                 parentId: sub.parentId,
+                businessType: (0, catalog_types_1.categoryBusinessType)(sub, byId),
                 productCount: countByCategory.get(sub.id) ?? 0,
             })),
         }));
@@ -383,6 +387,54 @@ let CatalogService = class CatalogService {
         await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, id));
         return { success: true, message: `Product "${prod.name}" deleted successfully.` };
     }
+    async categoryIdsVisibleTo(businessType) {
+        const all = await this.listCategoriesFlat();
+        const byId = new Map(all.map((c) => [c.id, c]));
+        return {
+            all,
+            visible: new Set(all.filter((c) => (0, catalog_types_1.isCategoryVisibleTo)((0, catalog_types_1.categoryBusinessType)(c, byId), businessType)).map((c) => c.id)),
+        };
+    }
+    async listVendorCategories(vendor) {
+        const { all, visible } = await this.categoryIdsVisibleTo(vendor.businessType);
+        const parentIds = new Set(all.map((c) => c.parentId));
+        return all.filter((c) => visible.has(c.id) && !parentIds.has(c.id));
+    }
+    async createVendorCategory(vendor, name) {
+        const rootName = catalog_types_1.BUSINESS_TYPE_ROOT_CATEGORY[vendor.businessType];
+        if (!rootName) {
+            throw new common_1.BadRequestException('Restaurants manage menu categories from the menu screen');
+        }
+        const trimmed = name.trim();
+        if (!trimmed)
+            throw new common_1.BadRequestException('Category name is required');
+        const existing = (await this.listVendorCategories(vendor)).find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+        if (existing)
+            return existing;
+        let [root] = await this.db
+            .select()
+            .from(schema_1.categories)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.isNull)(schema_1.categories.parentId), (0, drizzle_orm_1.eq)(schema_1.categories.businessType, vendor.businessType), (0, drizzle_orm_1.ilike)(schema_1.categories.name, rootName)))
+            .limit(1);
+        if (!root) {
+            [root] = await this.db
+                .insert(schema_1.categories)
+                .values({ name: rootName, businessType: vendor.businessType })
+                .returning();
+        }
+        const [created] = await this.db
+            .insert(schema_1.categories)
+            .values({ name: trimmed, parentId: root.id, businessType: vendor.businessType })
+            .returning();
+        return created;
+    }
+    async listVendorCatalogProducts(vendor, categoryId) {
+        const [{ visible }, rows] = await Promise.all([
+            this.categoryIdsVisibleTo(vendor.businessType),
+            this.listProducts(categoryId),
+        ]);
+        return rows.filter((p) => visible.has(p.categoryId));
+    }
     async listVendorProducts(vendorId) {
         const rows = await this.db
             .select({ vendorProduct: schema_1.vendorProducts, product: schema_1.products })
@@ -404,6 +456,8 @@ let CatalogService = class CatalogService {
                 price: dto.price,
                 stockQty: dto.stockQty,
                 isAvailable: dto.isAvailable ?? existing.isAvailable,
+                offerTag: dto.offerTag !== undefined ? dto.offerTag || null : existing.offerTag,
+                lowStockThreshold: dto.lowStockThreshold !== undefined ? dto.lowStockThreshold : existing.lowStockThreshold,
                 updatedAt: new Date(),
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, existing.id))
@@ -418,9 +472,35 @@ let CatalogService = class CatalogService {
             price: dto.price,
             stockQty: dto.stockQty,
             isAvailable: dto.isAvailable ?? true,
+            offerTag: dto.offerTag || null,
+            lowStockThreshold: dto.lowStockThreshold,
         })
             .returning();
         return created;
+    }
+    async createVendorProduct(vendor, dto) {
+        const attributes = dto.attributes === undefined
+            ? null
+            : (0, product_forms_1.readProductAttributes)((0, product_forms_1.productFormFor)(vendor.businessType), { ...dto, attributes: dto.attributes });
+        const product = await this.createProduct({
+            categoryId: dto.categoryId,
+            name: dto.name,
+            brand: dto.brand,
+            unit: dto.unit,
+            size: dto.size,
+            mrp: dto.mrp,
+            imageUrl: dto.imageUrl,
+            attributes,
+        });
+        const listing = await this.upsertVendorProduct(vendor.id, {
+            productId: product.id,
+            price: dto.price,
+            stockQty: dto.stockQty,
+            isAvailable: true,
+            offerTag: dto.offerTag,
+            lowStockThreshold: dto.lowStockThreshold,
+        });
+        return { ...listing, product };
     }
     async requireOwnVendorProduct(vendorId, id) {
         const [row] = await this.db.select().from(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id)).limit(1);

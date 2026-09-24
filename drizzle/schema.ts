@@ -223,6 +223,11 @@ export const categories = pgTable('categories', {
   parentId: uuid('parent_id').references((): AnyPgColumn => categories.id),
   name: varchar('name', { length: 150 }).notNull(),
   imageUrl: text('image_url'),
+  // Which vendor business type (vendors.business_type) this category belongs
+  // to, so a clothing store isn't offered grocery categories. Normally set on
+  // root categories only — subcategories inherit their parent's. Null =
+  // 'grocery': every category created before this column existed was one.
+  businessType: varchar('business_type', { length: 50 }),
 });
 
 export const productStatusEnum = pgEnum('product_status', ['active', 'inactive']);
@@ -239,6 +244,11 @@ export const products = pgTable('products', {
   size: varchar('size', { length: 50 }),
   mrp: doublePrecision('mrp'),
   imageUrl: text('image_url'),
+  // Business-type-specific details from the vendor's add-product form
+  // (e.g. clothing "gender", medical "prescriptionRequired") — the fields
+  // are defined per type in src/modules/catalog/product-forms.ts. Null for
+  // admin-created products and ones added by app builds predating the form.
+  attributes: jsonb('attributes').$type<Record<string, string | number | boolean>>(),
   status: productStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -256,6 +266,8 @@ export const vendorProducts = pgTable(
     price: doublePrecision('price').notNull(),
     stockQty: integer('stock_qty').notNull().default(0),
     isAvailable: boolean('is_available').notNull().default(true),
+    offerTag: varchar('offer_tag', { length: 100 }),
+    lowStockThreshold: integer('low_stock_threshold'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)],

@@ -6,6 +6,7 @@ import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type { CreateVendorCustomProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
@@ -80,7 +81,6 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
-        imageUrl: string | null;
         id: string;
         createdAt: Date;
         userId: string;
@@ -104,6 +104,7 @@ export declare class CatalogService {
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
         businessType: string;
     }>;
     updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto): Promise<{
@@ -223,11 +224,31 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }, "single", Record<"categories", "not-null">, false, never, {
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -299,23 +320,45 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }>;
     listCategoriesTree(): Promise<{
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string;
         subcategories: {
             id: string;
             name: string;
             imageUrl: string | null;
             parentId: string | null;
+            businessType: string;
             productCount: number;
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        id: string;
         name: string;
         imageUrl: string | null;
-        id: string;
+        businessType: string | null;
         parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
@@ -323,6 +366,7 @@ export declare class CatalogService {
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
@@ -490,6 +534,25 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -534,6 +597,7 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }[], {
@@ -698,6 +762,25 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -743,21 +826,25 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }>;
-    createProduct(dto: CreateProductDto): Promise<{
-        name: string;
+    createProduct(dto: CreateProductDto & {
+        attributes?: Record<string, string | number | boolean> | null;
+    }): Promise<{
+        id: string;
         brand: string | null;
+        name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
-        description: string | null;
-        imageUrl: string | null;
-        id: string;
-        status: "active" | "inactive";
-        createdAt: Date;
+        attributes: Record<string, string | number | boolean> | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -769,6 +856,7 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }>;
@@ -776,6 +864,41 @@ export declare class CatalogService {
         success: boolean;
         message: string;
     }>;
+    private categoryIdsVisibleTo;
+    listVendorCategories(vendor: {
+        businessType: string;
+    }): Promise<{
+        id: string;
+        parentId: string | null;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+    }[]>;
+    createVendorCategory(vendor: {
+        businessType: string;
+    }, name: string): Promise<{
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+    }>;
+    listVendorCatalogProducts(vendor: {
+        businessType: string;
+    }, categoryId?: string): Promise<{
+        id: string;
+        categoryId: string;
+        brand: string | null;
+        name: string;
+        description: string | null;
+        unit: string;
+        size: string | null;
+        mrp: number | null;
+        imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
+        status: "active" | "inactive";
+        createdAt: Date;
+    }[]>;
     listVendorProducts(vendorId: string): Promise<{
         product: {
             id: string;
@@ -787,6 +910,7 @@ export declare class CatalogService {
             size: string | null;
             mrp: number | null;
             imageUrl: string | null;
+            attributes: Record<string, string | number | boolean> | null;
             status: "active" | "inactive";
             createdAt: Date;
         };
@@ -796,16 +920,48 @@ export declare class CatalogService {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }[]>;
     upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto): Promise<{
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+    }>;
+    createVendorProduct(vendor: {
         id: string;
-        vendorId: string;
+        businessType: string;
+    }, dto: CreateGroceryProductDto): Promise<{
+        product: {
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            categoryId: string;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+        };
+        id: string;
         updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
@@ -815,30 +971,35 @@ export declare class CatalogService {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     deleteVendorProduct(vendorId: string, id: string): Promise<void>;
     createVendorCustomProduct(vendorId: string, dto: CreateVendorCustomProductDto): Promise<{
         product: {
-            name: string;
+            id: string;
             brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            description: string | null;
-            imageUrl: string | null;
-            id: string;
-            status: "active" | "inactive";
-            createdAt: Date;
+            attributes: Record<string, string | number | boolean> | null;
         };
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
-        id: string;
-        vendorId: string;
-        updatedAt: Date;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
     }>;
     updateVendorCustomProduct(vendorId: string, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
         product: any;
@@ -848,6 +1009,8 @@ export declare class CatalogService {
         price: number;
         stockQty: number;
         isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
         updatedAt: Date;
     }>;
     deleteVendorCustomProduct(vendorId: string, productId: string): Promise<{
@@ -857,17 +1020,18 @@ export declare class CatalogService {
     publicListProducts(lat: number, lng: number, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
-        name: string;
+        id: string;
         brand: string | null;
+        name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
-        description: string | null;
-        imageUrl: string | null;
-        id: string;
-        status: "active" | "inactive";
-        createdAt: Date;
+        attributes: Record<string, string | number | boolean> | null;
     }[]>;
     publicGetProduct(id: string, lat: number, lng: number): Promise<{
         price: number;
@@ -881,6 +1045,7 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }>;
@@ -941,10 +1106,10 @@ export declare class CatalogService {
         dishes: any[];
     }>;
     getOrCreateRestaurant(vendorId: string): Promise<{
-        name: string;
-        imageUrl: string | null;
         id: string;
+        name: string;
         isOpen: boolean;
+        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
         ratingAvg: number;
@@ -966,8 +1131,8 @@ export declare class CatalogService {
         sortOrder: number;
     }[]>;
     createMenuCategory(vendorId: string, dto: CreateMenuCategoryDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         restaurantId: string;
         sortOrder: number;
     }>;
@@ -1005,25 +1170,25 @@ export declare class CatalogService {
     }[]>;
     createMenuItem(vendorId: string, dto: CreateMenuItemDto): Promise<{
         addons: {
-            price: number;
-            name: string;
             id: string;
+            name: string;
+            price: number;
             menuItemId: string;
             isRequired: boolean;
         }[];
         variants: {
-            name: string;
             id: string;
+            name: string;
             isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
         }[];
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        description: string | null;
         price: number;
         isAvailable: boolean;
-        name: string;
-        description: string | null;
-        imageUrl: string | null;
-        id: string;
         menuCategoryId: string;
         isVeg: boolean;
     }>;
@@ -1056,19 +1221,19 @@ export declare class CatalogService {
     private replaceAddons;
     private replaceVariants;
     createProductSuggestion(vendorId: string, dto: CreateProductSuggestionDto): Promise<{
-        productId: string | null;
-        name: string;
-        categoryId: string;
-        unit: string;
-        size: string | null;
-        imageUrl: string | null;
         id: string;
+        name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        imageUrl: string | null;
+        categoryId: string;
+        unit: string;
+        size: string | null;
+        vendorId: string;
+        productId: string | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -1561,17 +1726,18 @@ export declare class CatalogService {
     private requirePendingSuggestion;
     approveProductSuggestion(adminUserId: string, id: string): Promise<{
         product: {
-            name: string;
+            id: string;
             brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            description: string | null;
-            imageUrl: string | null;
-            id: string;
-            status: "active" | "inactive";
-            createdAt: Date;
+            attributes: Record<string, string | number | boolean> | null;
         };
         id: string;
         vendorId: string;

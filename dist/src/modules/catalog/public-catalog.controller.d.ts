@@ -73,11 +73,31 @@ export declare class PublicCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }, "single", Record<"categories", "not-null">, false, never, {
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -149,21 +169,41 @@ export declare class PublicCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
     }>;
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
-        name: string;
+        id: string;
         brand: string | null;
+        name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
-        description: string | null;
-        imageUrl: string | null;
-        id: string;
-        status: "active" | "inactive";
-        createdAt: Date;
+        attributes: Record<string, string | number | boolean> | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
         price: number;
@@ -177,6 +217,7 @@ export declare class PublicCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }>;

@@ -11,18 +11,21 @@ export declare class AdminCatalogController {
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string;
         subcategories: {
             id: string;
             name: string;
             imageUrl: string | null;
             parentId: string | null;
+            businessType: string;
             productCount: number;
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        id: string;
         name: string;
         imageUrl: string | null;
-        id: string;
+        businessType: string | null;
         parentId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
@@ -30,6 +33,7 @@ export declare class AdminCatalogController {
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
@@ -197,6 +201,25 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -241,6 +264,7 @@ export declare class AdminCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }[], {
@@ -405,6 +429,25 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -441,17 +484,18 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        name: string;
+        id: string;
         brand: string | null;
+        name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        imageUrl: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
-        description: string | null;
-        imageUrl: string | null;
-        id: string;
-        status: "active" | "inactive";
-        createdAt: Date;
+        attributes: Record<string, string | number | boolean> | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -463,6 +507,7 @@ export declare class AdminCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
         createdAt: Date;
     }>;
@@ -597,17 +642,18 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            name: string;
+            id: string;
             brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            description: string | null;
-            imageUrl: string | null;
-            id: string;
-            status: "active" | "inactive";
-            createdAt: Date;
+            attributes: Record<string, string | number | boolean> | null;
         };
         id: string;
         vendorId: string;

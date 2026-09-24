@@ -133,6 +133,7 @@ exports.categories = (0, pg_core_1.pgTable)('categories', {
     parentId: (0, pg_core_1.uuid)('parent_id').references(() => exports.categories.id),
     name: (0, pg_core_1.varchar)('name', { length: 150 }).notNull(),
     imageUrl: (0, pg_core_1.text)('image_url'),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }),
 });
 exports.productStatusEnum = (0, pg_core_1.pgEnum)('product_status', ['active', 'inactive']);
 exports.products = (0, pg_core_1.pgTable)('products', {
@@ -147,6 +148,7 @@ exports.products = (0, pg_core_1.pgTable)('products', {
     size: (0, pg_core_1.varchar)('size', { length: 50 }),
     mrp: (0, pg_core_1.doublePrecision)('mrp'),
     imageUrl: (0, pg_core_1.text)('image_url'),
+    attributes: (0, pg_core_1.jsonb)('attributes').$type(),
     status: (0, exports.productStatusEnum)('status').notNull().default('active'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -161,6 +163,8 @@ exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
     price: (0, pg_core_1.doublePrecision)('price').notNull(),
     stockQty: (0, pg_core_1.integer)('stock_qty').notNull().default(0),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    offerTag: (0, pg_core_1.varchar)('offer_tag', { length: 100 }),
+    lowStockThreshold: (0, pg_core_1.integer)('low_stock_threshold'),
     updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.uniqueIndex)('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)]);
 exports.restaurants = (0, pg_core_1.pgTable)('restaurants', {

@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
 exports.haversineKm = haversineKm;
+exports.categoryBusinessType = categoryBusinessType;
+exports.isCategoryVisibleTo = isCategoryVisibleTo;
 exports.isVendorOpenNow = isVendorOpenNow;
 function haversineKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
@@ -12,6 +15,34 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 function toRad(deg) {
     return (deg * Math.PI) / 180;
+}
+exports.BUSINESS_TYPES = [
+    'grocery',
+    'restaurant',
+    'clothing',
+    'stationery',
+    'medical',
+    'vegetables_fruits',
+    'electronics',
+    'general',
+];
+exports.BUSINESS_TYPE_ROOT_CATEGORY = {
+    grocery: 'Grocery',
+    clothing: 'Clothing',
+    stationery: 'Stationery',
+    medical: 'Medical',
+    vegetables_fruits: 'Fruits & Vegetables',
+    electronics: 'Electronics',
+    general: 'General Store',
+};
+function categoryBusinessType(category, byId) {
+    if (category.businessType)
+        return category.businessType;
+    const parent = category.parentId ? byId.get(category.parentId) : undefined;
+    return parent?.businessType ?? 'grocery';
+}
+function isCategoryVisibleTo(categoryType, vendorBusinessType) {
+    return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
 }
 function isVendorOpenNow(vendor, now = new Date()) {
     if (!vendor.isOpen)

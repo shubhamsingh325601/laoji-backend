@@ -144,6 +144,23 @@ needs them (Cloudinary, Firebase, Resend keys are stubbed/blank until Phase 2+).
   view (cheapest in-radius price, `inStock` if any in-radius vendor has
   stock), consistent with the "customer never sees vendor identity" rule
   (PRD §4.1).
+- **Categories are scoped by vendor business type** (`categories.business_type`).
+  Null means grocery (every category predates the column), and subcategories
+  inherit their root's type, so admin only tags roots. Vendors see only their
+  own type's categories and catalog (`GET /vendor/catalog/categories` and
+  `/vendor/catalog/products`); a `general` store sees all of them. Vendors can
+  add a category (`POST /vendor/catalog/categories`), which is filed under a
+  per-type root such as "Clothing" that is created on first use.
+  `POST /vendor/products/new` doesn't enforce the scope, so older app builds
+  keep working.
+- **The add-product form is served per business type**
+  (`GET /vendor/catalog/product-form`, defined in
+  `src/modules/catalog/product-forms.ts`), and the Vendor app renders it field
+  by field. You can change a form with a backend deploy, without an app
+  release. Fields beyond name/brand/unit/size go to `products.attributes`
+  (jsonb). `POST /vendor/products/new` checks them against the form only when
+  the request includes `attributes`. Requests without them come from older
+  app builds, which are accepted as before.
 
 ## Orders & Allocation (Phase 4) notes
 

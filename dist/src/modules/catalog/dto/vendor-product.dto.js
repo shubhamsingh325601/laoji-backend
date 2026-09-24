@@ -16,6 +16,8 @@ class UpsertVendorProductDto {
     price;
     stockQty;
     isAvailable;
+    offerTag;
+    lowStockThreshold;
 }
 exports.UpsertVendorProductDto = UpsertVendorProductDto;
 __decorate([
@@ -37,10 +39,24 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpsertVendorProductDto.prototype, "isAvailable", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 100),
+    __metadata("design:type", String)
+], UpsertVendorProductDto.prototype, "offerTag", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpsertVendorProductDto.prototype, "lowStockThreshold", void 0);
 class UpdateVendorProductDto {
     price;
     stockQty;
     isAvailable;
+    offerTag;
+    lowStockThreshold;
 }
 exports.UpdateVendorProductDto = UpdateVendorProductDto;
 __decorate([
@@ -60,6 +76,18 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateVendorProductDto.prototype, "isAvailable", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 100),
+    __metadata("design:type", String)
+], UpdateVendorProductDto.prototype, "offerTag", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateVendorProductDto.prototype, "lowStockThreshold", void 0);
 class CreateVendorCustomProductDto {
     name;
     brand;

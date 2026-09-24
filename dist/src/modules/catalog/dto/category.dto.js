@@ -9,12 +9,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateCategoryDto = exports.CreateCategoryDto = void 0;
+exports.CreateVendorCategoryDto = exports.UpdateCategoryDto = exports.CreateCategoryDto = void 0;
 const class_validator_1 = require("class-validator");
+const catalog_types_1 = require("../catalog.types");
 class CreateCategoryDto {
     name;
     parentId;
     imageUrl;
+    businessType;
 }
 exports.CreateCategoryDto = CreateCategoryDto;
 __decorate([
@@ -32,10 +34,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateCategoryDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(catalog_types_1.BUSINESS_TYPES),
+    __metadata("design:type", String)
+], CreateCategoryDto.prototype, "businessType", void 0);
 class UpdateCategoryDto {
     name;
     parentId;
     imageUrl;
+    businessType;
 }
 exports.UpdateCategoryDto = UpdateCategoryDto;
 __decorate([
@@ -54,4 +62,18 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateCategoryDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(catalog_types_1.BUSINESS_TYPES),
+    __metadata("design:type", String)
+], UpdateCategoryDto.prototype, "businessType", void 0);
+class CreateVendorCategoryDto {
+    name;
+}
+exports.CreateVendorCategoryDto = CreateVendorCategoryDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 150),
+    __metadata("design:type", String)
+], CreateVendorCategoryDto.prototype, "name", void 0);
 //# sourceMappingURL=category.dto.js.map
