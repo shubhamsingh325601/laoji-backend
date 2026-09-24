@@ -112,8 +112,8 @@ export class UserService {
       await this.db.insert(addresses).values({
         userId: created.id,
         label: 'Home',
-        lat: 16.705,
-        lng: 74.2433,
+        lat: 24.924,
+        lng: 76.283,
         formattedAddress: dto.address + (dto.city ? `, ${dto.city}` : ''),
         isDefault: true,
       });

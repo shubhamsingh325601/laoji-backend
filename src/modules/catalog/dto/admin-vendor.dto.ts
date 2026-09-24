@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
 
 export class CreateAdminVendorDto {
   @IsString()
@@ -127,6 +127,10 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   activity?: 'active' | 'inactive';
+
+  @IsOptional()
+  @IsBoolean()
+  isOpen?: boolean;
 
   @IsOptional()
   @IsString()

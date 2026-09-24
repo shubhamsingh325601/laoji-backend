@@ -877,7 +877,7 @@ export class CatalogService {
   async publicListRestaurants(lat: number, lng: number) {
     const allVendors = await this.db.select().from(vendors);
     const nearbyVendors = allVendors.filter(
-      (v) => haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
+      (v) => v.isOpen && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
     );
     const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
     const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
@@ -886,7 +886,7 @@ export class CatalogService {
     const rows = await this.db
       .select()
       .from(restaurants)
-      .where(inArray(restaurants.vendorId, vendorIds));
+      .where(and(inArray(restaurants.vendorId, vendorIds), eq(restaurants.isOpen, true)));
 
     const restIds = rows.map((r) => r.id);
     const ratingsMap = new Map<string, { count: number; avg: number }>();
@@ -996,8 +996,8 @@ export class CatalogService {
     }
 
     const inRadius = await this.vendorsInRadius(lat, lng);
-    const groceryVendorIds = inRadius.filter((v) => v.type === 'grocery').map((v) => v.id);
-    const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+    const groceryVendorIds = inRadius.filter((v) => (v.type === 'grocery' || v.type === 'both') && v.isOpen).map((v) => v.id);
+    const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery' && v.isOpen).map((v) => v.id);
 
     // 1. Matched products
     let productsList: any[] = [];
@@ -1478,6 +1478,7 @@ export class CatalogService {
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
+      isOpen: vendor.isOpen,
       deliveryRadiusKm: vendor.radiusKm,
       commissionPct: 10,
       cashbackPct: 5,
@@ -1519,6 +1520,7 @@ export class CatalogService {
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
+      isOpen: vendor.isOpen,
       deliveryRadiusKm: vendor.radiusKm,
       commissionPct: 10,
       cashbackPct: 5,
@@ -1598,8 +1600,8 @@ export class CatalogService {
         bankAccount: dto.bankAccount?.trim() || null,
         bankIfsc: dto.bankIfsc?.trim().toUpperCase() || null,
         upiId: dto.upiId?.trim() || null,
-        pickupLat: dto.pickupLat ?? 16.705,
-        pickupLng: dto.pickupLng ?? 74.2433,
+        pickupLat: dto.pickupLat ?? 24.924,
+        pickupLng: dto.pickupLng ?? 76.283,
         radiusKm: dto.deliveryRadiusKm ?? 5,
         kycStatus: kycStat,
         isOpen: true,
@@ -1670,6 +1672,7 @@ export class CatalogService {
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
     if (dto.kycStatus !== undefined && dto.kycStatus !== 'unverified') updateFields.kycStatus = dto.kycStatus;
     if (dto.activity !== undefined) updateFields.isOpen = dto.activity === 'active';
+    if (dto.isOpen !== undefined) updateFields.isOpen = dto.isOpen;
     if (dto.gstNumber !== undefined) updateFields.gstNumber = dto.gstNumber ? dto.gstNumber.trim() : null;
     if (dto.aadhaarNumber !== undefined) updateFields.aadhaarNumber = dto.aadhaarNumber ? dto.aadhaarNumber.trim() : null;
     if (dto.bankAccount !== undefined) updateFields.bankAccount = dto.bankAccount ? dto.bankAccount.trim() : null;
@@ -1678,6 +1681,9 @@ export class CatalogService {
 
     if (Object.keys(updateFields).length > 0) {
       await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id));
+      if (updateFields.isOpen !== undefined) {
+        await this.db.update(restaurants).set({ isOpen: updateFields.isOpen }).where(eq(restaurants.vendorId, id));
+      }
     }
 
     if (dto.phone !== undefined || dto.email !== undefined) {

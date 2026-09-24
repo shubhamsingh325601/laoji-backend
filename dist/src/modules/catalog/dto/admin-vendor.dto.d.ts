@@ -31,6 +31,7 @@ export declare class UpdateAdminVendorDto {
     maxDiscountCap?: number;
     kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
     activity?: 'active' | 'inactive';
+    isOpen?: boolean;
     gstNumber?: string;
     aadhaarNumber?: string;
     bankAccount?: string;

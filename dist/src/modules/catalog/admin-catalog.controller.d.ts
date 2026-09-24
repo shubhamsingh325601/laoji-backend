@@ -22,9 +22,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        id: string;
         name: string;
         imageUrl: string | null;
-        id: string;
         businessType: string | null;
         parentId: string | null;
     }>;
@@ -484,17 +484,17 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        name: string;
+        id: string;
         brand: string | null;
+        name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        imageUrl: string | null;
+        description: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
         mrp: number | null;
-        imageUrl: string | null;
-        description: string | null;
-        id: string;
-        status: "active" | "inactive";
-        createdAt: Date;
         attributes: Record<string, string | number | boolean> | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
@@ -531,6 +531,7 @@ export declare class AdminCatalogController {
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
         deliveryRadiusKm: number;
         commissionPct: number;
         cashbackPct: number;
@@ -553,6 +554,7 @@ export declare class AdminCatalogController {
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
         deliveryRadiusKm: number;
         commissionPct: number;
         cashbackPct: number;
@@ -601,6 +603,7 @@ export declare class AdminCatalogController {
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
         deliveryRadiusKm: number;
         commissionPct: number;
         cashbackPct: number;
@@ -642,17 +645,17 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            name: string;
+            id: string;
             brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            description: string | null;
             categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
-            imageUrl: string | null;
-            description: string | null;
-            id: string;
-            status: "active" | "inactive";
-            createdAt: Date;
             attributes: Record<string, string | number | boolean> | null;
         };
         id: string;

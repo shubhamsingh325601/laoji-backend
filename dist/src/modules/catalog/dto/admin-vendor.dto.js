@@ -128,6 +128,7 @@ class UpdateAdminVendorDto {
     maxDiscountCap;
     kycStatus;
     activity;
+    isOpen;
     gstNumber;
     aadhaarNumber;
     bankAccount;
@@ -207,6 +208,11 @@ __decorate([
     (0, class_validator_1.IsIn)(['active', 'inactive']),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "activity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateAdminVendorDto.prototype, "isOpen", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

@@ -865,8 +865,8 @@ export class DeliveryService {
         vehicleType: dto.vehicleType,
         kycStatus: kycStat,
         isOnline: true,
-        currentLat: 16.705,
-        currentLng: 74.2433,
+        currentLat: 24.924,
+        currentLng: 76.283,
       })
       .returning();
 

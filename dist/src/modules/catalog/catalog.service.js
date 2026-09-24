@@ -725,7 +725,7 @@ let CatalogService = class CatalogService {
     }
     async publicListRestaurants(lat, lng) {
         const allVendors = await this.db.select().from(schema_1.vendors);
-        const nearbyVendors = allVendors.filter((v) => (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
+        const nearbyVendors = allVendors.filter((v) => v.isOpen && (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
         const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
         const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
         if (vendorIds.length === 0)
@@ -733,7 +733,7 @@ let CatalogService = class CatalogService {
         const rows = await this.db
             .select()
             .from(schema_1.restaurants)
-            .where((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, vendorIds));
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.restaurants.isOpen, true)));
         const restIds = rows.map((r) => r.id);
         const ratingsMap = new Map();
         if (restIds.length > 0) {
@@ -826,8 +826,8 @@ let CatalogService = class CatalogService {
             return { products: [], restaurants: [], dishes: [] };
         }
         const inRadius = await this.vendorsInRadius(lat, lng);
-        const groceryVendorIds = inRadius.filter((v) => v.type === 'grocery').map((v) => v.id);
-        const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+        const groceryVendorIds = inRadius.filter((v) => (v.type === 'grocery' || v.type === 'both') && v.isOpen).map((v) => v.id);
+        const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery' && v.isOpen).map((v) => v.id);
         let productsList = [];
         if (groceryVendorIds.length > 0) {
             const pRows = await this.db
@@ -1190,6 +1190,7 @@ let CatalogService = class CatalogService {
             upiId: vendor.upiId,
             kycStatus: vendor.kycStatus,
             activity: vendor.isOpen ? 'active' : 'inactive',
+            isOpen: vendor.isOpen,
             deliveryRadiusKm: vendor.radiusKm,
             commissionPct: 10,
             cashbackPct: 5,
@@ -1228,6 +1229,7 @@ let CatalogService = class CatalogService {
             upiId: vendor.upiId,
             kycStatus: vendor.kycStatus,
             activity: vendor.isOpen ? 'active' : 'inactive',
+            isOpen: vendor.isOpen,
             deliveryRadiusKm: vendor.radiusKm,
             commissionPct: 10,
             cashbackPct: 5,
@@ -1296,8 +1298,8 @@ let CatalogService = class CatalogService {
             bankAccount: dto.bankAccount?.trim() || null,
             bankIfsc: dto.bankIfsc?.trim().toUpperCase() || null,
             upiId: dto.upiId?.trim() || null,
-            pickupLat: dto.pickupLat ?? 16.705,
-            pickupLng: dto.pickupLng ?? 74.2433,
+            pickupLat: dto.pickupLat ?? 24.924,
+            pickupLng: dto.pickupLng ?? 76.283,
             radiusKm: dto.deliveryRadiusKm ?? 5,
             kycStatus: kycStat,
             isOpen: true,
@@ -1371,6 +1373,8 @@ let CatalogService = class CatalogService {
             updateFields.kycStatus = dto.kycStatus;
         if (dto.activity !== undefined)
             updateFields.isOpen = dto.activity === 'active';
+        if (dto.isOpen !== undefined)
+            updateFields.isOpen = dto.isOpen;
         if (dto.gstNumber !== undefined)
             updateFields.gstNumber = dto.gstNumber ? dto.gstNumber.trim() : null;
         if (dto.aadhaarNumber !== undefined)
@@ -1383,6 +1387,9 @@ let CatalogService = class CatalogService {
             updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
         if (Object.keys(updateFields).length > 0) {
             await this.db.update(schema_1.vendors).set(updateFields).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
+            if (updateFields.isOpen !== undefined) {
+                await this.db.update(schema_1.restaurants).set({ isOpen: updateFields.isOpen }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id));
+            }
         }
         if (dto.phone !== undefined || dto.email !== undefined) {
             const userUpdates = {};
