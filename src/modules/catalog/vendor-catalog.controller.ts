@@ -8,7 +8,13 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
-import { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import {
+  CreateVendorCustomProductDto,
+  UpdateVendorCustomProductDto,
+  UpdateVendorProductDto,
+  UpsertVendorProductDto,
+} from './dto/vendor-product.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,6 +79,48 @@ export class VendorCatalogController {
   async deleteListing(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
     const vendor = await this.catalog.requireVendor(user.sub);
     return this.catalog.deleteVendorProduct(vendor.id, id);
+  }
+
+  @Get('vendor/categories')
+  listCategories() {
+    return this.catalog.listCategoriesFlat();
+  }
+
+  @Post('vendor/categories')
+  createCategory(@Body() dto: CreateCategoryDto) {
+    return this.catalog.createCategory(dto);
+  }
+
+  @Patch('vendor/categories/:id')
+  updateCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.catalog.updateCategory(id, dto);
+  }
+
+  @Delete('vendor/categories/:id')
+  deleteCategory(@Param('id') id: string) {
+    return this.catalog.deleteCategory(id);
+  }
+
+  @Post('vendor/products/custom')
+  async createCustomProduct(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateVendorCustomProductDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createVendorCustomProduct(vendor.id, dto);
+  }
+
+  @Patch('vendor/products/custom/:productId')
+  async updateCustomProduct(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('productId') productId: string,
+    @Body() dto: UpdateVendorCustomProductDto,
+  ) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.updateVendorCustomProduct(vendor.id, productId, dto);
+  }
+
+  @Delete('vendor/products/custom/:productId')
+  async deleteCustomProduct(@CurrentUser() user: JwtAccessPayload, @Param('productId') productId: string) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.deleteVendorCustomProduct(vendor.id, productId);
   }
 
   @Throttle({ productSuggestion: { limit: 5, ttl: 60_000 } })

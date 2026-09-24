@@ -6,10 +6,10 @@ export declare class VendorMenuController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     myRestaurant(user: JwtAccessPayload): Promise<{
-        id: string;
         name: string;
-        isOpen: boolean;
         imageUrl: string | null;
+        id: string;
+        isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
         ratingAvg: number;
@@ -30,8 +30,8 @@ export declare class VendorMenuController {
         sortOrder: number;
     }[]>;
     createMenuCategory(user: JwtAccessPayload, dto: CreateMenuCategoryDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         restaurantId: string;
         sortOrder: number;
     }>;
@@ -68,25 +68,25 @@ export declare class VendorMenuController {
     }[]>;
     createMenuItem(user: JwtAccessPayload, dto: CreateMenuItemDto): Promise<{
         addons: {
-            id: string;
-            name: string;
             price: number;
+            name: string;
+            id: string;
             menuItemId: string;
             isRequired: boolean;
         }[];
         variants: {
-            id: string;
             name: string;
+            id: string;
             isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
         }[];
-        id: string;
-        name: string;
-        imageUrl: string | null;
-        description: string | null;
         price: number;
         isAvailable: boolean;
+        name: string;
+        description: string | null;
+        imageUrl: string | null;
+        id: string;
         menuCategoryId: string;
         isVeg: boolean;
     }>;

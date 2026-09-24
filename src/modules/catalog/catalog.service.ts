@@ -29,7 +29,12 @@ import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
-import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type {
+  CreateVendorCustomProductDto,
+  UpdateVendorCustomProductDto,
+  UpdateVendorProductDto,
+  UpsertVendorProductDto,
+} from './dto/vendor-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type {
   CreateMenuCategoryDto,
@@ -527,6 +532,112 @@ export class CatalogService {
     await this.db.delete(vendorProducts).where(eq(vendorProducts.id, id));
   }
 
+  async createVendorCustomProduct(vendorId: string, dto: CreateVendorCustomProductDto) {
+    const [product] = await this.db
+      .insert(products)
+      .values({
+        categoryId: dto.categoryId,
+        brand: dto.brand || null,
+        name: dto.name,
+        description: dto.description || null,
+        unit: dto.unit,
+        size: dto.size || null,
+        mrp: dto.mrp ?? null,
+        imageUrl: dto.imageUrl || null,
+        status: 'active',
+      })
+      .returning();
+
+    const [listing] = await this.db
+      .insert(vendorProducts)
+      .values({
+        vendorId,
+        productId: product.id,
+        price: dto.price,
+        stockQty: dto.stockQty ?? 0,
+        isAvailable: dto.isAvailable ?? true,
+      })
+      .returning();
+
+    return { ...listing, product };
+  }
+
+  async updateVendorCustomProduct(vendorId: string, productId: string, dto: UpdateVendorCustomProductDto) {
+    const [listing] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.vendorId, vendorId), eq(vendorProducts.productId, productId)))
+      .limit(1);
+
+    if (!listing) throw new NotFoundException('Product listing not found');
+
+    const productUpdates: Record<string, any> = {};
+    if (dto.name !== undefined) productUpdates.name = dto.name;
+    if (dto.brand !== undefined) productUpdates.brand = dto.brand || null;
+    if (dto.categoryId !== undefined) productUpdates.categoryId = dto.categoryId;
+    if (dto.unit !== undefined) productUpdates.unit = dto.unit;
+    if (dto.size !== undefined) productUpdates.size = dto.size || null;
+    if (dto.mrp !== undefined) productUpdates.mrp = dto.mrp;
+    if (dto.imageUrl !== undefined) productUpdates.imageUrl = dto.imageUrl || null;
+    if (dto.description !== undefined) productUpdates.description = dto.description || null;
+
+    let updatedProduct: any = null;
+    if (Object.keys(productUpdates).length > 0) {
+      const [p] = await this.db
+        .update(products)
+        .set(productUpdates)
+        .where(eq(products.id, productId))
+        .returning();
+      updatedProduct = p;
+    } else {
+      updatedProduct = await this.getProduct(productId);
+    }
+
+    const listingUpdates: Record<string, any> = { updatedAt: new Date() };
+    if (dto.price !== undefined) listingUpdates.price = dto.price;
+    if (dto.stockQty !== undefined) listingUpdates.stockQty = dto.stockQty;
+    if (dto.isAvailable !== undefined) listingUpdates.isAvailable = dto.isAvailable;
+
+    const [updatedListing] = await this.db
+      .update(vendorProducts)
+      .set(listingUpdates)
+      .where(eq(vendorProducts.id, listing.id))
+      .returning();
+
+    return { ...updatedListing, product: updatedProduct };
+  }
+
+  async deleteVendorCustomProduct(vendorId: string, productId: string) {
+    const [listing] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.vendorId, vendorId), eq(vendorProducts.productId, productId)))
+      .limit(1);
+
+    if (!listing) throw new NotFoundException('Product listing not found');
+
+    await this.db.delete(vendorProducts).where(eq(vendorProducts.id, listing.id));
+
+    const [orderItem] = await this.db
+      .select({ id: groceryOrderItems.id })
+      .from(groceryOrderItems)
+      .where(eq(groceryOrderItems.productId, productId))
+      .limit(1);
+
+    if (!orderItem) {
+      const otherListings = await this.db
+        .select()
+        .from(vendorProducts)
+        .where(eq(vendorProducts.productId, productId))
+        .limit(1);
+      if (otherListings.length === 0) {
+        await this.db.delete(products).where(eq(products.id, productId));
+      }
+    }
+
+    return { success: true };
+  }
+
   // ---------- Public: customer browse (grocery) ----------
 
   /**
@@ -910,9 +1021,6 @@ export class CatalogService {
 
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
     if (!vendor) throw new NotFoundException('Vendor not found');
-    if (vendor.type === 'grocery') {
-      throw new ConflictException('Vendor is not registered as a restaurant');
-    }
 
     const [created] = await this.db.insert(restaurants).values({ vendorId, name: vendor.businessName }).returning();
     return created;

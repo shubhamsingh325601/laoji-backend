@@ -744,3 +744,17 @@ export const areaManagers = pgTable('area_managers', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const coupons = pgTable('coupons', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  discountType: varchar('discount_type', { length: 20 }).notNull().default('flat'),
+  discountValue: doublePrecision('discount_value').notNull().default(0),
+  minOrderValue: doublePrecision('min_order_value').notNull().default(0),
+  maxDiscount: doublePrecision('max_discount'),
+  description: text('description'),
+  isFirstOrderOnly: boolean('is_first_order_only').notNull().default(false),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+

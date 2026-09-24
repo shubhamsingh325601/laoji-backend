@@ -443,6 +443,110 @@ let CatalogService = class CatalogService {
         await this.requireOwnVendorProduct(vendorId, id);
         await this.db.delete(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id));
     }
+    async createVendorCustomProduct(vendorId, dto) {
+        const [product] = await this.db
+            .insert(schema_1.products)
+            .values({
+            categoryId: dto.categoryId,
+            brand: dto.brand || null,
+            name: dto.name,
+            description: dto.description || null,
+            unit: dto.unit,
+            size: dto.size || null,
+            mrp: dto.mrp ?? null,
+            imageUrl: dto.imageUrl || null,
+            status: 'active',
+        })
+            .returning();
+        const [listing] = await this.db
+            .insert(schema_1.vendorProducts)
+            .values({
+            vendorId,
+            productId: product.id,
+            price: dto.price,
+            stockQty: dto.stockQty ?? 0,
+            isAvailable: dto.isAvailable ?? true,
+        })
+            .returning();
+        return { ...listing, product };
+    }
+    async updateVendorCustomProduct(vendorId, productId, dto) {
+        const [listing] = await this.db
+            .select()
+            .from(schema_1.vendorProducts)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, productId)))
+            .limit(1);
+        if (!listing)
+            throw new common_1.NotFoundException('Product listing not found');
+        const productUpdates = {};
+        if (dto.name !== undefined)
+            productUpdates.name = dto.name;
+        if (dto.brand !== undefined)
+            productUpdates.brand = dto.brand || null;
+        if (dto.categoryId !== undefined)
+            productUpdates.categoryId = dto.categoryId;
+        if (dto.unit !== undefined)
+            productUpdates.unit = dto.unit;
+        if (dto.size !== undefined)
+            productUpdates.size = dto.size || null;
+        if (dto.mrp !== undefined)
+            productUpdates.mrp = dto.mrp;
+        if (dto.imageUrl !== undefined)
+            productUpdates.imageUrl = dto.imageUrl || null;
+        if (dto.description !== undefined)
+            productUpdates.description = dto.description || null;
+        let updatedProduct = null;
+        if (Object.keys(productUpdates).length > 0) {
+            const [p] = await this.db
+                .update(schema_1.products)
+                .set(productUpdates)
+                .where((0, drizzle_orm_1.eq)(schema_1.products.id, productId))
+                .returning();
+            updatedProduct = p;
+        }
+        else {
+            updatedProduct = await this.getProduct(productId);
+        }
+        const listingUpdates = { updatedAt: new Date() };
+        if (dto.price !== undefined)
+            listingUpdates.price = dto.price;
+        if (dto.stockQty !== undefined)
+            listingUpdates.stockQty = dto.stockQty;
+        if (dto.isAvailable !== undefined)
+            listingUpdates.isAvailable = dto.isAvailable;
+        const [updatedListing] = await this.db
+            .update(schema_1.vendorProducts)
+            .set(listingUpdates)
+            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, listing.id))
+            .returning();
+        return { ...updatedListing, product: updatedProduct };
+    }
+    async deleteVendorCustomProduct(vendorId, productId) {
+        const [listing] = await this.db
+            .select()
+            .from(schema_1.vendorProducts)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, productId)))
+            .limit(1);
+        if (!listing)
+            throw new common_1.NotFoundException('Product listing not found');
+        await this.db.delete(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, listing.id));
+        const [orderItem] = await this.db
+            .select({ id: schema_1.groceryOrderItems.id })
+            .from(schema_1.groceryOrderItems)
+            .where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, productId))
+            .limit(1);
+        if (!orderItem) {
+            const otherListings = await this.db
+                .select()
+                .from(schema_1.vendorProducts)
+                .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, productId))
+                .limit(1);
+            if (otherListings.length === 0) {
+                await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, productId));
+            }
+        }
+        return { success: true };
+    }
     async vendorsInRadius(lat, lng) {
         const allVendors = await this.db.select().from(schema_1.vendors);
         return allVendors.filter((v) => (0, catalog_types_1.isVendorOpenNow)(v) && (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
@@ -712,9 +816,6 @@ let CatalogService = class CatalogService {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
         if (!vendor)
             throw new common_1.NotFoundException('Vendor not found');
-        if (vendor.type === 'grocery') {
-            throw new common_1.ConflictException('Vendor is not registered as a restaurant');
-        }
         const [created] = await this.db.insert(schema_1.restaurants).values({ vendorId, name: vendor.businessName }).returning();
         return created;
     }

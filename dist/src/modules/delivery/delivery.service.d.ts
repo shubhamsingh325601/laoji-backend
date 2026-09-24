@@ -238,7 +238,7 @@ export declare class DeliveryService {
         grocery: {
             id: string;
             customerId: string;
-            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -255,7 +255,7 @@ export declare class DeliveryService {
         food: {
             id: string;
             customerId: string;
-            status: "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "failed" | "cancelled";
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -339,7 +339,6 @@ export declare class DeliveryService {
         email: string | null;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         userId: string;
         aadhaarNumber: string | null;
         bankAccount: string | null;
@@ -353,6 +352,7 @@ export declare class DeliveryService {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;

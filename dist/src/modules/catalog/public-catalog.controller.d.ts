@@ -153,17 +153,17 @@ export declare class PublicCatalogController {
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
         price: number;
         inStock: boolean;
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
+        brand: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        description: string | null;
+        imageUrl: string | null;
+        id: string;
+        status: "active" | "inactive";
+        createdAt: Date;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
         price: number;

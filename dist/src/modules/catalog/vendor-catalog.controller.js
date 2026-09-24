@@ -23,6 +23,7 @@ const catalog_service_1 = require("./catalog.service");
 const vendor_profile_dto_1 = require("./dto/vendor-profile.dto");
 const business_hours_dto_1 = require("./dto/business-hours.dto");
 const vendor_product_dto_1 = require("./dto/vendor-product.dto");
+const category_dto_1 = require("./dto/category.dto");
 const product_suggestion_dto_1 = require("./dto/product-suggestion.dto");
 let VendorCatalogController = class VendorCatalogController {
     catalog;
@@ -62,6 +63,30 @@ let VendorCatalogController = class VendorCatalogController {
     async deleteListing(user, id) {
         const vendor = await this.catalog.requireVendor(user.sub);
         return this.catalog.deleteVendorProduct(vendor.id, id);
+    }
+    listCategories() {
+        return this.catalog.listCategoriesFlat();
+    }
+    createCategory(dto) {
+        return this.catalog.createCategory(dto);
+    }
+    updateCategory(id, dto) {
+        return this.catalog.updateCategory(id, dto);
+    }
+    deleteCategory(id) {
+        return this.catalog.deleteCategory(id);
+    }
+    async createCustomProduct(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createVendorCustomProduct(vendor.id, dto);
+    }
+    async updateCustomProduct(user, productId, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.updateVendorCustomProduct(vendor.id, productId, dto);
+    }
+    async deleteCustomProduct(user, productId) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.deleteVendorCustomProduct(vendor.id, productId);
     }
     async submitSuggestion(user, dto) {
         const vendor = await this.catalog.requireVendor(user.sub);
@@ -149,6 +174,59 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "deleteListing", null);
+__decorate([
+    (0, common_1.Get)('vendor/categories'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "listCategories", null);
+__decorate([
+    (0, common_1.Post)('vendor/categories'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [category_dto_1.CreateCategoryDto]),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "createCategory", null);
+__decorate([
+    (0, common_1.Patch)('vendor/categories/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, category_dto_1.UpdateCategoryDto]),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "updateCategory", null);
+__decorate([
+    (0, common_1.Delete)('vendor/categories/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], VendorCatalogController.prototype, "deleteCategory", null);
+__decorate([
+    (0, common_1.Post)('vendor/products/custom'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vendor_product_dto_1.CreateVendorCustomProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "createCustomProduct", null);
+__decorate([
+    (0, common_1.Patch)('vendor/products/custom/:productId'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('productId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, vendor_product_dto_1.UpdateVendorCustomProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "updateCustomProduct", null);
+__decorate([
+    (0, common_1.Delete)('vendor/products/custom/:productId'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('productId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteCustomProduct", null);
 __decorate([
     (0, throttler_1.Throttle)({ productSuggestion: { limit: 5, ttl: 60_000 } }),
     (0, common_1.Post)('vendor/product-suggestions'),
