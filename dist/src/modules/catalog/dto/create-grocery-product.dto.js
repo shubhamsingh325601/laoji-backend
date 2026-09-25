@@ -19,10 +19,13 @@ class CreateGroceryProductDto {
     size;
     mrp;
     imageUrl;
+    description;
     price;
     stockQty;
     offerTag;
     lowStockThreshold;
+    isAvailable;
+    restockEta;
     attributes;
 }
 exports.CreateGroceryProductDto = CreateGroceryProductDto;
@@ -62,6 +65,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateGroceryProductDto.prototype, "imageUrl", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateGroceryProductDto.prototype, "description", void 0);
+__decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
@@ -83,6 +91,17 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateGroceryProductDto.prototype, "lowStockThreshold", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateGroceryProductDto.prototype, "isAvailable", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Matches)(/^\d{4}-\d{2}-\d{2}$/, { message: 'restockEta must be YYYY-MM-DD' }),
+    (0, class_validator_1.IsISO8601)({ strict: true }),
+    __metadata("design:type", Object)
+], CreateGroceryProductDto.prototype, "restockEta", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsObject)(),

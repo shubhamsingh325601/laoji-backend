@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -6,20 +6,24 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
-import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
+import { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import {
   CreateVendorCustomProductDto,
+  RestockVendorProductDto,
   UpdateVendorCustomProductDto,
   UpdateVendorProductDto,
   UpsertVendorProductDto,
 } from './dto/vendor-product.dto';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import { CreateCategoryDto, CreateVendorCategoryDto, UpdateCategoryDto, UpdateVendorCategoryDto } from './dto/category.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
+import { CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
-import { CreateVendorCategoryDto } from './dto/category.dto';
 import { productFormFor } from './product-forms';
 
+// A vendor's categories and products belong to its own store. Laoji's
+// (admin's) categories and products are templates it copies from: changing
+// one in the store changes only the store's copy (see CatalogService).
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('vendor')
 @Controller()
@@ -41,6 +45,11 @@ export class VendorCatalogController {
     return this.catalog.updateBusinessHours(user.sub, dto);
   }
 
+  @Patch('vendors/me/location')
+  async updateLocation(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdateVendorLocationDto) {
+    return this.catalog.updateVendorLocation(user.sub, dto);
+  }
+
   @Delete('vendors/me')
   async deleteAccount(@CurrentUser() user: JwtAccessPayload) {
     return this.catalog.deleteVendorAccount(user.sub);
@@ -60,17 +69,23 @@ export class VendorCatalogController {
   @Post('vendor/catalog/categories')
   async createCategory(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateVendorCategoryDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.createVendorCategory(vendor, dto.name);
+    return this.catalog.createVendorCategory(vendor, dto);
   }
 
   @Patch('vendor/catalog/categories/:id')
-  updateVendorCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.catalog.updateCategory(id, dto);
+  async updateVendorCategory(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateVendorCategoryDto,
+  ) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.renameVendorCategory(vendor, id, dto.name);
   }
 
   @Delete('vendor/catalog/categories/:id')
-  deleteVendorCategory(@Param('id') id: string) {
-    return this.catalog.deleteCategory(id);
+  async deleteVendorCategory(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.deleteVendorCategory(vendor, id);
   }
 
   @Get('vendor/catalog/product-form')
@@ -94,7 +109,7 @@ export class VendorCatalogController {
   @Post('vendor/products')
   async upsertListing(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpsertVendorProductDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.upsertVendorProduct(vendor.id, dto);
+    return this.catalog.upsertVendorProduct(vendor, dto);
   }
 
   @Post('vendor/products/new')
@@ -110,7 +125,17 @@ export class VendorCatalogController {
     @Body() dto: UpdateVendorProductDto,
   ) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.updateVendorProduct(vendor.id, id, dto);
+    return this.catalog.updateVendorProduct(vendor, id, dto);
+  }
+
+  @Post('vendor/products/:id/restock')
+  async restockListing(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body() dto: RestockVendorProductDto,
+  ) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.restockVendorProduct(vendor.id, id, dto.qty);
   }
 
   @Delete('vendor/products/:id')
@@ -119,30 +144,37 @@ export class VendorCatalogController {
     return this.catalog.deleteVendorProduct(vendor.id, id);
   }
 
+  // Older routes for the same store categories as /vendor/catalog/categories.
+  // They used to act on every category, admin's and other stores' included.
   @Get('vendor/categories')
-  listCategories() {
-    return this.catalog.listCategoriesFlat();
+  async listCategories(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.listVendorCategories(vendor);
   }
 
   @Post('vendor/categories')
-  createCategoryFlat(@Body() dto: CreateCategoryDto) {
-    return this.catalog.createCategory(dto);
+  async createCategoryFlat(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateCategoryDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createVendorCategory(vendor, { name: dto.name });
   }
 
   @Patch('vendor/categories/:id')
-  updateCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.catalog.updateCategory(id, dto);
+  async updateCategory(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    if (!dto.name) throw new BadRequestException('Category name is required');
+    return this.catalog.renameVendorCategory(vendor, id, dto.name);
   }
 
   @Delete('vendor/categories/:id')
-  deleteCategory(@Param('id') id: string) {
-    return this.catalog.deleteCategory(id);
+  async deleteCategory(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.deleteVendorCategory(vendor, id);
   }
 
   @Post('vendor/products/custom')
   async createCustomProduct(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateVendorCustomProductDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.createVendorCustomProduct(vendor.id, dto);
+    return this.catalog.createVendorCustomProduct(vendor, dto);
   }
 
   @Patch('vendor/products/custom/:productId')
@@ -152,7 +184,7 @@ export class VendorCatalogController {
     @Body() dto: UpdateVendorCustomProductDto,
   ) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.updateVendorCustomProduct(vendor.id, productId, dto);
+    return this.catalog.updateVendorCustomProduct(vendor, productId, dto);
   }
 
   @Delete('vendor/products/custom/:productId')
@@ -165,12 +197,26 @@ export class VendorCatalogController {
   @Post('vendor/product-suggestions')
   async submitSuggestion(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateProductSuggestionDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
-    return this.catalog.createProductSuggestion(vendor.id, dto);
+    return this.catalog.createProductSuggestion(vendor, dto);
   }
 
   @Get('vendor/product-suggestions')
   async myProductSuggestions(@CurrentUser() user: JwtAccessPayload) {
     const vendor = await this.catalog.requireVendor(user.sub);
     return this.catalog.listMyProductSuggestions(vendor.id);
+  }
+
+  // Shares the product-suggestion rate limit: both guard against suggestion spam.
+  @Throttle({ productSuggestion: { limit: 5, ttl: 60_000 } })
+  @Post('vendor/category-suggestions')
+  async submitCategorySuggestion(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateCategorySuggestionDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.createCategorySuggestion(vendor, dto);
+  }
+
+  @Get('vendor/category-suggestions')
+  async myCategorySuggestions(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.listMyCategorySuggestions(vendor.id);
   }
 }

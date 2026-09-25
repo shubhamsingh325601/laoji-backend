@@ -36,7 +36,8 @@ import { orderPlacedVendorPush } from '../notification/templates/push/order-plac
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
-import { haversineKm, isVendorOpenNow } from '../catalog/catalog.types';
+import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
+import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -95,7 +96,9 @@ export class OrderService {
     // there's no single "the" category to resolve against otherwise;
     // flagged in CLAUDE.md, not silently assumed correct for every cart.
     const [firstProduct] = await this.db.select().from(products).where(eq(products.id, dto.items[0].productId)).limit(1);
-    const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
+    // Rules are set on Laoji categories; a store's own copy of one counts as it.
+    const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
+    const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
     const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
     const commissionPct = revenue.commissionPct;
     const total = subtotal + deliveryFee;
@@ -155,6 +158,14 @@ export class OrderService {
     if (!restaurant.isOpen || !restaurantVendor || !isVendorOpenNow(restaurantVendor)) {
       throw new BadRequestException('This restaurant is currently closed and not accepting new orders');
     }
+    // Same radius rule as customer browse and grocery allocation: only a
+    // restaurant whose delivery radius covers the address can take the order.
+    const distanceKm = haversineKm(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng);
+    if (distanceKm > restaurantVendor.radiusKm) {
+      throw new BadRequestException(
+        `This restaurant doesn't deliver to your address (${roundKm(distanceKm)} km away, delivers within ${restaurantVendor.radiusKm} km)`,
+      );
+    }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
     const items = await this.db.select().from(menuItems).where(inArray(menuItems.id, menuItemIds));
@@ -176,6 +187,20 @@ export class OrderService {
       throw new BadRequestException(
         `Menu item "${foreignItem.name}" does not belong to this restaurant — an order can only contain items from one restaurant`,
       );
+    }
+    // Every item has to be orderable now: switched on by the restaurant, and
+    // inside one of its meal slots if it's tagged with any.
+    const timings = effectiveMealTimings(restaurant.mealTimings);
+    const now = new Date();
+    for (const item of items) {
+      if (!item.isAvailable) {
+        throw new BadRequestException(`"${item.name}" is currently unavailable`);
+      }
+      if (!isServedNow(item.mealSlots, timings, now)) {
+        throw new BadRequestException(
+          `"${item.name}" is only served during ${describeMealSlots(item.mealSlots ?? [], timings)}`,
+        );
+      }
     }
 
     const itemById = new Map(items.map((i) => [i.id, i]));
@@ -213,9 +238,6 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const distanceKm = restaurantVendor
-      ? haversineKm(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng)
-      : 1;
     const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
     const commissionPct = revenue.commissionPct;
     const total = subtotal + deliveryFee;

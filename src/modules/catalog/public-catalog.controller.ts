@@ -18,7 +18,7 @@ export class PublicCatalogController {
 
   @Get('categories')
   categories() {
-    return this.catalog.listCategoriesFlat();
+    return this.catalog.listCustomerCategories();
   }
 
   @Get('products')
@@ -39,9 +39,11 @@ export class PublicCatalogController {
     return this.catalog.publicListRestaurants(latNum, lngNum);
   }
 
+  // lat/lng are optional here (older clients don't send them); with them the
+  // response also says how far away the restaurant is and whether it delivers.
   @Get('restaurants/:id')
-  restaurant(@Param('id') id: string) {
-    return this.catalog.publicGetRestaurant(id);
+  restaurant(@Param('id') id: string, @Query('lat') lat?: string, @Query('lng') lng?: string) {
+    return this.catalog.publicGetRestaurant(id, lat && lng ? parseCoord(lat, lng) : undefined);
   }
 
   @Get('search')

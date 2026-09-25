@@ -2,214 +2,40 @@ import { CatalogService } from './catalog.service';
 export declare class PublicCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
-    categories(): import("drizzle-orm/pg-core").PgSelectBase<"categories", {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        parentId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "parent_id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        businessType: import("drizzle-orm/pg-core").PgColumn<{
-            name: "business_type";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-    }, "single", Record<"categories", "not-null">, false, never, {
+    categories(): Promise<{
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
-    }[], {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        parentId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "parent_id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        businessType: import("drizzle-orm/pg-core").PgColumn<{
-            name: "business_type";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-    }>;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }[]>;
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
+        categoryId: string;
         price: number;
         inStock: boolean;
+        restockEta: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
+        ownerVendorId: string | null;
         description: string | null;
-        categoryId: string;
         unit: string;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
+        templateProductId: string | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
+        categoryId: string;
         price: number;
         inStock: boolean;
+        restockEta: string | null;
         id: string;
-        categoryId: string;
         brand: string | null;
         name: string;
         description: string | null;
@@ -219,25 +45,33 @@ export declare class PublicCatalogController {
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
     restaurants(lat?: string, lng?: string): Promise<{
+        mealTimings: {
+            label: string;
+            slot: import("./meal-slots").MealSlot;
+            start: string;
+            end: string;
+        }[];
         imageUrl: string | null;
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        distanceKm: number;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
     }[]>;
-    restaurant(id: string): Promise<{
-        imageUrl: string | null;
-        ratingAvg: number;
-        ratingCount: number;
-        isOpen: boolean;
+    restaurant(id: string, lat?: string, lng?: string): Promise<{
         menuCategories: {
             items: {
+                mealSlots: string[];
+                servedNow: boolean;
+                isAvailable: boolean;
                 addons: {
                     id: string;
                     menuItemId: string;
@@ -259,21 +93,66 @@ export declare class PublicCatalogController {
                 price: number;
                 imageUrl: string | null;
                 isVeg: boolean;
-                isAvailable: boolean;
             }[];
             id: string;
             restaurantId: string;
             name: string;
             sortOrder: number;
         }[];
+        distanceKm?: number | undefined;
+        deliversToYou?: boolean | undefined;
+        mealTimings: {
+            label: string;
+            slot: import("./meal-slots").MealSlot;
+            start: string;
+            end: string;
+        }[];
+        imageUrl: string | null;
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
     }>;
     search(lat?: string, lng?: string, q?: string): Promise<{
-        products: any[];
-        restaurants: any[];
+        products: {
+            categoryId: string;
+            price: number;
+            inStock: boolean;
+            restockEta: string | null;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        }[];
+        restaurants: (Omit<{
+            id: string;
+            name: string;
+            isOpen: boolean;
+            imageUrl: string | null;
+            vendorId: string;
+            cuisineTags: string | null;
+            ratingAvg: number;
+            mealTimings: {
+                slot: string;
+                start: string;
+                end: string;
+            }[] | null;
+        }, "mealTimings"> & {
+            mealTimings: ReturnType<typeof import("./meal-slots").mealTimingsView>;
+            distanceKm: number;
+        })[];
         dishes: any[];
     }>;
 }

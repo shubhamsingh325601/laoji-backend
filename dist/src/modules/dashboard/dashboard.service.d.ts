@@ -12,6 +12,7 @@ export interface DashboardStats {
     totalPartners: number;
     pendingKyc: number;
     pendingSuggestions: number;
+    pendingCategorySuggestions: number;
 }
 export interface AttentionItem {
     id: string;

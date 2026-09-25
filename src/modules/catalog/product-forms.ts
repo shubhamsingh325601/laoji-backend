@@ -174,19 +174,25 @@ export function productFormFor(businessType: string): ProductForm {
  * Checks a new product against its business type's form and returns what to
  * store in products.attributes. Only for clients that rendered the form
  * (they send `attributes`); older app builds skip it and store none.
+ *
+ * `requireAll: false` checks only the details given, not the product
+ * columns: a Laoji product a vendor stocks, or edits, wasn't made with the
+ * form, so it can lack required details or use a unit the form doesn't list.
  */
 export function readProductAttributes(
   form: ProductForm,
   product: { name: string; brand?: string; unit: string; size?: string; attributes: Record<string, unknown> },
+  { requireAll = true }: { requireAll?: boolean } = {},
 ): Record<string, string | number | boolean> {
   const columns: Record<string, unknown> = product;
   const attributes: Record<string, string | number | boolean> = {};
   for (const field of [...form.basic, ...form.details]) {
     if (field.type === 'category') continue;
+    if (!requireAll && COLUMN_KEYS.has(field.key)) continue;
     const raw = COLUMN_KEYS.has(field.key) ? columns[field.key] : product.attributes[field.key];
     const value = typeof raw === 'string' ? raw.trim() : raw;
     if (value === undefined || value === null || value === '') {
-      if (field.required) throw new BadRequestException(`${field.label} is required`);
+      if (field.required && requireAll) throw new BadRequestException(`${field.label} is required`);
       continue;
     }
     if (!isValidValue(field, value)) throw new BadRequestException(`${field.label} has an invalid value`);

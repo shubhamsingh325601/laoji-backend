@@ -64,10 +64,14 @@ let DashboardService = class DashboardService {
         const gmvToday = sumTotal(groceryToday) + sumTotal(foodToday);
         const gmvLastWeek = sumTotal(groceryLastWeek) + sumTotal(foodLastWeek);
         const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
-        const [allVendors, allPartners, pendingSuggestionsRows] = await Promise.all([
+        const [allVendors, allPartners, pendingSuggestionsRows, pendingCategorySuggestionRows] = await Promise.all([
             this.db.select().from(schema_1.vendors),
             this.db.select().from(schema_1.deliveryPartners),
             this.db.select().from(schema_1.productSuggestions).where((0, drizzle_orm_1.eq)(schema_1.productSuggestions.status, 'pending')),
+            this.db
+                .select({ id: schema_1.categorySuggestions.id })
+                .from(schema_1.categorySuggestions)
+                .where((0, drizzle_orm_1.eq)(schema_1.categorySuggestions.status, 'pending')),
         ]);
         const verifiedPartners = allPartners.filter((p) => p.kycStatus === 'verified');
         return {
@@ -81,6 +85,7 @@ let DashboardService = class DashboardService {
             pendingKyc: allVendors.filter((v) => v.kycStatus === 'pending').length +
                 allPartners.filter((p) => p.kycStatus === 'pending').length,
             pendingSuggestions: pendingSuggestionsRows.length,
+            pendingCategorySuggestions: pendingCategorySuggestionRows.length,
         };
     }
     async getAttention() {

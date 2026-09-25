@@ -23,6 +23,8 @@ export declare class UpdateAdminVendorDto {
     email?: string;
     type?: 'grocery' | 'restaurant' | 'both';
     shopAddress?: string;
+    pickupLat?: number;
+    pickupLng?: number;
     deliveryRadiusKm?: number;
     commissionPct?: number;
     cashbackPct?: number;

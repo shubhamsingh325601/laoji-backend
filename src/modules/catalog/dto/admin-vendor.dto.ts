@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min, ValidateIf } from 'class-validator';
 
 export class CreateAdminVendorDto {
   @IsString()
@@ -95,6 +95,19 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsString()
   shopAddress?: string;
+
+  // Pickup point correction; applied only when both are sent.
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  pickupLng?: number;
 
   @IsOptional()
   @IsNumber()

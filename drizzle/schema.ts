@@ -15,6 +15,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   doublePrecision,
   integer,
   jsonb,
@@ -228,6 +229,16 @@ export const categories = pgTable('categories', {
   // root categories only — subcategories inherit their parent's. Null =
   // 'grocery': every category created before this column existed was one.
   businessType: varchar('business_type', { length: 50 }),
+  // The vendor whose own store category this is. Null = a Laoji category:
+  // admin-managed, what customers browse by, and a template vendors copy
+  // into their stores. A vendor renaming or deleting its categories never
+  // touches Laoji's or another store's.
+  ownerVendorId: uuid('owner_vendor_id').references((): AnyPgColumn => vendors.id, { onDelete: 'cascade' }),
+  // The Laoji category a vendor's category was made from (at most one per
+  // vendor). Customers find that vendor's products under the Laoji one.
+  templateCategoryId: uuid('template_category_id').references((): AnyPgColumn => categories.id, {
+    onDelete: 'set null',
+  }),
 });
 
 export const productStatusEnum = pgEnum('product_status', ['active', 'inactive']);
@@ -250,6 +261,18 @@ export const products = pgTable('products', {
   // admin-created products and ones added by app builds predating the form.
   attributes: jsonb('attributes').$type<Record<string, string | number | boolean>>(),
   status: productStatusEnum('status').notNull().default('active'),
+  // The vendor that created this product itself from the Vendor app, making
+  // it that vendor's own item. Null = the admin-managed master catalog that
+  // every vendor picks from (admin-created, seeded, or an approved product
+  // suggestion). Vendor-created products from before this column existed are
+  // null too: nothing recorded who made them.
+  ownerVendorId: uuid('owner_vendor_id').references(() => vendors.id, { onDelete: 'cascade' }),
+  // The Laoji product a vendor's product was copied from: a vendor that
+  // changes a Laoji product's details gets its own copy, and Laoji's stays
+  // as it was (see CatalogService#productForListing).
+  templateProductId: uuid('template_product_id').references((): AnyPgColumn => products.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -268,6 +291,13 @@ export const vendorProducts = pgTable(
     isAvailable: boolean('is_available').notNull().default(true),
     offerTag: varchar('offer_tag', { length: 100 }),
     lowStockThreshold: integer('low_stock_threshold'),
+    // When an out-of-stock (or paused) listing is expected back, as a plain
+    // IST calendar date — vendors answer "back by Thursday", not a time.
+    // Cleared automatically once the listing is sellable again (stock > 0
+    // and available), see CatalogService#normalizeRestockEta.
+    restockEta: date('restock_eta', { mode: 'string' }),
+    // Set whenever stock goes up (restock action or a higher stock edit).
+    lastRestockedAt: timestamp('last_restocked_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)],
@@ -284,6 +314,9 @@ export const restaurants = pgTable('restaurants', {
   imageUrl: text('image_url'),
   ratingAvg: doublePrecision('rating_avg').notNull().default(0),
   isOpen: boolean('is_open').notNull().default(true),
+  // The restaurant's own meal-slot windows ("HH:mm", IST). Null or a missing
+  // slot = the platform default for it — see catalog/meal-slots.ts.
+  mealTimings: jsonb('meal_timings').$type<{ slot: string; start: string; end: string }[]>(),
 });
 
 export const menuCategories = pgTable('menu_categories', {
@@ -306,6 +339,9 @@ export const menuItems = pgTable('menu_items', {
   imageUrl: text('image_url'),
   isVeg: boolean('is_veg').notNull().default(true),
   isAvailable: boolean('is_available').notNull().default(true),
+  // Meal slots this item is served in (e.g. ["breakfast"]), checked against
+  // the restaurant's meal_timings. Null or empty = served all day.
+  mealSlots: jsonb('meal_slots').$type<string[]>(),
 });
 
 export const menuItemAddons = pgTable('menu_item_addons', {
@@ -692,6 +728,28 @@ export const productSuggestions = pgTable('product_suggestions', {
   status: productSuggestionStatusEnum('status').notNull().default('pending'),
   rejectionReason: text('rejection_reason'),
   productId: uuid('product_id').references(() => products.id),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A vendor asking Laoji to add a category to its list, same review flow as
+// product suggestions. `categoryId` is the Laoji category an approval made
+// (or matched to an existing one).
+export const categorySuggestions = pgTable('category_suggestions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id')
+    .notNull()
+    .references(() => vendors.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 150 }).notNull(),
+  // The suggesting store's business type: an approval files the category
+  // under that type's root unless admin picks another parent.
+  businessType: varchar('business_type', { length: 50 }).notNull(),
+  // What the vendor would put in it, to help admin decide.
+  note: text('note'),
+  status: productSuggestionStatusEnum('status').notNull().default('pending'),
+  rejectionReason: text('rejection_reason'),
+  categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   reviewedBy: uuid('reviewed_by').references(() => users.id),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -136,16 +136,18 @@ function productFormFor(businessType) {
     }
     return { businessType, ...(FORMS[businessType] ?? GROCERY) };
 }
-function readProductAttributes(form, product) {
+function readProductAttributes(form, product, { requireAll = true } = {}) {
     const columns = product;
     const attributes = {};
     for (const field of [...form.basic, ...form.details]) {
         if (field.type === 'category')
             continue;
+        if (!requireAll && COLUMN_KEYS.has(field.key))
+            continue;
         const raw = COLUMN_KEYS.has(field.key) ? columns[field.key] : product.attributes[field.key];
         const value = typeof raw === 'string' ? raw.trim() : raw;
         if (value === undefined || value === null || value === '') {
-            if (field.required)
+            if (field.required && requireAll)
                 throw new common_1.BadRequestException(`${field.label} is required`);
             continue;
         }

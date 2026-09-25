@@ -13,6 +13,11 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
+/** Distance as shown to customers: kilometres to one decimal. */
+export function roundKm(km: number): number {
+  return Math.round(km * 10) / 10;
+}
+
 /** vendors.business_type values, as offered by the Vendor app at registration. */
 export const BUSINESS_TYPES = [
   'grocery',
@@ -57,6 +62,35 @@ export function categoryBusinessType(
 /** A general store can stock anything; other business types see only their own categories. */
 export function isCategoryVisibleTo(categoryType: string, vendorBusinessType: string): boolean {
   return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
+}
+
+/**
+ * Sangod town centre — the pickup point given to a vendor whose location
+ * isn't known (admin-created without coordinates, or location permission
+ * denied at signup).
+ */
+export const DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 } as const;
+
+// Every fallback point a Vendor app build has sent: Sangod, and Kolhapur
+// city centre before it. Builds up to 1.0.2 also sent it on every profile
+// edit, which is why an update carrying exactly one of these points is
+// ignored rather than trusted as a real GPS fix.
+const FALLBACK_PICKUPS = [DEFAULT_PICKUP, { lat: 16.705, lng: 74.2433 }];
+
+export function isDefaultPickup(lat: number, lng: number): boolean {
+  return FALLBACK_PICKUPS.some((p) => p.lat === lat && p.lng === lng);
+}
+
+/** A calendar date in Asia/Kolkata as "YYYY-MM-DD" (the single-city MVP runs on IST). */
+export function istDateString(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
 export interface BusinessHoursDay {

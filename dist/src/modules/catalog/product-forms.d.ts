@@ -23,4 +23,6 @@ export declare function readProductAttributes(form: ProductForm, product: {
     unit: string;
     size?: string;
     attributes: Record<string, unknown>;
+}, { requireAll }?: {
+    requireAll?: boolean;
 }): Record<string, string | number | boolean>;

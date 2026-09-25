@@ -5,15 +5,15 @@ exports.productSuggestionRejectedVendorPush = productSuggestionRejectedVendorPus
 function productSuggestionApprovedVendorPush(productName) {
     return {
         title: 'Suggestion approved',
-        body: `Your product suggestion "${productName}" was approved and is now listed.`,
-        data: { event: 'product_suggestion_approved' },
+        body: `Your product suggestion "${productName}" was approved and is now in the Laoji catalog.`,
+        data: { event: 'product_suggestion_approved', screen: '/suggest-product' },
     };
 }
 function productSuggestionRejectedVendorPush(productName) {
     return {
         title: 'Suggestion rejected',
         body: `Your product suggestion "${productName}" was not approved.`,
-        data: { event: 'product_suggestion_rejected' },
+        data: { event: 'product_suggestion_rejected', screen: '/suggest-product' },
     };
 }
 //# sourceMappingURL=product-suggestion.js.map

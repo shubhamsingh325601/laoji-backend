@@ -23,6 +23,7 @@ export declare class CreateMenuItemDto {
     price: number;
     imageUrl?: string;
     isVeg?: boolean;
+    mealSlots?: string[];
     addons?: MenuItemAddonInput[];
     variants?: MenuItemVariantInput[];
 }
@@ -34,6 +35,7 @@ export declare class UpdateMenuItemDto {
     imageUrl?: string;
     isVeg?: boolean;
     isAvailable?: boolean;
+    mealSlots?: string[];
     addons?: MenuItemAddonInput[];
     variants?: MenuItemVariantInput[];
 }

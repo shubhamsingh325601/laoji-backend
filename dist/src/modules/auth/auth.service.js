@@ -55,6 +55,7 @@ const crypto_1 = require("crypto");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const duration_1 = require("../../common/utils/duration");
+const catalog_types_1 = require("../catalog/catalog.types");
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 let AuthService = class AuthService {
@@ -453,9 +454,7 @@ let AuthService = class AuthService {
                 businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
                 ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
                 shopAddress: dto.shopAddress ?? undefined,
-                pickupLat: dto.pickupLat,
-                pickupLng: dto.pickupLng,
-                radiusKm: dto.radiusKm ?? 5,
+                ...((0, catalog_types_1.isDefaultPickup)(dto.pickupLat, dto.pickupLng) ? {} : { pickupLat: dto.pickupLat, pickupLng: dto.pickupLng }),
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, existingVendor.id))
                 .returning();

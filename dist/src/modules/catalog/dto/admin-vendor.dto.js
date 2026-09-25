@@ -120,6 +120,8 @@ class UpdateAdminVendorDto {
     email;
     type;
     shopAddress;
+    pickupLat;
+    pickupLng;
     deliveryRadiusKm;
     commissionPct;
     cashbackPct;
@@ -168,6 +170,20 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "shopAddress", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-90),
+    (0, class_validator_1.Max)(90),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "pickupLat", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-180),
+    (0, class_validator_1.Max)(180),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "pickupLng", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),

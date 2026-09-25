@@ -30,7 +30,7 @@ let PublicCatalogController = class PublicCatalogController {
         this.catalog = catalog;
     }
     categories() {
-        return this.catalog.listCategoriesFlat();
+        return this.catalog.listCustomerCategories();
     }
     products(lat, lng, categoryId) {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
@@ -44,8 +44,8 @@ let PublicCatalogController = class PublicCatalogController {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
         return this.catalog.publicListRestaurants(latNum, lngNum);
     }
-    restaurant(id) {
-        return this.catalog.publicGetRestaurant(id);
+    restaurant(id, lat, lng) {
+        return this.catalog.publicGetRestaurant(id, lat && lng ? parseCoord(lat, lng) : undefined);
     }
     search(lat, lng, q) {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
@@ -88,8 +88,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('restaurants/:id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('lat')),
+    __param(2, (0, common_1.Query)('lng')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "restaurant", null);
 __decorate([

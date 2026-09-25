@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -134,6 +134,10 @@ exports.categories = (0, pg_core_1.pgTable)('categories', {
     name: (0, pg_core_1.varchar)('name', { length: 150 }).notNull(),
     imageUrl: (0, pg_core_1.text)('image_url'),
     businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }),
+    ownerVendorId: (0, pg_core_1.uuid)('owner_vendor_id').references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    templateCategoryId: (0, pg_core_1.uuid)('template_category_id').references(() => exports.categories.id, {
+        onDelete: 'set null',
+    }),
 });
 exports.productStatusEnum = (0, pg_core_1.pgEnum)('product_status', ['active', 'inactive']);
 exports.products = (0, pg_core_1.pgTable)('products', {
@@ -150,6 +154,10 @@ exports.products = (0, pg_core_1.pgTable)('products', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     attributes: (0, pg_core_1.jsonb)('attributes').$type(),
     status: (0, exports.productStatusEnum)('status').notNull().default('active'),
+    ownerVendorId: (0, pg_core_1.uuid)('owner_vendor_id').references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    templateProductId: (0, pg_core_1.uuid)('template_product_id').references(() => exports.products.id, {
+        onDelete: 'set null',
+    }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
@@ -165,6 +173,8 @@ exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
     offerTag: (0, pg_core_1.varchar)('offer_tag', { length: 100 }),
     lowStockThreshold: (0, pg_core_1.integer)('low_stock_threshold'),
+    restockEta: (0, pg_core_1.date)('restock_eta', { mode: 'string' }),
+    lastRestockedAt: (0, pg_core_1.timestamp)('last_restocked_at', { withTimezone: true }),
     updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.uniqueIndex)('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)]);
 exports.restaurants = (0, pg_core_1.pgTable)('restaurants', {
@@ -178,6 +188,7 @@ exports.restaurants = (0, pg_core_1.pgTable)('restaurants', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     ratingAvg: (0, pg_core_1.doublePrecision)('rating_avg').notNull().default(0),
     isOpen: (0, pg_core_1.boolean)('is_open').notNull().default(true),
+    mealTimings: (0, pg_core_1.jsonb)('meal_timings').$type(),
 });
 exports.menuCategories = (0, pg_core_1.pgTable)('menu_categories', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
@@ -198,6 +209,7 @@ exports.menuItems = (0, pg_core_1.pgTable)('menu_items', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     isVeg: (0, pg_core_1.boolean)('is_veg').notNull().default(true),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    mealSlots: (0, pg_core_1.jsonb)('meal_slots').$type(),
 });
 exports.menuItemAddons = (0, pg_core_1.pgTable)('menu_item_addons', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
@@ -441,6 +453,21 @@ exports.productSuggestions = (0, pg_core_1.pgTable)('product_suggestions', {
     status: (0, exports.productSuggestionStatusEnum)('status').notNull().default('pending'),
     rejectionReason: (0, pg_core_1.text)('rejection_reason'),
     productId: (0, pg_core_1.uuid)('product_id').references(() => exports.products.id),
+    reviewedBy: (0, pg_core_1.uuid)('reviewed_by').references(() => exports.users.id),
+    reviewedAt: (0, pg_core_1.timestamp)('reviewed_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.categorySuggestions = (0, pg_core_1.pgTable)('category_suggestions', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    vendorId: (0, pg_core_1.uuid)('vendor_id')
+        .notNull()
+        .references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    name: (0, pg_core_1.varchar)('name', { length: 150 }).notNull(),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull(),
+    note: (0, pg_core_1.text)('note'),
+    status: (0, exports.productSuggestionStatusEnum)('status').notNull().default('pending'),
+    rejectionReason: (0, pg_core_1.text)('rejection_reason'),
+    categoryId: (0, pg_core_1.uuid)('category_id').references(() => exports.categories.id, { onDelete: 'set null' }),
     reviewedBy: (0, pg_core_1.uuid)('reviewed_by').references(() => exports.users.id),
     reviewedAt: (0, pg_core_1.timestamp)('reviewed_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),

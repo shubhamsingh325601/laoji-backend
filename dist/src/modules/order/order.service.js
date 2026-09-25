@@ -27,6 +27,7 @@ const order_confirmed_1 = require("../notification/templates/push/order-confirme
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const catalog_types_1 = require("../catalog/catalog.types");
+const meal_slots_1 = require("../catalog/meal-slots");
 const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'];
 let OrderService = class OrderService {
     db;
@@ -67,7 +68,8 @@ let OrderService = class OrderService {
         }
         const subtotal = dto.items.reduce((sum, line) => sum + (candidate.unitPrices.get(line.productId) ?? 0) * line.qty, 0);
         const [firstProduct] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, dto.items[0].productId)).limit(1);
-        const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
+        const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
+        const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
         const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
         const commissionPct = revenue.commissionPct;
         const total = subtotal + deliveryFee;
@@ -115,6 +117,10 @@ let OrderService = class OrderService {
         if (!restaurant.isOpen || !restaurantVendor || !(0, catalog_types_1.isVendorOpenNow)(restaurantVendor)) {
             throw new common_1.BadRequestException('This restaurant is currently closed and not accepting new orders');
         }
+        const distanceKm = (0, catalog_types_1.haversineKm)(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng);
+        if (distanceKm > restaurantVendor.radiusKm) {
+            throw new common_1.BadRequestException(`This restaurant doesn't deliver to your address (${(0, catalog_types_1.roundKm)(distanceKm)} km away, delivers within ${restaurantVendor.radiusKm} km)`);
+        }
         const menuItemIds = dto.items.map((i) => i.menuItemId);
         const items = await this.db.select().from(schema_1.menuItems).where((0, drizzle_orm_1.inArray)(schema_1.menuItems.id, menuItemIds));
         const catIds = [...new Set(items.map((i) => i.menuCategoryId))];
@@ -128,6 +134,16 @@ let OrderService = class OrderService {
         const foreignItem = items.find((item) => catByI.get(item.menuCategoryId)?.restaurantId !== dto.restaurantId);
         if (foreignItem) {
             throw new common_1.BadRequestException(`Menu item "${foreignItem.name}" does not belong to this restaurant — an order can only contain items from one restaurant`);
+        }
+        const timings = (0, meal_slots_1.effectiveMealTimings)(restaurant.mealTimings);
+        const now = new Date();
+        for (const item of items) {
+            if (!item.isAvailable) {
+                throw new common_1.BadRequestException(`"${item.name}" is currently unavailable`);
+            }
+            if (!(0, meal_slots_1.isServedNow)(item.mealSlots, timings, now)) {
+                throw new common_1.BadRequestException(`"${item.name}" is only served during ${(0, meal_slots_1.describeMealSlots)(item.mealSlots ?? [], timings)}`);
+            }
         }
         const itemById = new Map(items.map((i) => [i.id, i]));
         const variantIds = dto.items.map((i) => i.variantId).filter((id) => !!id);
@@ -158,9 +174,6 @@ let OrderService = class OrderService {
             };
         });
         const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-        const distanceKm = restaurantVendor
-            ? (0, catalog_types_1.haversineKm)(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng)
-            : 1;
         const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
         const commissionPct = revenue.commissionPct;
         const total = subtotal + deliveryFee;

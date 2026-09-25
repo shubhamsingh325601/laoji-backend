@@ -1032,3 +1032,162 @@ started. Both confined to `laoji-vendor`/`laoji-delivery`; no backend,
   testing). "Call vendor"/"Call customer" are unaffected — those are real
   and already wired to `tel:` links against genuine backend phone-number
   data.
+
+## Meal slots, master-catalog listings & vendor location notes
+
+Migration `0019_meal_slots_restock_master_catalog` (idempotent; on hosted
+databases run `npx ts-node scripts/migrate-meal-slots-restock-catalog.ts`).
+
+**Meal slots (restaurants):**
+- `menu_items.meal_slots` (jsonb, `breakfast`/`lunch`/`dinner`; null = all
+  day) and `restaurants.meal_timings` (per-slot "HH:mm" windows in IST; a
+  slot the restaurant hasn't set uses the default 07–11 / 12–16 / 19–23).
+  Logic lives in `catalog/meal-slots.ts`. Unlike business hours, a window
+  may cross midnight (end earlier than start).
+- `GET`/`PUT /vendor/restaurant/meal-timings`; menu item create/update
+  take `mealSlots` (`[]` = back to all day).
+- Enforced server-side: `GET /catalog/restaurants/:id` returns
+  `mealSlots` + `servedNow` per item and folds the slot into `isAvailable`
+  (older customer builds just see the item as unavailable), search hides
+  dishes outside their slot, and `createFoodOrder` rejects them with the
+  slot's hours in the message.
+
+**Master catalog (grocery and other non-restaurant stores):**
+- `products.owner_vendor_id`: null = the admin-managed master catalog
+  (admin-created, seeded, approved suggestions). Vendors pick from it via
+  `GET /vendor/catalog/products` (master products for the vendor's
+  business type, with `categoryName` and the vendor's own `listingId`) and
+  `POST /vendor/products`, or create their own products; see "Laoji
+  templates" below for how edits work. For a new listing that refuses
+  another vendor's own product (403), inactive products, and products
+  outside the vendor's business type.
+- Products created by vendors (`POST /vendor/products/new`,
+  `/vendor/products/custom`, app builds up to 1.0.2) are owned by that
+  vendor: hidden from other vendors' catalog, product details editable only
+  by the owner, deleted along with the owner's listing (unless an order
+  references them). `GET /vendor/products` marks them `isOwnProduct`.
+- A vendor never edits a master product: changed details go to its own
+  copy (see "Laoji templates" below). **Bug fixed with this:** the
+  delete-listing paths added upstream deleted the shared `products` row
+  whenever no other vendor listed it, so a vendor removing an admin catalog
+  item from its store deleted it from the catalog.
+- Migration 0019 backfills ownership only where it is unambiguous:
+  products made through the dynamic add-product form always carry
+  `attributes` (admin-created, seeded and suggestion products never do),
+  so each of those stocked by exactly one vendor becomes that vendor's.
+  Older vendor-made products without `attributes` stay in the master
+  catalog. Nothing recorded who made them; admin can review them.
+- The upstream vendor category routes had no ownership check (any vendor
+  could rename or delete any category, admin's included). Fixed by the
+  category ownership below.
+
+**Restock:**
+- `vendor_products.restock_eta` (IST date, "back by") and
+  `last_restocked_at`. The date is kept only while the listing can't be
+  sold. Once it has stock and is available it is dropped, and past dates are
+  rejected. `POST /vendor/products/:id/restock {qty}` adds units with a SQL
+  increment, re-enables the listing and clears the date.
+- Customer product endpoints return `restockEta` (the soonest across
+  in-radius vendors) when no in-radius vendor has stock.
+
+**Vendor location & nearest vendors:**
+- Root cause of pickup points not staying saved: vendor app builds up to
+  1.0.2 sent the fallback point (Kolhapur, later Sangod) **and**
+  `radiusKm: 5` on every profile edit, overwriting the GPS point captured
+  at signup and any radius admin had set. `POST /vendors/me` and
+  re-registration now ignore those fallback points (`isDefaultPickup`
+  knows both), and profile edits never change `radius_km`. After signup
+  that is admin's, via `PATCH /admin/vendors/:id deliveryRadiusKm`.
+  `DEFAULT_PICKUP` is now Sangod.
+- `PATCH /vendors/me/location` sets the pickup point from the phone's GPS
+  (the Vendor app's "Store location" row/banner, done at the shop).
+  `GET /vendors/me` and the admin vendor endpoints return
+  `locationIsDefault` while it's still a fallback point.
+- Nearest-vendor matching stays plain Haversine with each vendor's own
+  `radius_km` as the limit (TRD §9.3). `GET /catalog/restaurants` returns
+  `distanceKm`, open first then nearest. `GET /catalog/restaurants/:id`
+  adds `distanceKm`/`deliversToYou` when sent `lat`/`lng`.
+- **Behavior changes, flagged:** `createFoodOrder` now enforces the
+  restaurant's radius (before, any restaurant could be ordered from at any
+  distance). `GET /catalog/search` no longer falls back to out-of-radius
+  products/restaurants/dishes, which it used to show as in stock at MRP
+  even though checkout could never fulfil them.
+
+**Also:** upstream added the `coupons` table to `schema.ts` without a
+migration. 0019 creates it `IF NOT EXISTS`.
+
+**Verified end-to-end** against a throwaway Postgres (migrations
+0000–0019 from scratch, 0019 applied twice, then 51 HTTP checks against
+the built app covering every rule above, with legacy data seeded to check
+the ownership backfill).
+
+## Laoji templates & vendor-owned catalog notes
+
+Product decision (from the product owner): Laoji's (admin's) categories and
+products are **templates**. A vendor uses them to add its own categories and
+products, can change anything for its own store, and never changes Laoji's
+rows. Vendors can suggest new products and categories to Laoji. Migration
+`0020_vendor_own_catalog` (idempotent; on hosted databases run
+`npx ts-node scripts/migrate-vendor-own-catalog.ts`).
+
+**Model:**
+- `categories.owner_vendor_id` (null = Laoji category) and
+  `categories.template_category_id` (the Laoji category a vendor's category
+  was made from; at most one copy per vendor). `products.template_product_id`
+  (the Laoji product a vendor's product was copied from). New table
+  `category_suggestions`. Helpers in `catalog/catalog-ownership.ts`.
+- **Products are copied on write, not on use.** A vendor stocking a Laoji
+  product unchanged gets a listing on the shared product, so customers still
+  see one merged item at the cheapest price and allocation can pick any store
+  that stocks it. The moment a vendor changes a detail (name, photo, MRP,
+  category, form details...), `CatalogService#productForListing` makes the
+  vendor its own copy and moves its listing there. App builds up to 1.0.2
+  resend every field on each edit; only real differences count
+  (`productDetailChanges`), so those never make a copy by accident.
+- Consequence, flagged: admin editing a Laoji product still changes it in
+  every store that hasn't customised it (shared), and "inactive" still hides
+  it there. Admin **deleting** a Laoji product now gives each store that
+  stocks it its own copy instead of removing it from their stores; deleting a
+  Laoji category moves stores' own products in it to a store category of the
+  same name.
+- **Store categories:** `GET /vendor/catalog/categories` returns the
+  vendor's own categories (`isOwn`), Laoji categories it stocks products in
+  but hasn't copied (`inShop`), and the rest of Laoji's leaf categories for
+  its business type as templates, each with `productCount`. Renaming a
+  Laoji category from a store makes the store's own copy under the new name;
+  a store can't delete a Laoji category (403) or one of its own that still
+  has products (409). `GET /vendor/products` reports each product's
+  `categoryId` as the store's category for it, which keeps old builds
+  grouping correctly. The legacy `/vendor/categories` routes use the same
+  logic.
+- **Customers and revenue:** a store's copy of a Laoji category counts as
+  the Laoji category (`laojiCategoryId`). `GET /catalog/categories` hides the
+  copies, filtering products by a Laoji category includes them, and product
+  responses report the Laoji category. Revenue rules scoped to a category
+  resolve the same way. A store's own category with no Laoji original stays
+  visible to customers, as vendor-made categories were before.
+- **Admin:** `GET /admin/categories` and `GET /admin/products` list only
+  Laoji's templates (vendor copies used to clutter the product list).
+  **Behaviour change, flagged:** vendor-created products no longer appear in
+  admin's product list.
+- **Suggestions:** product suggestions must name a Laoji category (a store's
+  copy maps to its original). `POST /vendor/category-suggestions {name, note}`
+  / `GET` (shares the `productSuggestion` rate limit); admin reviews with
+  `GET /admin/category-suggestions?status=`,
+  `POST /admin/category-suggestions/:id/approve {name?, parentId?}` (files it
+  under the store type's root by default, reuses an existing Laoji category
+  of that name, and links the suggesting store's own category to it) and
+  `/reject {reason}`. Push templates `category_suggestion_approved/rejected`;
+  suggestion pushes carry `screen: '/suggest-product'` so a tap opens the
+  Vendor app's suggestions. `GET /dashboard/stats` adds
+  `pendingCategorySuggestions`.
+- **Not built, flagged:** `laoji-admin` has no screen for category
+  suggestions yet (it isn't in this workspace); the endpoints above are
+  ready for it.
+- **Not backfilled:** existing categories all stay Laoji categories, since
+  nothing recorded which vendor created one. Admin can delete the ones that
+  were really a single store's; that store keeps its products.
+
+**Verified end-to-end** against a throwaway Postgres (migrations 0000–0020
+from scratch, 0020 applied twice), 67 HTTP checks covering every rule above,
+plus unit tests in `catalog-ownership.spec.ts`.

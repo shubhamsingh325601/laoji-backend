@@ -9,15 +9,75 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateVendorCustomProductDto = exports.CreateVendorCustomProductDto = exports.UpdateVendorProductDto = exports.UpsertVendorProductDto = void 0;
+exports.UpdateVendorCustomProductDto = exports.CreateVendorCustomProductDto = exports.RestockVendorProductDto = exports.UpdateVendorProductDto = exports.UpsertVendorProductDto = exports.VendorProductDetailsDto = void 0;
 const class_validator_1 = require("class-validator");
-class UpsertVendorProductDto {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+class VendorProductDetailsDto {
+    name;
+    brand;
+    categoryId;
+    unit;
+    size;
+    mrp;
+    imageUrl;
+    description;
+    attributes;
+}
+exports.VendorProductDetailsDto = VendorProductDetailsDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "brand", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "categoryId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "unit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "size", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], VendorProductDetailsDto.prototype, "mrp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorProductDetailsDto.prototype, "description", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], VendorProductDetailsDto.prototype, "attributes", void 0);
+class UpsertVendorProductDto extends VendorProductDetailsDto {
     productId;
     price;
     stockQty;
     isAvailable;
     offerTag;
     lowStockThreshold;
+    restockEta;
 }
 exports.UpsertVendorProductDto = UpsertVendorProductDto;
 __decorate([
@@ -51,63 +111,21 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpsertVendorProductDto.prototype, "lowStockThreshold", void 0);
-class UpdateVendorProductDto {
-    name;
-    brand;
-    categoryId;
-    unit;
-    size;
-    mrp;
-    imageUrl;
-    description;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Matches)(DATE_RE, { message: 'restockEta must be YYYY-MM-DD' }),
+    (0, class_validator_1.IsISO8601)({ strict: true }),
+    __metadata("design:type", Object)
+], UpsertVendorProductDto.prototype, "restockEta", void 0);
+class UpdateVendorProductDto extends VendorProductDetailsDto {
     price;
     stockQty;
     isAvailable;
     offerTag;
     lowStockThreshold;
+    restockEta;
 }
 exports.UpdateVendorProductDto = UpdateVendorProductDto;
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "name", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "brand", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "categoryId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "unit", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "size", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
-], UpdateVendorProductDto.prototype, "mrp", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "imageUrl", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateVendorProductDto.prototype, "description", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
@@ -137,6 +155,22 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateVendorProductDto.prototype, "lowStockThreshold", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Matches)(DATE_RE, { message: 'restockEta must be YYYY-MM-DD' }),
+    (0, class_validator_1.IsISO8601)({ strict: true }),
+    __metadata("design:type", Object)
+], UpdateVendorProductDto.prototype, "restockEta", void 0);
+class RestockVendorProductDto {
+    qty;
+}
+exports.RestockVendorProductDto = RestockVendorProductDto;
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(100_000),
+    __metadata("design:type", Number)
+], RestockVendorProductDto.prototype, "qty", void 0);
 class CreateVendorCustomProductDto {
     name;
     brand;

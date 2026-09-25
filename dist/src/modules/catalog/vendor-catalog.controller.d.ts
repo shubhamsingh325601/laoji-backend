@@ -1,33 +1,33 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
-import { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
+import { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import { UpdateBusinessHoursDto } from './dto/business-hours.dto';
-import { CreateVendorCustomProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import { CreateVendorCustomProductDto, RestockVendorProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import { CreateCategoryDto, CreateVendorCategoryDto, UpdateCategoryDto, UpdateVendorCategoryDto } from './dto/category.dto';
 import { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
+import { CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
-import { CreateVendorCategoryDto } from './dto/category.dto';
 export declare class VendorCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
         businessName: string;
         ownerName: string;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
-        pickupLat: number;
-        pickupLng: number;
-        kycStatus: "pending" | "verified" | "rejected";
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
-        isOpen: boolean;
-        id: string;
-        createdAt: Date;
-        userId: string;
+        kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
         radiusKm: number;
+        isOpen: boolean;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -39,6 +39,7 @@ export declare class VendorCatalogController {
     }>;
     myProfile(user: JwtAccessPayload): Promise<{
         isOpenNow: boolean;
+        locationIsDefault: boolean;
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
@@ -98,6 +99,34 @@ export declare class VendorCatalogController {
         businessType: string;
         createdAt: Date;
     }>;
+    updateLocation(user: JwtAccessPayload, dto: UpdateVendorLocationDto): Promise<{
+        isOpenNow: boolean;
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
+        isOpen: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
+        imageUrl: string | null;
+        businessType: string;
+        createdAt: Date;
+    }>;
     deleteAccount(user: JwtAccessPayload): Promise<{
         success: boolean;
         message: string;
@@ -107,11 +136,16 @@ export declare class VendorCatalogController {
         message: string;
     }>;
     myCategories(user: JwtAccessPayload): Promise<{
+        isOwn: boolean;
+        inShop: boolean;
+        productCount: number;
         id: string;
-        parentId: string | null;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }[]>;
     createCategory(user: JwtAccessPayload, dto: CreateVendorCategoryDto): Promise<{
         id: string;
@@ -119,20 +153,26 @@ export declare class VendorCatalogController {
         imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
-    updateVendorCategory(id: string, dto: UpdateCategoryDto): Promise<{
+    updateVendorCategory(user: JwtAccessPayload, id: string, dto: UpdateVendorCategoryDto): Promise<{
         id: string;
-        parentId: string | null;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
-    deleteVendorCategory(id: string): Promise<{
+    deleteVendorCategory(user: JwtAccessPayload, id: string): Promise<{
         success: boolean;
         message: string;
     }>;
     productForm(user: JwtAccessPayload): Promise<import("./product-forms").ProductForm>;
     browseMasterCatalog(user: JwtAccessPayload, categoryId?: string): Promise<{
+        categoryName: string | null;
+        listingId: string | null;
         id: string;
         categoryId: string;
         brand: string | null;
@@ -144,24 +184,30 @@ export declare class VendorCatalogController {
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }[]>;
     myListings(user: JwtAccessPayload): Promise<{
         product: {
-            id: string;
             categoryId: string;
+            id: string;
             brand: string | null;
             name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
             description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            imageUrl: string | null;
             attributes: Record<string, string | number | boolean> | null;
-            status: "active" | "inactive";
-            createdAt: Date;
+            templateProductId: string | null;
         };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         productId: string;
         price: number;
@@ -169,60 +215,89 @@ export declare class VendorCatalogController {
         isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
-        updatedAt: Date;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
-        updatedAt: Date;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     createNewProduct(user: JwtAccessPayload, dto: CreateGroceryProductDto): Promise<{
         product: {
+            categoryId: string;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
+            ownerVendorId: string | null;
             description: string | null;
-            categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
-        updatedAt: Date;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         product: {
-            id: string;
             categoryId: string;
+            id: string;
             brand: string | null;
             name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
             description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            imageUrl: string | null;
             attributes: Record<string, string | number | boolean> | null;
-            status: "active" | "inactive";
-            createdAt: Date;
+            templateProductId: string | null;
         };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         productId: string;
         price: number;
@@ -230,244 +305,126 @@ export declare class VendorCatalogController {
         isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }>;
+    restockListing(user: JwtAccessPayload, id: string, dto: RestockVendorProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
+        id: string;
         updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     deleteListing(user: JwtAccessPayload, id: string): Promise<{
         success: boolean;
     }>;
-    listCategories(): import("drizzle-orm/pg-core").PgSelectBase<"categories", {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        parentId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "parent_id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        businessType: import("drizzle-orm/pg-core").PgColumn<{
-            name: "business_type";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-    }, "single", Record<"categories", "not-null">, false, never, {
-        id: string;
-        parentId: string | null;
-        name: string;
-        imageUrl: string | null;
-        businessType: string | null;
-    }[], {
-        id: import("drizzle-orm/pg-core").PgColumn<{
-            name: "id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: true;
-            isPrimaryKey: true;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        parentId: import("drizzle-orm/pg-core").PgColumn<{
-            name: "parent_id";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgUUID";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        name: import("drizzle-orm/pg-core").PgColumn<{
-            name: "name";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 150;
-        }>;
-        imageUrl: import("drizzle-orm/pg-core").PgColumn<{
-            name: "image_url";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgText";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        businessType: import("drizzle-orm/pg-core").PgColumn<{
-            name: "business_type";
-            tableName: "categories";
-            dataType: "string";
-            columnType: "PgVarchar";
-            data: string;
-            driverParam: string;
-            notNull: false;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: [string, ...string[]];
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {
-            length: 50;
-        }>;
-    }>;
-    createCategoryFlat(dto: CreateCategoryDto): Promise<{
+    listCategories(user: JwtAccessPayload): Promise<{
+        isOwn: boolean;
+        inShop: boolean;
+        productCount: number;
         id: string;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
-    }>;
-    updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }[]>;
+    createCategoryFlat(user: JwtAccessPayload, dto: CreateCategoryDto): Promise<{
         id: string;
-        parentId: string | null;
         name: string;
         imageUrl: string | null;
         businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
-    deleteCategory(id: string): Promise<{
+    updateCategory(user: JwtAccessPayload, id: string, dto: UpdateCategoryDto): Promise<{
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }>;
+    deleteCategory(user: JwtAccessPayload, id: string): Promise<{
         success: boolean;
         message: string;
     }>;
     createCustomProduct(user: JwtAccessPayload, dto: CreateVendorCustomProductDto): Promise<{
         product: {
+            categoryId: string;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
+            ownerVendorId: string | null;
             description: string | null;
-            categoryId: string;
             unit: string;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
-        updatedAt: Date;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     updateCustomProduct(user: JwtAccessPayload, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
-        product: any;
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         productId: string;
         price: number;
@@ -475,7 +432,8 @@ export declare class VendorCatalogController {
         isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
-        updatedAt: Date;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     deleteCustomProduct(user: JwtAccessPayload, productId: string): Promise<{
         success: boolean;
@@ -485,15 +443,15 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        imageUrl: string | null;
-        vendorId: string;
-        categoryId: string;
-        unit: string;
-        size: string | null;
-        productId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        imageUrl: string | null;
+        categoryId: string;
+        unit: string;
+        size: string | null;
+        vendorId: string;
+        productId: string | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{
         id: string;
@@ -506,6 +464,32 @@ export declare class VendorCatalogController {
         status: "pending" | "rejected" | "approved";
         rejectionReason: string | null;
         productId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    submitCategorySuggestion(user: JwtAccessPayload, dto: CreateCategorySuggestionDto): Promise<{
+        id: string;
+        name: string;
+        status: "pending" | "rejected" | "approved";
+        createdAt: Date;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        businessType: string;
+        categoryId: string | null;
+        vendorId: string;
+        note: string | null;
+    }>;
+    myCategorySuggestions(user: JwtAccessPayload): Promise<{
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
         createdAt: Date;

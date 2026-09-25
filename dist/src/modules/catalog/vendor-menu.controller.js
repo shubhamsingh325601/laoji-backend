@@ -21,6 +21,7 @@ const current_user_decorator_1 = require("../../common/decorators/current-user.d
 const catalog_service_1 = require("./catalog.service");
 const restaurant_dto_1 = require("./dto/restaurant.dto");
 const menu_dto_1 = require("./dto/menu.dto");
+const meal_timings_dto_1 = require("./dto/meal-timings.dto");
 let VendorMenuController = class VendorMenuController {
     catalog;
     constructor(catalog) {
@@ -33,6 +34,14 @@ let VendorMenuController = class VendorMenuController {
     async updateRestaurant(user, dto) {
         const vendor = await this.catalog.requireVendor(user.sub);
         return this.catalog.updateRestaurant(vendor.id, dto);
+    }
+    async mealTimings(user) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.getMealTimings(vendor.id);
+    }
+    async updateMealTimings(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.updateMealTimings(vendor.id, dto);
     }
     async listMenuCategories(user) {
         const vendor = await this.catalog.requireVendor(user.sub);
@@ -83,6 +92,21 @@ __decorate([
     __metadata("design:paramtypes", [Object, restaurant_dto_1.UpdateRestaurantDto]),
     __metadata("design:returntype", Promise)
 ], VendorMenuController.prototype, "updateRestaurant", null);
+__decorate([
+    (0, common_1.Get)('restaurant/meal-timings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorMenuController.prototype, "mealTimings", null);
+__decorate([
+    (0, common_1.Put)('restaurant/meal-timings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, meal_timings_dto_1.UpdateMealTimingsDto]),
+    __metadata("design:returntype", Promise)
+], VendorMenuController.prototype, "updateMealTimings", null);
 __decorate([
     (0, common_1.Get)('menu/categories'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

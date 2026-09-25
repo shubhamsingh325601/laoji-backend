@@ -3,6 +3,7 @@ import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
+import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
@@ -27,6 +28,8 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
         id: string;
@@ -34,6 +37,8 @@ export declare class AdminCatalogController {
         name: string;
         imageUrl: string | null;
         businessType: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
@@ -237,6 +242,40 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -266,6 +305,8 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -465,6 +506,40 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -490,12 +565,14 @@ export declare class AdminCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
-        description: string | null;
+        ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
+        templateProductId: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -509,6 +586,8 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
     deleteProduct(id: string): Promise<{
@@ -533,6 +612,9 @@ export declare class AdminCatalogController {
         activity: string;
         isOpen: boolean;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -556,6 +638,9 @@ export declare class AdminCatalogController {
         activity: string;
         isOpen: boolean;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -581,6 +666,9 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -605,6 +693,9 @@ export declare class AdminCatalogController {
         activity: string;
         isOpen: boolean;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -651,12 +742,14 @@ export declare class AdminCatalogController {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
+            ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
         id: string;
         vendorId: string;
@@ -683,6 +776,55 @@ export declare class AdminCatalogController {
         status: "pending" | "rejected" | "approved";
         rejectionReason: string | null;
         productId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
+    listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
+        vendorName: string;
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    approveCategorySuggestion(user: JwtAccessPayload, id: string, dto: ApproveCategorySuggestionDto): Promise<{
+        category: {
+            id: string;
+            parentId: string | null;
+            name: string;
+            imageUrl: string | null;
+            businessType: string | null;
+            ownerVendorId: string | null;
+            templateCategoryId: string | null;
+        };
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
+    rejectCategorySuggestion(user: JwtAccessPayload, id: string, dto: RejectProductSuggestionDto): Promise<{
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
         createdAt: Date;

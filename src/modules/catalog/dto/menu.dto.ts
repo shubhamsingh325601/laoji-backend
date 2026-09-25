@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { MEAL_SLOTS } from '../meal-slots';
 
 export class CreateMenuCategoryDto {
   @IsString()
@@ -84,6 +86,12 @@ export class CreateMenuItemDto {
   @IsBoolean()
   isVeg?: boolean;
 
+  // Meal slots the item is served in; omitted or [] = all day.
+  @IsOptional()
+  @IsArray()
+  @IsIn(MEAL_SLOTS, { each: true })
+  mealSlots?: string[];
+
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -127,6 +135,12 @@ export class UpdateMenuItemDto {
   @IsOptional()
   @IsBoolean()
   isAvailable?: boolean;
+
+  // [] switches the item back to all day; omitted leaves it unchanged.
+  @IsOptional()
+  @IsArray()
+  @IsIn(MEAL_SLOTS, { each: true })
+  mealSlots?: string[];
 
   @IsOptional()
   @IsArray()

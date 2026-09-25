@@ -134,6 +134,20 @@
       "when": 1790156998241,
       "tag": "0018_product_attributes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790303064245,
+      "tag": "0019_meal_slots_restock_master_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790315102979,
+      "tag": "0020_vendor_own_catalog",
+      "breakpoints": true
     }
   ]
 }

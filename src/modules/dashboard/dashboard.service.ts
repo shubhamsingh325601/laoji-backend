@@ -4,6 +4,7 @@ import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
   allocationAttempts,
+  categorySuggestions,
   deliveryPartners,
   foodOrders,
   groceryOrders,
@@ -47,6 +48,7 @@ export interface DashboardStats {
   totalPartners: number;
   pendingKyc: number;
   pendingSuggestions: number;
+  pendingCategorySuggestions: number;
 }
 
 export interface AttentionItem {
@@ -128,10 +130,14 @@ export class DashboardService {
     const gmvLastWeek = sumTotal(groceryLastWeek) + sumTotal(foodLastWeek);
     const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
 
-    const [allVendors, allPartners, pendingSuggestionsRows] = await Promise.all([
+    const [allVendors, allPartners, pendingSuggestionsRows, pendingCategorySuggestionRows] = await Promise.all([
       this.db.select().from(vendors),
       this.db.select().from(deliveryPartners),
       this.db.select().from(productSuggestions).where(eq(productSuggestions.status, 'pending')),
+      this.db
+        .select({ id: categorySuggestions.id })
+        .from(categorySuggestions)
+        .where(eq(categorySuggestions.status, 'pending')),
     ]);
 
     const verifiedPartners = allPartners.filter((p) => p.kycStatus === 'verified');
@@ -148,6 +154,7 @@ export class DashboardService {
         allVendors.filter((v) => v.kycStatus === 'pending').length +
         allPartners.filter((p) => p.kycStatus === 'pending').length,
       pendingSuggestions: pendingSuggestionsRows.length,
+      pendingCategorySuggestions: pendingCategorySuggestionRows.length,
     };
   }
 

@@ -8,6 +8,7 @@ import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
+import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -111,5 +112,28 @@ export class AdminCatalogController {
     @Body() dto: RejectProductSuggestionDto,
   ) {
     return this.catalog.rejectProductSuggestion(user.sub, id, dto.reason);
+  }
+
+  @Get('category-suggestions')
+  listCategorySuggestions(@Query('status') status?: 'pending' | 'approved' | 'rejected') {
+    return this.catalog.listCategorySuggestions(status);
+  }
+
+  @Post('category-suggestions/:id/approve')
+  approveCategorySuggestion(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body() dto: ApproveCategorySuggestionDto,
+  ) {
+    return this.catalog.approveCategorySuggestion(user.sub, id, dto);
+  }
+
+  @Post('category-suggestions/:id/reject')
+  rejectCategorySuggestion(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body() dto: RejectProductSuggestionDto,
+  ) {
+    return this.catalog.rejectCategorySuggestion(user.sub, id, dto.reason);
   }
 }

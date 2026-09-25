@@ -4,8 +4,8 @@ export declare class UpsertVendorProfileDto {
     ownerName: string;
     type: (typeof VENDOR_TYPES)[number];
     shopAddress?: string;
-    pickupLat: number;
-    pickupLng: number;
+    pickupLat?: number;
+    pickupLng?: number;
     radiusKm?: number;
     gstNumber?: string;
     aadhaarNumber?: string;
@@ -14,5 +14,9 @@ export declare class UpsertVendorProfileDto {
     upiId?: string;
     imageUrl?: string;
     businessType?: string;
+}
+export declare class UpdateVendorLocationDto {
+    pickupLat: number;
+    pickupLng: number;
 }
 export {};

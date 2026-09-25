@@ -24,6 +24,7 @@ import {
   vendors,
 } from '../../../drizzle/schema';
 import { parseDurationMs } from '../../common/utils/duration';
+import { isDefaultPickup } from '../catalog/catalog.types';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerRegisterDto } from './dto/customer-auth.dto';
@@ -532,6 +533,9 @@ export class AuthService {
 
     let vendorRecord: any;
     if (existingVendor) {
+      // Registering again keeps the store's pickup point unless this signup
+      // got a real GPS fix, and keeps its delivery radius (admin's to change),
+      // same as a profile edit (CatalogService#upsertVendorProfile).
       const [updated] = await this.db
         .update(vendors)
         .set({
@@ -541,9 +545,7 @@ export class AuthService {
           businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
           ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
           shopAddress: dto.shopAddress ?? undefined,
-          pickupLat: dto.pickupLat,
-          pickupLng: dto.pickupLng,
-          radiusKm: dto.radiusKm ?? 5,
+          ...(isDefaultPickup(dto.pickupLat, dto.pickupLng) ? {} : { pickupLat: dto.pickupLat, pickupLng: dto.pickupLng }),
         })
         .where(eq(vendors.id, existingVendor.id))
         .returning();
