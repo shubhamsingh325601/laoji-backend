@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PublicCatalogController = void 0;
 const common_1 = require("@nestjs/common");
-const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const catalog_service_1 = require("./catalog.service");
 function parseCoord(lat, lng) {
     const latNum = Number(lat);
@@ -46,6 +45,9 @@ let PublicCatalogController = class PublicCatalogController {
     }
     restaurant(id, lat, lng) {
         return this.catalog.publicGetRestaurant(id, lat && lng ? parseCoord(lat, lng) : undefined);
+    }
+    vendorListings(id) {
+        return this.catalog.getAdminVendorListings(id);
     }
     search(lat, lng, q) {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
@@ -95,6 +97,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "restaurant", null);
 __decorate([
+    (0, common_1.Get)('vendors/:id/listings'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PublicCatalogController.prototype, "vendorListings", null);
+__decorate([
     (0, common_1.Get)('search'),
     __param(0, (0, common_1.Query)('lat')),
     __param(1, (0, common_1.Query)('lng')),
@@ -104,7 +113,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "search", null);
 exports.PublicCatalogController = PublicCatalogController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('catalog'),
     __metadata("design:paramtypes", [catalog_service_1.CatalogService])
 ], PublicCatalogController);

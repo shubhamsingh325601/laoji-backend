@@ -1410,6 +1410,25 @@ export declare class CatalogService {
         lat: number;
         lng: number;
     }): Promise<{
+        imageUrl: string | null;
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
+        menuCategories: {
+            id: string;
+            name: string;
+            items: any[];
+        }[];
+        id: string;
+        vendorId: string;
+        name: string;
+        cuisineTags: string | null;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
+    } | {
         menuCategories: {
             items: {
                 mealSlots: string[];
@@ -2703,6 +2722,14 @@ export declare class CatalogService {
         productCount: number;
         createdAt: Date;
     }>;
+    getAdminVendorListings(vendorId: string): Promise<{
+        id: string;
+        name: string;
+        category: string;
+        price: number;
+        unit: string;
+        available: boolean;
+    }[]>;
     createAdminVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
         userId: string;

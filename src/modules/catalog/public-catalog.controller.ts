@@ -1,5 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
@@ -11,7 +10,6 @@ function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
   return { lat: latNum, lng: lngNum };
 }
 
-@UseGuards(JwtAuthGuard)
 @Controller('catalog')
 export class PublicCatalogController {
   constructor(private readonly catalog: CatalogService) {}
@@ -44,6 +42,11 @@ export class PublicCatalogController {
   @Get('restaurants/:id')
   restaurant(@Param('id') id: string, @Query('lat') lat?: string, @Query('lng') lng?: string) {
     return this.catalog.publicGetRestaurant(id, lat && lng ? parseCoord(lat, lng) : undefined);
+  }
+
+  @Get('vendors/:id/listings')
+  vendorListings(@Param('id') id: string) {
+    return this.catalog.getAdminVendorListings(id);
   }
 
   @Get('search')

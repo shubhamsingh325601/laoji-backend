@@ -70,6 +70,11 @@ export class AdminCatalogController {
     return this.catalog.getAdminVendor(id);
   }
 
+  @Get('vendors/:id/listings')
+  getVendorListings(@Param('id') id: string) {
+    return this.catalog.getAdminVendorListings(id);
+  }
+
   @Post('vendors')
   createVendor(@Body() dto: CreateAdminVendorDto) {
     return this.catalog.createAdminVendor(dto);

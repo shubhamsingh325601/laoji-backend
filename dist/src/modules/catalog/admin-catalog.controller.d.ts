@@ -649,6 +649,14 @@ export declare class AdminCatalogController {
         productCount: number;
         createdAt: Date;
     }>;
+    getVendorListings(id: string): Promise<{
+        id: string;
+        name: string;
+        category: string;
+        price: number;
+        unit: string;
+        available: boolean;
+    }[]>;
     createVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
         userId: string;

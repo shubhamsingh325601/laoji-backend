@@ -1257,10 +1257,26 @@ export class CatalogService {
     if (vendorIds.length === 0) return [];
 
     const { all, byId } = await this.categoryIndex();
-    // A Laoji category also holds what stores filed under their own copies of it.
-    const categoryIds = categoryId
-      ? [categoryId, ...all.filter((c) => c.ownerVendorId !== null && c.templateCategoryId === categoryId).map((c) => c.id)]
-      : undefined;
+    let categoryIds: string[] | undefined = undefined;
+    if (categoryId) {
+      const catIdSet = new Set<string>([categoryId]);
+      const addChildren = (pId: string) => {
+        for (const c of all) {
+          if (c.parentId === pId && !catIdSet.has(c.id)) {
+            catIdSet.add(c.id);
+            addChildren(c.id);
+          }
+        }
+      };
+      addChildren(categoryId);
+      // A Laoji category also holds what stores filed under their own copies of it.
+      for (const c of all) {
+        if (c.ownerVendorId !== null && c.templateCategoryId && catIdSet.has(c.templateCategoryId)) {
+          catIdSet.add(c.id);
+        }
+      }
+      categoryIds = Array.from(catIdSet);
+    }
 
     const rows = await this.db
       .select({ vendorProduct: vendorProducts, product: products })
@@ -1459,6 +1475,59 @@ export class CatalogService {
     const variants = itemIds.length
       ? await this.db.select().from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, itemIds))
       : [];
+
+    if (cats.length === 0 && vendor) {
+      const vProds = await this.db
+        .select({
+          vp: vendorProducts,
+          p: products,
+          c: categories,
+        })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .innerJoin(categories, eq(products.categoryId, categories.id))
+        .where(
+          and(
+            eq(vendorProducts.vendorId, vendor.id),
+            eq(vendorProducts.isAvailable, true),
+            eq(products.status, 'active'),
+          ),
+        );
+
+      if (vProds.length > 0) {
+        const catMap = new Map<string, { id: string; name: string; items: any[] }>();
+        for (const row of vProds) {
+          const cId = row.c.id;
+          if (!catMap.has(cId)) {
+            catMap.set(cId, {
+              id: cId,
+              name: row.c.name,
+              items: [],
+            });
+          }
+          catMap.get(cId)!.items.push({
+            id: row.p.id,
+            menuCategoryId: cId,
+            name: row.p.name,
+            description: row.p.description,
+            price: row.vp.price,
+            imageUrl: row.p.imageUrl,
+            isVeg: true,
+            isAvailable: row.vp.isAvailable,
+            addons: [],
+            variants: [],
+          });
+        }
+        return {
+          ...restaurant,
+          imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
+          ratingAvg: dynamicRating,
+          ratingCount: dynamicCount,
+          isOpen: openNow,
+          menuCategories: Array.from(catMap.values()),
+        };
+      }
+    }
 
     return {
       ...restaurant,
@@ -2135,6 +2204,17 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, id)).limit(1);
     const vendorProds = await this.db.select().from(vendorProducts).where(eq(vendorProducts.vendorId, id));
 
+    let productCount = vendorProds.length;
+    if (restaurant) {
+      const [menuCountRes] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(eq(menuCategories.restaurantId, restaurant.id));
+      const restCount = Number(menuCountRes?.count ?? 0);
+      productCount = Math.max(productCount, restCount);
+    }
+
     return {
       id: vendor.id,
       userId: vendor.userId,
@@ -2161,9 +2241,78 @@ export class CatalogService {
       discountPct: 0,
       rating: restaurant?.ratingAvg ?? 4.8,
       ratingCount: 12,
-      productCount: vendorProds.length,
+      productCount,
       createdAt: vendor.createdAt,
     };
+  }
+
+  async getAdminVendorListings(vendorId: string) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const results: {
+      id: string;
+      name: string;
+      category: string;
+      price: number;
+      unit: string;
+      available: boolean;
+    }[] = [];
+
+    // 1. Fetch grocery products
+    const vProds = await this.db
+      .select({
+        id: vendorProducts.id,
+        price: vendorProducts.price,
+        isAvailable: vendorProducts.isAvailable,
+        name: products.name,
+        unit: products.unit,
+        categoryName: categories.name,
+      })
+      .from(vendorProducts)
+      .innerJoin(products, eq(vendorProducts.productId, products.id))
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(vendorProducts.vendorId, vendorId));
+
+    for (const vp of vProds) {
+      results.push({
+        id: vp.id,
+        name: vp.name,
+        category: vp.categoryName,
+        price: vp.price,
+        unit: vp.unit,
+        available: vp.isAvailable,
+      });
+    }
+
+    // 2. Fetch restaurant menu items
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const mItems = await this.db
+        .select({
+          id: menuItems.id,
+          name: menuItems.name,
+          price: menuItems.price,
+          isAvailable: menuItems.isAvailable,
+          categoryName: menuCategories.name,
+        })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(eq(menuCategories.restaurantId, restaurant.id));
+
+      for (const mi of mItems) {
+        results.push({
+          id: mi.id,
+          name: mi.name,
+          category: mi.categoryName,
+          price: mi.price,
+          unit: 'portion',
+          available: mi.isAvailable,
+        });
+      }
+    }
+
+    return results;
   }
 
   async createAdminVendor(dto: CreateAdminVendorDto) {

@@ -59,6 +59,9 @@ let AdminCatalogController = class AdminCatalogController {
     getVendor(id) {
         return this.catalog.getAdminVendor(id);
     }
+    getVendorListings(id) {
+        return this.catalog.getAdminVendorListings(id);
+    }
     createVendor(dto) {
         return this.catalog.createAdminVendor(dto);
     }
@@ -163,6 +166,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "getVendor", null);
+__decorate([
+    (0, common_1.Get)('vendors/:id/listings'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "getVendorListings", null);
 __decorate([
     (0, common_1.Post)('vendors'),
     __param(0, (0, common_1.Body)()),

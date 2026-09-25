@@ -955,9 +955,25 @@ let CatalogService = class CatalogService {
         if (vendorIds.length === 0)
             return [];
         const { all, byId } = await this.categoryIndex();
-        const categoryIds = categoryId
-            ? [categoryId, ...all.filter((c) => c.ownerVendorId !== null && c.templateCategoryId === categoryId).map((c) => c.id)]
-            : undefined;
+        let categoryIds = undefined;
+        if (categoryId) {
+            const catIdSet = new Set([categoryId]);
+            const addChildren = (pId) => {
+                for (const c of all) {
+                    if (c.parentId === pId && !catIdSet.has(c.id)) {
+                        catIdSet.add(c.id);
+                        addChildren(c.id);
+                    }
+                }
+            };
+            addChildren(categoryId);
+            for (const c of all) {
+                if (c.ownerVendorId !== null && c.templateCategoryId && catIdSet.has(c.templateCategoryId)) {
+                    catIdSet.add(c.id);
+                }
+            }
+            categoryIds = Array.from(catIdSet);
+        }
         const rows = await this.db
             .select({ vendorProduct: schema_1.vendorProducts, product: schema_1.products })
             .from(schema_1.vendorProducts)
@@ -1103,6 +1119,51 @@ let CatalogService = class CatalogService {
         const variants = itemIds.length
             ? await this.db.select().from(schema_1.menuItemVariants).where((0, drizzle_orm_1.inArray)(schema_1.menuItemVariants.menuItemId, itemIds))
             : [];
+        if (cats.length === 0 && vendor) {
+            const vProds = await this.db
+                .select({
+                vp: schema_1.vendorProducts,
+                p: schema_1.products,
+                c: schema_1.categories,
+            })
+                .from(schema_1.vendorProducts)
+                .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
+                .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendor.id), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active')));
+            if (vProds.length > 0) {
+                const catMap = new Map();
+                for (const row of vProds) {
+                    const cId = row.c.id;
+                    if (!catMap.has(cId)) {
+                        catMap.set(cId, {
+                            id: cId,
+                            name: row.c.name,
+                            items: [],
+                        });
+                    }
+                    catMap.get(cId).items.push({
+                        id: row.p.id,
+                        menuCategoryId: cId,
+                        name: row.p.name,
+                        description: row.p.description,
+                        price: row.vp.price,
+                        imageUrl: row.p.imageUrl,
+                        isVeg: true,
+                        isAvailable: row.vp.isAvailable,
+                        addons: [],
+                        variants: [],
+                    });
+                }
+                return {
+                    ...restaurant,
+                    imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
+                    ratingAvg: dynamicRating,
+                    ratingCount: dynamicCount,
+                    isOpen: openNow,
+                    menuCategories: Array.from(catMap.values()),
+                };
+            }
+        }
         return {
             ...restaurant,
             mealTimings: (0, meal_slots_1.mealTimingsView)(restaurant.mealTimings),
@@ -1621,6 +1682,16 @@ let CatalogService = class CatalogService {
         const { vendor, user } = row;
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id)).limit(1);
         const vendorProds = await this.db.select().from(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, id));
+        let productCount = vendorProds.length;
+        if (restaurant) {
+            const [menuCountRes] = await this.db
+                .select({ count: (0, drizzle_orm_1.sql) `count(*)::int` })
+                .from(schema_1.menuItems)
+                .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
+                .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
+            const restCount = Number(menuCountRes?.count ?? 0);
+            productCount = Math.max(productCount, restCount);
+        }
         return {
             id: vendor.id,
             userId: vendor.userId,
@@ -1647,9 +1718,63 @@ let CatalogService = class CatalogService {
             discountPct: 0,
             rating: restaurant?.ratingAvg ?? 4.8,
             ratingCount: 12,
-            productCount: vendorProds.length,
+            productCount,
             createdAt: vendor.createdAt,
         };
+    }
+    async getAdminVendorListings(vendorId) {
+        const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
+        if (!vendor)
+            throw new common_1.NotFoundException('Vendor not found');
+        const results = [];
+        const vProds = await this.db
+            .select({
+            id: schema_1.vendorProducts.id,
+            price: schema_1.vendorProducts.price,
+            isAvailable: schema_1.vendorProducts.isAvailable,
+            name: schema_1.products.name,
+            unit: schema_1.products.unit,
+            categoryName: schema_1.categories.name,
+        })
+            .from(schema_1.vendorProducts)
+            .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
+            .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
+            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId));
+        for (const vp of vProds) {
+            results.push({
+                id: vp.id,
+                name: vp.name,
+                category: vp.categoryName,
+                price: vp.price,
+                unit: vp.unit,
+                available: vp.isAvailable,
+            });
+        }
+        const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
+        if (restaurant) {
+            const mItems = await this.db
+                .select({
+                id: schema_1.menuItems.id,
+                name: schema_1.menuItems.name,
+                price: schema_1.menuItems.price,
+                isAvailable: schema_1.menuItems.isAvailable,
+                categoryName: schema_1.menuCategories.name,
+            })
+                .from(schema_1.menuItems)
+                .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
+                .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
+            for (const mi of mItems) {
+                results.push({
+                    id: mi.id,
+                    name: mi.name,
+                    category: mi.categoryName,
+                    price: mi.price,
+                    unit: 'portion',
+                    available: mi.isAvailable,
+                });
+            }
+        }
+        return results;
     }
     async createAdminVendor(dto) {
         const phone = dto.phone.trim();
