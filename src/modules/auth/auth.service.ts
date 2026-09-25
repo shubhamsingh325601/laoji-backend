@@ -18,6 +18,7 @@ import {
   deliveryPartners,
   foodOrders,
   groceryOrders,
+  kycDocuments,
   otpCodes,
   restaurants,
   users,
@@ -218,7 +219,7 @@ export class AuthService {
     const [existing] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'customer')))
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'customer'), eq(users.status, 'active')))
       .limit(1);
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -317,7 +318,7 @@ export class AuthService {
     const [existing] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'delivery_partner')))
+      .where(and(eq(users.phone, cleanPhone), eq(users.role, 'delivery_partner'), eq(users.status, 'active')))
       .limit(1);
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -477,7 +478,7 @@ export class AuthService {
       const [emailUser] = await this.db
         .select()
         .from(users)
-        .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'vendor')))
+        .where(and(ilike(users.email, trimmedEmail), eq(users.role, 'vendor'), eq(users.status, 'active')))
         .limit(1);
       if (emailUser && emailUser.phone !== trimmedPhone) {
         throw new ConflictException('An account with this email address already exists.');
@@ -487,7 +488,7 @@ export class AuthService {
     const [existingUser] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor')))
+      .where(and(eq(users.phone, trimmedPhone), eq(users.role, 'vendor'), eq(users.status, 'active')))
       .limit(1);
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -500,7 +501,7 @@ export class AuthService {
         .where(eq(vendors.userId, existingUser.id))
         .limit(1);
 
-      if (existingVendor && existingUser.passwordHash) {
+      if (existingVendor || existingUser.passwordHash) {
         throw new ConflictException('An account with this phone number already exists. Please log in.');
       }
 
@@ -519,6 +520,7 @@ export class AuthService {
           phone: trimmedPhone,
           email: trimmedEmail,
           role: 'vendor',
+          status: 'active',
           passwordHash,
         })
         .returning();
@@ -844,9 +846,12 @@ export class AuthService {
         .where(eq(deliveryPartners.userId, userId));
     }
 
+    // Delete KYC documents belonging to this user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, userId));
+
     await this.db
       .update(users)
-      .set({ status: 'suspended', phone: null, email: null })
+      .set({ status: 'suspended', phone: null, email: null, name: null })
       .where(eq(users.id, userId));
 
     await this.db
@@ -861,12 +866,12 @@ export class AuthService {
     const [existing] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, phone), eq(users.role, role)))
+      .where(and(eq(users.phone, phone), eq(users.role, role), eq(users.status, 'active')))
       .limit(1);
     if (existing) return existing;
 
     try {
-      const [created] = await this.db.insert(users).values({ phone, role }).returning();
+      const [created] = await this.db.insert(users).values({ phone, role, status: 'active' }).returning();
       return created;
     } catch {
       throw new ConflictException('Account creation conflict — try again');

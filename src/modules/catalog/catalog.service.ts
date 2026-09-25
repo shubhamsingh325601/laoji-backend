@@ -12,6 +12,7 @@ import {
   foodOrders,
   groceryOrderItems,
   groceryOrders,
+  kycDocuments,
   menuCategories,
   menuItemAddons,
   menuItems,
@@ -317,19 +318,22 @@ export class CatalogService {
       );
     }
 
-    // 2. Mark vendor and restaurant as closed
+    // 2. Delete KYC documents belonging to this vendor user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, userId));
+
+    // 3. Mark vendor and restaurant as closed
     await this.db.update(vendors).set({ isOpen: false }).where(eq(vendors.id, vendor.id));
     if (restaurant) {
       await this.db.update(restaurants).set({ isOpen: false }).where(eq(restaurants.id, restaurant.id));
     }
 
-    // 3. Mark user suspended and scrub identifiers
+    // 4. Mark user suspended and scrub identifiers
     await this.db
       .update(users)
-      .set({ status: 'suspended', phone: null, email: null })
+      .set({ status: 'suspended', phone: null, email: null, name: null })
       .where(eq(users.id, userId));
 
-    // 4. Revoke auth tokens
+    // 5. Revoke auth tokens
     await this.db
       .update(authTokens)
       .set({ revokedAt: new Date() })
@@ -2677,6 +2681,7 @@ export class CatalogService {
         and(
           email ? or(eq(users.phone, phone), ilike(users.email, email)) : eq(users.phone, phone),
           eq(users.role, 'vendor'),
+          eq(users.status, 'active'),
         ),
       )
       .limit(1);
@@ -2834,7 +2839,85 @@ export class CatalogService {
     const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
     if (!v) throw new NotFoundException('Vendor not found');
 
-    await this.db.delete(vendors).where(eq(vendors.id, id));
+    // 1. Verify no active orders in progress
+    const activeGrocery = await this.db
+      .select({ id: groceryOrders.id })
+      .from(groceryOrders)
+      .where(
+        and(
+          eq(groceryOrders.vendorId, v.id),
+          inArray(groceryOrders.status, [
+            'placed',
+            'vendor_accepted',
+            'preparing',
+            'ready',
+            'handed_over',
+            'delivery_assigned',
+            'picked_up',
+            'out_for_delivery',
+          ]),
+        ),
+      )
+      .limit(1);
+
+    const [restaurant] = await this.db
+      .select()
+      .from(restaurants)
+      .where(eq(restaurants.vendorId, v.id))
+      .limit(1);
+
+    let activeFood: { id: string }[] = [];
+    if (restaurant) {
+      activeFood = await this.db
+        .select({ id: foodOrders.id })
+        .from(foodOrders)
+        .where(
+          and(
+            eq(foodOrders.restaurantId, restaurant.id),
+            inArray(foodOrders.status, [
+              'placed',
+              'vendor_accepted',
+              'preparing',
+              'ready',
+              'handed_over',
+              'delivery_assigned',
+              'picked_up',
+              'out_for_delivery',
+            ]),
+          ),
+        )
+        .limit(1);
+    }
+
+    if (activeGrocery.length > 0 || activeFood.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete vendor while active orders are in progress. Please complete or cancel remaining orders first.',
+      );
+    }
+
+    // 2. Delete KYC documents belonging to this vendor user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, v.userId));
+
+    // 3. Revoke auth tokens
+    await this.db
+      .update(authTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(authTokens.userId, v.userId));
+
+    // 4. Try hard deleting the user (cascades to vendors, restaurants, products, etc.) or scrub if FK constraint from completed orders prevents
+    try {
+      await this.db.delete(users).where(eq(users.id, v.userId));
+    } catch {
+      await this.db.update(vendors).set({ isOpen: false }).where(eq(vendors.id, id));
+      if (restaurant) {
+        await this.db.update(restaurants).set({ isOpen: false }).where(eq(restaurants.id, restaurant.id));
+      }
+      await this.db
+        .update(users)
+        .set({ status: 'suspended', phone: null, email: null, name: null })
+        .where(eq(users.id, v.userId));
+    }
+
     return { success: true, message: `Vendor ${id} deleted successfully.` };
   }
 }

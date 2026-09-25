@@ -93,16 +93,42 @@ let UploadsService = class UploadsService {
     }
     async listMyKycDocuments(userId) {
         return this.db
-            .select()
+            .select({
+            id: schema_1.kycDocuments.id,
+            userId: schema_1.kycDocuments.userId,
+            role: schema_1.kycDocuments.role,
+            docType: schema_1.kycDocuments.docType,
+            secureUrl: schema_1.kycDocuments.secureUrl,
+            publicId: schema_1.kycDocuments.publicId,
+            status: schema_1.kycDocuments.status,
+            rejectionReason: schema_1.kycDocuments.rejectionReason,
+            reviewedBy: schema_1.kycDocuments.reviewedBy,
+            reviewedAt: schema_1.kycDocuments.reviewedAt,
+            uploadedAt: schema_1.kycDocuments.uploadedAt,
+        })
             .from(schema_1.kycDocuments)
-            .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId))
+            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, schema_1.users.id))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
     }
     async listAllKycDocuments(status) {
         return this.db
-            .select()
+            .select({
+            id: schema_1.kycDocuments.id,
+            userId: schema_1.kycDocuments.userId,
+            role: schema_1.kycDocuments.role,
+            docType: schema_1.kycDocuments.docType,
+            secureUrl: schema_1.kycDocuments.secureUrl,
+            publicId: schema_1.kycDocuments.publicId,
+            status: schema_1.kycDocuments.status,
+            rejectionReason: schema_1.kycDocuments.rejectionReason,
+            reviewedBy: schema_1.kycDocuments.reviewedBy,
+            reviewedAt: schema_1.kycDocuments.reviewedAt,
+            uploadedAt: schema_1.kycDocuments.uploadedAt,
+        })
             .from(schema_1.kycDocuments)
-            .where(status ? (0, drizzle_orm_1.eq)(schema_1.kycDocuments.status, status) : undefined)
+            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, schema_1.users.id))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.status, 'active'), status ? (0, drizzle_orm_1.eq)(schema_1.kycDocuments.status, status) : undefined))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
     }
     async reviewKycDocument(adminUserId, docId, status, rejectionReason) {

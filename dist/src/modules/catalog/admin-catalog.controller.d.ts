@@ -24,9 +24,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        id: string;
         name: string;
         imageUrl: string | null;
-        id: string;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -560,16 +560,16 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        name: string;
-        description: string | null;
-        unit: string;
-        imageUrl: string | null;
-        categoryId: string;
         id: string;
         brand: string | null;
+        name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        imageUrl: string | null;
         ownerVendorId: string | null;
+        categoryId: string;
+        description: string | null;
+        unit: string;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -791,16 +791,16 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            name: string;
-            description: string | null;
-            unit: string;
-            imageUrl: string | null;
-            categoryId: string;
             id: string;
             brand: string | null;
+            name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            imageUrl: string | null;
             ownerVendorId: string | null;
+            categoryId: string;
+            description: string | null;
+            unit: string;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;

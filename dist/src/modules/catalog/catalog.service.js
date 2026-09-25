@@ -239,13 +239,14 @@ let CatalogService = class CatalogService {
         if (activeGrocery.length > 0 || activeFood.length > 0) {
             throw new common_1.BadRequestException('Cannot delete account while you have active orders in progress. Please complete or cancel remaining orders first.');
         }
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
         await this.db.update(schema_1.vendors).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendor.id));
         if (restaurant) {
             await this.db.update(schema_1.restaurants).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, restaurant.id));
         }
         await this.db
             .update(schema_1.users)
-            .set({ status: 'suspended', phone: null, email: null })
+            .set({ status: 'suspended', phone: null, email: null, name: null })
             .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
         await this.db
             .update(schema_1.authTokens)
@@ -2107,7 +2108,7 @@ let CatalogService = class CatalogService {
         let [user] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)(email ? (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.ilike)(schema_1.users.email, email)) : (0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+            .where((0, drizzle_orm_1.and)(email ? (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.ilike)(schema_1.users.email, email)) : (0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         if (!user) {
             [user] = await this.db
@@ -2268,7 +2269,63 @@ let CatalogService = class CatalogService {
         const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).limit(1);
         if (!v)
             throw new common_1.NotFoundException('Vendor not found');
-        await this.db.delete(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
+        const activeGrocery = await this.db
+            .select({ id: schema_1.groceryOrders.id })
+            .from(schema_1.groceryOrders)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, v.id), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, [
+            'placed',
+            'vendor_accepted',
+            'preparing',
+            'ready',
+            'handed_over',
+            'delivery_assigned',
+            'picked_up',
+            'out_for_delivery',
+        ])))
+            .limit(1);
+        const [restaurant] = await this.db
+            .select()
+            .from(schema_1.restaurants)
+            .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, v.id))
+            .limit(1);
+        let activeFood = [];
+        if (restaurant) {
+            activeFood = await this.db
+                .select({ id: schema_1.foodOrders.id })
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, [
+                'placed',
+                'vendor_accepted',
+                'preparing',
+                'ready',
+                'handed_over',
+                'delivery_assigned',
+                'picked_up',
+                'out_for_delivery',
+            ])))
+                .limit(1);
+        }
+        if (activeGrocery.length > 0 || activeFood.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete vendor while active orders are in progress. Please complete or cancel remaining orders first.');
+        }
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, v.userId));
+        await this.db
+            .update(schema_1.authTokens)
+            .set({ revokedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, v.userId));
+        try {
+            await this.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId));
+        }
+        catch {
+            await this.db.update(schema_1.vendors).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
+            if (restaurant) {
+                await this.db.update(schema_1.restaurants).set({ isOpen: false }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, restaurant.id));
+            }
+            await this.db
+                .update(schema_1.users)
+                .set({ status: 'suspended', phone: null, email: null, name: null })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId));
+        }
         return { success: true, message: `Vendor ${id} deleted successfully.` };
     }
 };

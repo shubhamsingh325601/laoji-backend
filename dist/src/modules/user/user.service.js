@@ -175,7 +175,20 @@ let UserService = class UserService {
         const [u] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id)).limit(1);
         if (!u)
             throw new common_1.NotFoundException('User not found');
-        await this.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, id));
+        await this.db
+            .update(schema_1.authTokens)
+            .set({ revokedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, id));
+        try {
+            await this.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+        }
+        catch {
+            await this.db
+                .update(schema_1.users)
+                .set({ status: 'suspended', phone: null, email: null, name: null })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+        }
         return { success: true, message: `User ${id} deleted successfully.` };
     }
 };

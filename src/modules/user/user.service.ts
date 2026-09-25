@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { and, desc, eq, ilike, inArray, ne, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { addresses, groceryOrders, foodOrders, users } from '../../../drizzle/schema';
+import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users } from '../../../drizzle/schema';
 import { NotificationService } from '../notification/notification.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 
@@ -193,7 +193,25 @@ export class UserService {
     const [u] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     if (!u) throw new NotFoundException('User not found');
 
-    await this.db.delete(users).where(eq(users.id, id));
+    // 1. Delete KYC documents belonging to this user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, id));
+
+    // 2. Revoke auth tokens
+    await this.db
+      .update(authTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(authTokens.userId, id));
+
+    // 3. Try hard deleting the user (cascades to vendors, partners, addresses, etc.) or scrub if FK constraint prevents
+    try {
+      await this.db.delete(users).where(eq(users.id, id));
+    } catch {
+      await this.db
+        .update(users)
+        .set({ status: 'suspended', phone: null, email: null, name: null })
+        .where(eq(users.id, id));
+    }
+
     return { success: true, message: `User ${id} deleted successfully.` };
   }
 }

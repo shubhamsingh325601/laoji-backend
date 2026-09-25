@@ -663,7 +663,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         let [user] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner')))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         if (!user) {
             [user] = await this.db
@@ -741,7 +741,21 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const [p] = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, id)).limit(1);
         if (!p)
             throw new common_1.NotFoundException('Delivery partner not found');
-        await this.db.delete(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, id));
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, p.userId));
+        await this.db
+            .update(schema_1.authTokens)
+            .set({ revokedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, p.userId));
+        try {
+            await this.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, p.userId));
+        }
+        catch {
+            await this.db.update(schema_1.deliveryPartners).set({ isOnline: false }).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, id));
+            await this.db
+                .update(schema_1.users)
+                .set({ status: 'suspended', phone: null, email: null, name: null })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, p.userId));
+        }
         return { success: true, message: `Delivery partner ${id} deleted successfully.` };
     }
     async listPartnersBasic() {

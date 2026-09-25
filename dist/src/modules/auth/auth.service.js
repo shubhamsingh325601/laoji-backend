@@ -177,7 +177,7 @@ let AuthService = class AuthService {
         const [existing] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'customer')))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'customer'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         const passwordHash = await bcrypt.hash(dto.password, 10);
         if (existing) {
@@ -259,7 +259,7 @@ let AuthService = class AuthService {
         const [existing] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner')))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, cleanPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'delivery_partner'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         const passwordHash = await bcrypt.hash(dto.password, 10);
         let user;
@@ -395,7 +395,7 @@ let AuthService = class AuthService {
             const [emailUser] = await this.db
                 .select()
                 .from(schema_1.users)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.ilike)(schema_1.users.email, trimmedEmail), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.ilike)(schema_1.users.email, trimmedEmail), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
                 .limit(1);
             if (emailUser && emailUser.phone !== trimmedPhone) {
                 throw new common_1.ConflictException('An account with this email address already exists.');
@@ -404,7 +404,7 @@ let AuthService = class AuthService {
         const [existingUser] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, trimmedPhone), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         const passwordHash = await bcrypt.hash(dto.password, 10);
         let userId;
@@ -414,7 +414,7 @@ let AuthService = class AuthService {
                 .from(schema_1.vendors)
                 .where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, existingUser.id))
                 .limit(1);
-            if (existingVendor && existingUser.passwordHash) {
+            if (existingVendor || existingUser.passwordHash) {
                 throw new common_1.ConflictException('An account with this phone number already exists. Please log in.');
             }
             await this.db
@@ -433,6 +433,7 @@ let AuthService = class AuthService {
                 phone: trimmedPhone,
                 email: trimmedEmail,
                 role: 'vendor',
+                status: 'active',
                 passwordHash,
             })
                 .returning();
@@ -687,9 +688,10 @@ let AuthService = class AuthService {
                 .set({ isOnline: false })
                 .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.userId, userId));
         }
+        await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
         await this.db
             .update(schema_1.users)
-            .set({ status: 'suspended', phone: null, email: null })
+            .set({ status: 'suspended', phone: null, email: null, name: null })
             .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
         await this.db
             .update(schema_1.authTokens)
@@ -701,12 +703,12 @@ let AuthService = class AuthService {
         const [existing] = await this.db
             .select()
             .from(schema_1.users)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, role)))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.phone, phone), (0, drizzle_orm_1.eq)(schema_1.users.role, role), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .limit(1);
         if (existing)
             return existing;
         try {
-            const [created] = await this.db.insert(schema_1.users).values({ phone, role }).returning();
+            const [created] = await this.db.insert(schema_1.users).values({ phone, role, status: 'active' }).returning();
             return created;
         }
         catch {

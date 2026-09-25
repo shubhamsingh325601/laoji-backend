@@ -12,6 +12,7 @@ import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
   addresses,
+  authTokens,
   deliveryAssignments,
   deliveryPartners,
   foodOrderItems,
@@ -833,7 +834,7 @@ export class DeliveryService {
     let [user] = await this.db
       .select()
       .from(users)
-      .where(and(eq(users.phone, phone), eq(users.role, 'delivery_partner')))
+      .where(and(eq(users.phone, phone), eq(users.role, 'delivery_partner'), eq(users.status, 'active')))
       .limit(1);
 
     if (!user) {
@@ -928,7 +929,26 @@ export class DeliveryService {
     const [p] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, id)).limit(1);
     if (!p) throw new NotFoundException('Delivery partner not found');
 
-    await this.db.delete(deliveryPartners).where(eq(deliveryPartners.id, id));
+    // 1. Delete KYC documents belonging to this partner user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, p.userId));
+
+    // 2. Revoke auth tokens
+    await this.db
+      .update(authTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(authTokens.userId, p.userId));
+
+    // 3. Try hard deleting the user (cascades to deliveryPartners, addresses, etc.) or scrub if FK constraint prevents
+    try {
+      await this.db.delete(users).where(eq(users.id, p.userId));
+    } catch {
+      await this.db.update(deliveryPartners).set({ isOnline: false }).where(eq(deliveryPartners.id, id));
+      await this.db
+        .update(users)
+        .set({ status: 'suspended', phone: null, email: null, name: null })
+        .where(eq(users.id, p.userId));
+    }
+
     return { success: true, message: `Delivery partner ${id} deleted successfully.` };
   }
 
