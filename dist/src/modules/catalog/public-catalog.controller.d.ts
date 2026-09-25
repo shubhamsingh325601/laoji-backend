@@ -16,15 +16,15 @@ export declare class PublicCatalogController {
         price: number;
         inStock: boolean;
         restockEta: string | null;
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
         unit: string;
+        imageUrl: string | null;
+        id: string;
+        brand: string | null;
+        status: "active" | "inactive";
+        createdAt: Date;
+        ownerVendorId: string | null;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -137,11 +137,18 @@ export declare class PublicCatalogController {
     }>;
     vendorListings(id: string): Promise<{
         id: string;
+        itemType: "grocery" | "menu_item";
+        productId?: string;
         name: string;
+        description: string | null;
         category: string;
+        categoryId?: string | null;
         price: number;
         unit: string;
         available: boolean;
+        imageUrl: string | null;
+        isVeg?: boolean;
+        stockQty?: number;
     }[]>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: {
@@ -149,25 +156,25 @@ export declare class PublicCatalogController {
             price: number;
             inStock: boolean;
             restockEta: string | null;
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
             unit: string;
+            imageUrl: string | null;
+            id: string;
+            brand: string | null;
+            status: "active" | "inactive";
+            createdAt: Date;
+            ownerVendorId: string | null;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
         }[];
         restaurants: (Omit<{
-            id: string;
             name: string;
-            isOpen: boolean;
             imageUrl: string | null;
+            id: string;
+            isOpen: boolean;
             vendorId: string;
             cuisineTags: string | null;
             ratingAvg: number;

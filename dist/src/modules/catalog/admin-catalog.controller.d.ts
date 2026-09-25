@@ -5,6 +5,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
@@ -23,9 +24,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
-        id: string;
         name: string;
         imageUrl: string | null;
+        id: string;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -559,16 +560,16 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
-        categoryId: string;
         description: string | null;
         unit: string;
+        imageUrl: string | null;
+        categoryId: string;
+        id: string;
+        brand: string | null;
+        status: "active" | "inactive";
+        createdAt: Date;
+        ownerVendorId: string | null;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -651,11 +652,18 @@ export declare class AdminCatalogController {
     }>;
     getVendorListings(id: string): Promise<{
         id: string;
+        itemType: "grocery" | "menu_item";
+        productId?: string;
         name: string;
+        description: string | null;
         category: string;
+        categoryId?: string | null;
         price: number;
         unit: string;
         available: boolean;
+        imageUrl: string | null;
+        isVeg?: boolean;
+        stockQty?: number;
     }[]>;
     createVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
@@ -716,6 +724,45 @@ export declare class AdminCatalogController {
         success: boolean;
         message: string;
     }>;
+    getVendorMenuCategories(id: string): Promise<{
+        id: string;
+        restaurantId: string;
+        name: string;
+        sortOrder: number;
+    }[]>;
+    addVendorItem(id: string, dto: CreateAdminVendorItemDto): Promise<{
+        id: string;
+        itemType: "menu_item";
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        isVeg: boolean;
+        categoryId: string;
+        productId?: undefined;
+        stockQty?: undefined;
+    } | {
+        id: string;
+        itemType: "grocery";
+        productId: string;
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        categoryId: string;
+        stockQty: number;
+        isVeg?: undefined;
+    }>;
+    updateVendorItem(id: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
+        success: boolean;
+    }>;
+    deleteVendorItem(id: string, itemId: string): Promise<{
+        success: boolean;
+    }>;
     listRestaurants(): Promise<{
         id: string;
         name: string;
@@ -744,16 +791,16 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
-            categoryId: string;
             description: string | null;
             unit: string;
+            imageUrl: string | null;
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            status: "active" | "inactive";
+            createdAt: Date;
+            ownerVendorId: string | null;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;

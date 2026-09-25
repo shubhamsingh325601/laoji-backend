@@ -10,6 +10,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -88,6 +89,30 @@ export class AdminCatalogController {
   @Delete('vendors/:id')
   deleteVendor(@Param('id') id: string) {
     return this.catalog.deleteAdminVendor(id);
+  }
+
+  @Get('vendors/:id/menu-categories')
+  getVendorMenuCategories(@Param('id') id: string) {
+    return this.catalog.listMenuCategories(id);
+  }
+
+  @Post('vendors/:id/items')
+  addVendorItem(@Param('id') id: string, @Body() dto: CreateAdminVendorItemDto) {
+    return this.catalog.addAdminVendorItem(id, dto);
+  }
+
+  @Patch('vendors/:id/items/:itemId')
+  updateVendorItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateAdminVendorItemDto,
+  ) {
+    return this.catalog.updateAdminVendorItem(id, itemId, dto);
+  }
+
+  @Delete('vendors/:id/items/:itemId')
+  deleteVendorItem(@Param('id') id: string, @Param('itemId') itemId: string) {
+    return this.catalog.deleteAdminVendorItem(id, itemId);
   }
 
   @Get('restaurants')

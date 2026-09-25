@@ -24,6 +24,7 @@ const product_dto_1 = require("./dto/product.dto");
 const product_suggestion_dto_1 = require("./dto/product-suggestion.dto");
 const category_suggestion_dto_1 = require("./dto/category-suggestion.dto");
 const admin_vendor_dto_1 = require("./dto/admin-vendor.dto");
+const admin_vendor_item_dto_1 = require("./dto/admin-vendor-item.dto");
 let AdminCatalogController = class AdminCatalogController {
     catalog;
     constructor(catalog) {
@@ -70,6 +71,18 @@ let AdminCatalogController = class AdminCatalogController {
     }
     deleteVendor(id) {
         return this.catalog.deleteAdminVendor(id);
+    }
+    getVendorMenuCategories(id) {
+        return this.catalog.listMenuCategories(id);
+    }
+    addVendorItem(id, dto) {
+        return this.catalog.addAdminVendorItem(id, dto);
+    }
+    updateVendorItem(id, itemId, dto) {
+        return this.catalog.updateAdminVendorItem(id, itemId, dto);
+    }
+    deleteVendorItem(id, itemId) {
+        return this.catalog.deleteAdminVendorItem(id, itemId);
     }
     listRestaurants() {
         return this.catalog.listRestaurantsBasic();
@@ -195,6 +208,38 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "deleteVendor", null);
+__decorate([
+    (0, common_1.Get)('vendors/:id/menu-categories'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "getVendorMenuCategories", null);
+__decorate([
+    (0, common_1.Post)('vendors/:id/items'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_vendor_item_dto_1.CreateAdminVendorItemDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "addVendorItem", null);
+__decorate([
+    (0, common_1.Patch)('vendors/:id/items/:itemId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_vendor_item_dto_1.UpdateAdminVendorItemDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "updateVendorItem", null);
+__decorate([
+    (0, common_1.Delete)('vendors/:id/items/:itemId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "deleteVendorItem", null);
 __decorate([
     (0, common_1.Get)('restaurants'),
     __metadata("design:type", Function),

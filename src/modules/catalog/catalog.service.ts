@@ -57,6 +57,7 @@ import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
 import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type {
   CreateVendorCustomProductDto,
@@ -2252,11 +2253,18 @@ export class CatalogService {
 
     const results: {
       id: string;
+      itemType: 'grocery' | 'menu_item';
+      productId?: string;
       name: string;
+      description: string | null;
       category: string;
+      categoryId?: string | null;
       price: number;
       unit: string;
       available: boolean;
+      imageUrl: string | null;
+      isVeg?: boolean;
+      stockQty?: number;
     }[] = [];
 
     // 1. Fetch grocery products
@@ -2264,9 +2272,14 @@ export class CatalogService {
       .select({
         id: vendorProducts.id,
         price: vendorProducts.price,
+        stockQty: vendorProducts.stockQty,
         isAvailable: vendorProducts.isAvailable,
+        productId: products.id,
         name: products.name,
+        description: products.description,
         unit: products.unit,
+        imageUrl: products.imageUrl,
+        categoryId: categories.id,
         categoryName: categories.name,
       })
       .from(vendorProducts)
@@ -2277,11 +2290,17 @@ export class CatalogService {
     for (const vp of vProds) {
       results.push({
         id: vp.id,
+        itemType: 'grocery',
+        productId: vp.productId,
         name: vp.name,
+        description: vp.description ?? null,
         category: vp.categoryName,
+        categoryId: vp.categoryId,
         price: vp.price,
         unit: vp.unit,
         available: vp.isAvailable,
+        imageUrl: vp.imageUrl ?? null,
+        stockQty: vp.stockQty,
       });
     }
 
@@ -2292,8 +2311,12 @@ export class CatalogService {
         .select({
           id: menuItems.id,
           name: menuItems.name,
+          description: menuItems.description,
           price: menuItems.price,
           isAvailable: menuItems.isAvailable,
+          imageUrl: menuItems.imageUrl,
+          isVeg: menuItems.isVeg,
+          categoryId: menuCategories.id,
           categoryName: menuCategories.name,
         })
         .from(menuItems)
@@ -2303,17 +2326,336 @@ export class CatalogService {
       for (const mi of mItems) {
         results.push({
           id: mi.id,
+          itemType: 'menu_item',
           name: mi.name,
+          description: mi.description ?? null,
           category: mi.categoryName,
+          categoryId: mi.categoryId,
           price: mi.price,
           unit: 'portion',
           available: mi.isAvailable,
+          imageUrl: mi.imageUrl ?? null,
+          isVeg: mi.isVeg,
         });
       }
     }
 
     return results;
   }
+
+  async addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const isRestaurantItem =
+      dto.itemType === 'menu_item' || (vendor.businessType === 'restaurant' && dto.itemType !== 'grocery');
+
+    if (isRestaurantItem) {
+      const restaurant = await this.getOrCreateRestaurant(vendorId);
+
+      let targetCatId = dto.categoryId;
+      if (targetCatId) {
+        const [cat] = await this.db
+          .select()
+          .from(menuCategories)
+          .where(and(eq(menuCategories.id, targetCatId), eq(menuCategories.restaurantId, restaurant.id)))
+          .limit(1);
+        if (!cat) targetCatId = undefined;
+      }
+
+      if (!targetCatId) {
+        const [existingCat] = await this.db
+          .select()
+          .from(menuCategories)
+          .where(eq(menuCategories.restaurantId, restaurant.id))
+          .limit(1);
+        if (existingCat) {
+          targetCatId = existingCat.id;
+        } else {
+          const [newCat] = await this.db
+            .insert(menuCategories)
+            .values({
+              restaurantId: restaurant.id,
+              name: 'Main Menu',
+              sortOrder: 0,
+            })
+            .returning();
+          targetCatId = newCat.id;
+        }
+      }
+
+      const [item] = await this.db
+        .insert(menuItems)
+        .values({
+          menuCategoryId: targetCatId,
+          name: dto.name.trim(),
+          description: dto.description?.trim() || null,
+          price: dto.price,
+          imageUrl: dto.imageUrl?.trim() || null,
+          isVeg: dto.isVeg ?? true,
+          isAvailable: dto.isAvailable ?? true,
+        })
+        .returning();
+
+      return {
+        id: item.id,
+        itemType: 'menu_item' as const,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        unit: 'portion',
+        available: item.isAvailable,
+        imageUrl: item.imageUrl,
+        isVeg: item.isVeg,
+        categoryId: targetCatId,
+      };
+    } else {
+      // Grocery item
+      let productId = dto.productId;
+
+      if (productId) {
+        const [existingProd] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+        if (!existingProd) throw new NotFoundException('Specified product not found');
+      } else {
+        let categoryId = dto.categoryId;
+        if (categoryId) {
+          const [cat] = await this.db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
+          if (!cat) categoryId = undefined;
+        }
+        if (!categoryId) {
+          const [firstCat] = await this.db.select().from(categories).limit(1);
+          if (!firstCat) throw new BadRequestException('No categories exist in database');
+          categoryId = firstCat.id;
+        }
+
+        const [createdProd] = await this.db
+          .insert(products)
+          .values({
+            categoryId,
+            name: dto.name.trim(),
+            description: dto.description?.trim() || null,
+            unit: dto.unit?.trim() || '1 pc',
+            imageUrl: dto.imageUrl?.trim() || null,
+            status: 'active',
+            ownerVendorId: vendor.id,
+          })
+          .returning();
+        productId = createdProd.id;
+      }
+
+      // Check if vendor already has a listing for this product
+      const [existingListing] = await this.db
+        .select()
+        .from(vendorProducts)
+        .where(and(eq(vendorProducts.vendorId, vendor.id), eq(vendorProducts.productId, productId)))
+        .limit(1);
+
+      if (existingListing) {
+        const [updated] = await this.db
+          .update(vendorProducts)
+          .set({
+            price: dto.price,
+            stockQty: dto.stockQty ?? existingListing.stockQty,
+            isAvailable: dto.isAvailable ?? true,
+            lastRestockedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(vendorProducts.id, existingListing.id))
+          .returning();
+        const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+        return {
+          id: updated.id,
+          itemType: 'grocery' as const,
+          productId: prod.id,
+          name: prod.name,
+          description: prod.description,
+          price: updated.price,
+          unit: prod.unit,
+          available: updated.isAvailable,
+          imageUrl: prod.imageUrl,
+          categoryId: prod.categoryId,
+          stockQty: updated.stockQty,
+        };
+      }
+
+      const [createdListing] = await this.db
+        .insert(vendorProducts)
+        .values({
+          vendorId: vendor.id,
+          productId,
+          price: dto.price,
+          stockQty: dto.stockQty ?? 100,
+          isAvailable: dto.isAvailable ?? true,
+          lastRestockedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+      return {
+        id: createdListing.id,
+        itemType: 'grocery' as const,
+        productId: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: createdListing.price,
+        unit: prod.unit,
+        available: createdListing.isAvailable,
+        imageUrl: prod.imageUrl,
+        categoryId: prod.categoryId,
+        stockQty: createdListing.stockQty,
+      };
+    }
+  }
+
+  async updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    // 1. Try finding in vendorProducts (grocery)
+    const [vp] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.id, itemId), eq(vendorProducts.vendorId, vendorId)))
+      .limit(1);
+
+    if (vp) {
+      const vpUpdates: any = { updatedAt: new Date() };
+      if (dto.price !== undefined) vpUpdates.price = dto.price;
+      if (dto.isAvailable !== undefined) vpUpdates.isAvailable = dto.isAvailable;
+      if (dto.stockQty !== undefined) vpUpdates.stockQty = dto.stockQty;
+
+      await this.db.update(vendorProducts).set(vpUpdates).where(eq(vendorProducts.id, vp.id));
+
+      const [prod] = await this.db.select().from(products).where(eq(products.id, vp.productId)).limit(1);
+      if (prod) {
+        if (prod.ownerVendorId === vendorId) {
+          const prodUpdates: any = {};
+          if (dto.name !== undefined) prodUpdates.name = dto.name.trim();
+          if (dto.description !== undefined) prodUpdates.description = dto.description?.trim() || null;
+          if (dto.unit !== undefined) prodUpdates.unit = dto.unit.trim();
+          if (dto.imageUrl !== undefined) prodUpdates.imageUrl = dto.imageUrl?.trim() || null;
+          if (dto.categoryId !== undefined) prodUpdates.categoryId = dto.categoryId;
+
+          if (Object.keys(prodUpdates).length > 0) {
+            await this.db.update(products).set(prodUpdates).where(eq(products.id, prod.id));
+          }
+        } else {
+          const hasDetailChanges =
+            (dto.name !== undefined && dto.name.trim() !== prod.name) ||
+            (dto.imageUrl !== undefined && dto.imageUrl?.trim() !== (prod.imageUrl ?? '')) ||
+            (dto.unit !== undefined && dto.unit.trim() !== prod.unit) ||
+            (dto.description !== undefined && dto.description?.trim() !== (prod.description ?? '')) ||
+            (dto.categoryId !== undefined && dto.categoryId !== prod.categoryId);
+
+          if (hasDetailChanges) {
+            const [copy] = await this.db
+              .insert(products)
+              .values({
+                categoryId: dto.categoryId ?? prod.categoryId,
+                brand: prod.brand,
+                name: dto.name?.trim() ?? prod.name,
+                description: dto.description !== undefined ? dto.description?.trim() || null : prod.description,
+                unit: dto.unit?.trim() ?? prod.unit,
+                size: prod.size,
+                mrp: prod.mrp,
+                imageUrl: dto.imageUrl !== undefined ? dto.imageUrl?.trim() || null : prod.imageUrl,
+                attributes: prod.attributes,
+                status: 'active',
+                ownerVendorId: vendorId,
+                templateProductId: prod.id,
+              })
+              .returning();
+            await this.db.update(vendorProducts).set({ productId: copy.id }).where(eq(vendorProducts.id, vp.id));
+          }
+        }
+      }
+
+      return { success: true };
+    }
+
+    // 2. Try finding in menuItems (restaurant)
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const [mi] = await this.db
+        .select({ id: menuItems.id })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
+        .limit(1);
+
+      if (mi) {
+        const miUpdates: any = {};
+        if (dto.name !== undefined) miUpdates.name = dto.name.trim();
+        if (dto.description !== undefined) miUpdates.description = dto.description?.trim() || null;
+        if (dto.price !== undefined) miUpdates.price = dto.price;
+        if (dto.imageUrl !== undefined) miUpdates.imageUrl = dto.imageUrl?.trim() || null;
+        if (dto.isVeg !== undefined) miUpdates.isVeg = dto.isVeg;
+        if (dto.isAvailable !== undefined) miUpdates.isAvailable = dto.isAvailable;
+
+        if (dto.categoryId !== undefined) {
+          const [validCat] = await this.db
+            .select()
+            .from(menuCategories)
+            .where(and(eq(menuCategories.id, dto.categoryId), eq(menuCategories.restaurantId, restaurant.id)))
+            .limit(1);
+          if (validCat) miUpdates.menuCategoryId = validCat.id;
+        }
+
+        if (Object.keys(miUpdates).length > 0) {
+          await this.db.update(menuItems).set(miUpdates).where(eq(menuItems.id, itemId));
+        }
+
+        return { success: true };
+      }
+    }
+
+    throw new NotFoundException('Item not found in this vendor catalog');
+  }
+
+  async deleteAdminVendorItem(vendorId: string, itemId: string) {
+    // 1. Grocery listing
+    const [vp] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.id, itemId), eq(vendorProducts.vendorId, vendorId)))
+      .limit(1);
+
+    if (vp) {
+      await this.db.delete(vendorProducts).where(eq(vendorProducts.id, vp.id));
+      const [prod] = await this.db.select().from(products).where(eq(products.id, vp.productId)).limit(1);
+      if (prod && prod.ownerVendorId === vendorId) {
+        const [ordered] = await this.db
+          .select({ id: groceryOrderItems.id })
+          .from(groceryOrderItems)
+          .where(eq(groceryOrderItems.productId, prod.id))
+          .limit(1);
+        if (!ordered) {
+          await this.db.delete(products).where(eq(products.id, prod.id));
+        }
+      }
+      return { success: true };
+    }
+
+    // 2. Restaurant menu item
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const [mi] = await this.db
+        .select({ id: menuItems.id })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
+        .limit(1);
+
+      if (mi) {
+        await this.db.delete(menuItems).where(eq(menuItems.id, mi.id));
+        return { success: true };
+      }
+    }
+
+    throw new NotFoundException('Item not found');
+  }
+
 
   async createAdminVendor(dto: CreateAdminVendorDto) {
     const phone = dto.phone.trim();
