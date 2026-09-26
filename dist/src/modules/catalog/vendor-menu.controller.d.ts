@@ -107,12 +107,12 @@ export declare class VendorMenuController {
         }[];
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
+        imageUrl: string | null;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
         mealSlots: string[] | null;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{
