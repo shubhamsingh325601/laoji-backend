@@ -4,8 +4,9 @@ import { CatalogService } from './catalog.service';
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
   let latNum = Number(lat);
   let lngNum = Number(lng);
-  if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum)) {
-    throw new BadRequestException('lat and lng query params are required');
+  // Default to Sangod if missing, invalid, or (0,0)
+  if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
+    return { lat: 24.924, lng: 76.283 };
   }
   // Legacy Kolhapur fallback coordinates sent by older mobile app builds (<= 1.0.3)
   if (Math.abs(latNum - 16.705) < 0.05 && Math.abs(lngNum - 74.2433) < 0.05) {

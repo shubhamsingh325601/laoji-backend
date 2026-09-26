@@ -18,8 +18,8 @@ const catalog_service_1 = require("./catalog.service");
 function parseCoord(lat, lng) {
     let latNum = Number(lat);
     let lngNum = Number(lng);
-    if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum)) {
-        throw new common_1.BadRequestException('lat and lng query params are required');
+    if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
+        return { lat: 24.924, lng: 76.283 };
     }
     if (Math.abs(latNum - 16.705) < 0.05 && Math.abs(lngNum - 74.2433) < 0.05) {
         latNum = 24.924;
