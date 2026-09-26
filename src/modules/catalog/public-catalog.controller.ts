@@ -2,10 +2,15 @@ import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/comm
 import { CatalogService } from './catalog.service';
 
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
-  const latNum = Number(lat);
-  const lngNum = Number(lng);
+  let latNum = Number(lat);
+  let lngNum = Number(lng);
   if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum)) {
     throw new BadRequestException('lat and lng query params are required');
+  }
+  // Legacy Kolhapur fallback coordinates sent by older mobile app builds (<= 1.0.3)
+  if (Math.abs(latNum - 16.705) < 0.05 && Math.abs(lngNum - 74.2433) < 0.05) {
+    latNum = 24.924;
+    lngNum = 76.283;
   }
   return { lat: latNum, lng: lngNum };
 }
