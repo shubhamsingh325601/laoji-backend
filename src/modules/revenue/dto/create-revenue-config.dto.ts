@@ -42,6 +42,11 @@ export class CreateRevenueConfigDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  minOrderValue?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   codThreshold?: number;
 
   @IsOptional()

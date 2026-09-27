@@ -12,10 +12,12 @@ export interface ResolvedRevenueConfig {
   deliveryFeeTier1: number; // <= 3km
   deliveryFeeTier2: number; // 3-5km
   deliveryFeeTier3: number; // > 5km
+  minOrderValue: number;
   codThreshold: number | null;
 }
 
-// Defaults: 10% commission, ₹99 free delivery threshold, ₹10 (0-3km), ₹15 (3-5km), ₹20 (5+km).
+// Defaults: 10% commission, ₹50 minimum order, ₹99 free delivery threshold,
+// ₹10 (0-3km), ₹15 (3-5km), ₹20 (5+km).
 const DEFAULT_CONFIG: ResolvedRevenueConfig = {
   commissionPct: 0.1,
   deliveryFeeFlat: 15,
@@ -23,6 +25,7 @@ const DEFAULT_CONFIG: ResolvedRevenueConfig = {
   deliveryFeeTier1: 10,
   deliveryFeeTier2: 15,
   deliveryFeeTier3: 20,
+  minOrderValue: 50,
   codThreshold: null,
 };
 
@@ -42,6 +45,7 @@ export class RevenueConfigService {
         deliveryFeeTier1: dto.deliveryFeeTier1 ?? 10,
         deliveryFeeTier2: dto.deliveryFeeTier2 ?? 15,
         deliveryFeeTier3: dto.deliveryFeeTier3 ?? 20,
+        minOrderValue: dto.minOrderValue ?? 50,
         codThreshold: dto.codThreshold ?? null,
         notes: dto.notes ?? null,
         effectiveFrom: new Date(dto.effectiveFrom),
@@ -95,6 +99,7 @@ export class RevenueConfigService {
       deliveryFeeTier1: row.deliveryFeeTier1 ?? 10,
       deliveryFeeTier2: row.deliveryFeeTier2 ?? 15,
       deliveryFeeTier3: row.deliveryFeeTier3 ?? 20,
+      minOrderValue: row.minOrderValue ?? 50,
       codThreshold: row.codThreshold,
     };
   }
