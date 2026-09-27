@@ -148,6 +148,13 @@
       "when": 1790315102979,
       "tag": "0020_vendor_own_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790400000000,
+      "tag": "0021_offers_vouchers_banners",
+      "breakpoints": true
     }
   ]
 }

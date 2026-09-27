@@ -432,6 +432,11 @@ export const groceryOrders = pgTable('grocery_orders', {
   // revenue_config resolution happens once, here, and never again; a later
   // rule change must never retroactively alter an already-placed order.
   commissionPct: doublePrecision('commission_pct').notNull().default(0),
+  // Voucher applied at checkout. total = subtotal + delivery_fee - discount;
+  // a free-delivery voucher's discount equals the delivery fee, so the
+  // delivery partner is still paid the fee.
+  couponCode: varchar('coupon_code', { length: 50 }),
+  discount: doublePrecision('discount').notNull().default(0),
   total: doublePrecision('total').notNull(),
   // Simple string for now — Payment module (Phase 6) owns the real
   // provider-backed payment_status lifecycle behind PaymentProvider.
@@ -486,6 +491,8 @@ export const foodOrders = pgTable('food_orders', {
   deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
   platformCommission: doublePrecision('platform_commission').notNull().default(0),
   commissionPct: doublePrecision('commission_pct').notNull().default(0),
+  couponCode: varchar('coupon_code', { length: 50 }),
+  discount: doublePrecision('discount').notNull().default(0),
   total: doublePrecision('total').notNull(),
   paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
   instructions: text('instructions'),
@@ -693,6 +700,8 @@ export const revenueConfig = pgTable('revenue_config', {
   deliveryFeeTier1: doublePrecision('delivery_fee_tier1').default(10), // <= 3km
   deliveryFeeTier2: doublePrecision('delivery_fee_tier2').default(15), // 3-5km
   deliveryFeeTier3: doublePrecision('delivery_fee_tier3').default(20), // > 5km
+  // Smallest item subtotal checkout accepts.
+  minOrderValue: doublePrecision('min_order_value').default(50),
   // Max order total eligible for COD; null = no cap.
   codThreshold: doublePrecision('cod_threshold'),
   // Free-text "why this rule exists" — surfaced in Admin's version-history
@@ -826,7 +835,28 @@ export const coupons = pgTable('coupons', {
   maxDiscount: doublePrecision('max_discount'),
   description: text('description'),
   isFirstOrderOnly: boolean('is_first_order_only').notNull().default(false),
+  // Valid only while the customer has placed fewer than this many orders
+  // (cancelled/failed don't count). Null = no limit. isFirstOrderOnly is the
+  // older way of saying 1 and still works.
+  firstNOrders: integer('first_n_orders'),
   isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Admin-managed promo banners shown in the Customer app. `placement` picks the
+// screen: 'home' (home carousel) or 'order' (order-tracking screen).
+export const banners = pgTable('banners', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: varchar('title', { length: 150 }).notNull(),
+  subtitle: text('subtitle'),
+  imageUrl: text('image_url').notNull(),
+  // In-app route opened on tap, e.g. "/category/<id>"; null = not tappable.
+  link: text('link'),
+  placement: varchar('placement', { length: 20 }).notNull().default('home'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
