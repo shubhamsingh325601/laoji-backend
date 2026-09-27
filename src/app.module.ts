@@ -20,11 +20,13 @@ import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { BannerModule } from './modules/banner/banner.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseCacheModule } from './common/cache/response-cache.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    ResponseCacheModule,
     ThrottlerModule.forRoot({
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 100 },
