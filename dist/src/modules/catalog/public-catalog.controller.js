@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PublicCatalogController = void 0;
 const common_1 = require("@nestjs/common");
+const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const catalog_service_1 = require("./catalog.service");
 function parseCoord(lat, lng) {
     let latNum = Number(lat);
@@ -117,6 +118,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "search", null);
 exports.PublicCatalogController = PublicCatalogController = __decorate([
+    (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Controller)('catalog'),
     __metadata("design:paramtypes", [catalog_service_1.CatalogService])
 ], PublicCatalogController);

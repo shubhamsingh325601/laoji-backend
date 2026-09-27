@@ -91,7 +91,7 @@ export declare class PublicBannerController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "partial", Record<"banners", "not-null">, false, "orderBy" | "where", {
+    }, "partial", Record<"banners", "not-null">, false, "where" | "orderBy", {
         id: string;
         title: string;
         subtitle: string | null;
@@ -185,7 +185,7 @@ export declare class PublicBannerController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
 }
 export declare class AdminBannerController {
     private readonly banners;
@@ -588,17 +588,17 @@ export declare class AdminBannerController {
         }, {}, {}>;
     }>, "orderBy">;
     create(dto: CreateBannerDto): Promise<{
-        title: string;
-        subtitle: string | null;
+        id: string;
         imageUrl: string;
         link: string | null;
-        placement: string;
+        createdAt: Date;
         sortOrder: number;
         isActive: boolean;
+        title: string;
+        subtitle: string | null;
+        placement: string;
         startsAt: Date | null;
         endsAt: Date | null;
-        id: string;
-        createdAt: Date;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{
         id: string;

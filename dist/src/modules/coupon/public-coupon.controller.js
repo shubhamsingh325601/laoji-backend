@@ -16,6 +16,7 @@ exports.PublicCouponController = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
+const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const coupon_service_1 = require("./coupon.service");
 const validate_coupon_dto_1 = require("./dto/validate-coupon.dto");
 let PublicCouponController = class PublicCouponController {
@@ -50,6 +51,7 @@ let PublicCouponController = class PublicCouponController {
 };
 exports.PublicCouponController = PublicCouponController;
 __decorate([
+    (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Get)('active'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),

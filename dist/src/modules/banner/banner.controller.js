@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminBannerController = exports.PublicBannerController = void 0;
 const common_1 = require("@nestjs/common");
+const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
@@ -40,6 +41,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PublicBannerController.prototype, "list", null);
 exports.PublicBannerController = PublicBannerController = __decorate([
+    (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Controller)('banners'),
     __metadata("design:paramtypes", [banner_service_1.BannerService])
 ], PublicBannerController);
