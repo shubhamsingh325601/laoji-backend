@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateCouponDto {
   @IsString()
@@ -28,6 +28,12 @@ export class CreateCouponDto {
   @IsOptional()
   @IsBoolean()
   isFirstOrderOnly?: boolean;
+
+  // Valid only on the customer's first N orders; omit for no limit.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  firstNOrders?: number | null;
 
   @IsOptional()
   @IsBoolean()

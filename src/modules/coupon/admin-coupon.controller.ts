@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -23,12 +23,12 @@ export class AdminCouponController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCouponDto) {
     return this.couponService.update(id, dto);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
+  delete(@Param('id', ParseUUIDPipe) id: string) {
     return this.couponService.delete(id);
   }
 }

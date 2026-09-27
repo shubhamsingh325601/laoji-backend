@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateCouponDto {
   @IsOptional()
@@ -31,6 +31,12 @@ export class UpdateCouponDto {
   @IsOptional()
   @IsBoolean()
   isFirstOrderOnly?: boolean;
+
+  // null clears the limit.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  firstNOrders?: number | null;
 
   @IsOptional()
   @IsBoolean()
