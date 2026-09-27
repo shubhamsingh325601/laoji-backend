@@ -1237,3 +1237,24 @@ min ₹50); `FIRST10` is retired. Migration `0021_offers_vouchers_banners`
 across customer → vendor → rider → admin settlement, 20 admin-UI checks in
 Chrome, and 21 customer-app UI checks on Expo web (recipe in
 `../.claude/skills/verify/SKILL.md`).
+
+## Response cache
+
+`src/common/cache/` holds an in-process cache (a Map, no Redis, per rule 3)
+with a 30-minute TTL and at most 2000 entries (oldest evicted first).
+`ResponseCacheInterceptor` caches GET responses by full URL and sets an
+`X-Cache: HIT|MISS` header. It is applied only to public, caller-independent
+reads: `/catalog/*`, `/banners`, `/coupons/active`. Never put it on a route
+whose response depends on the caller.
+
+The global `CacheInvalidationInterceptor` clears the **whole** cache after
+any successful non-GET request under `/admin/*`, `/vendor/*`, `/vendors/*` or
+`/users/me`, since every write to catalog, menus, vendor open/closed state,
+banners, coupons and revenue config goes through those routes. A new write
+path to that data outside these prefixes must also clear the cache.
+
+Two things can stay stale for up to 30 minutes, because no write triggers
+them:
+- restaurant `isOpen` and menu `isServedNow`, which are computed from
+  business hours and meal slots at request time
+- restaurant ratings, which change when a customer rates an order
