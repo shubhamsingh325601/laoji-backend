@@ -172,6 +172,8 @@ export const vendors = pgTable('vendors', {
   // Manual master switch — vendor can force-close any time (holiday, out of
   // stock, etc.) regardless of what the weekly schedule below says.
   isOpen: boolean('is_open').notNull().default(true),
+  showInApp: boolean('show_in_app').notNull().default(true),
+  displayOrder: integer('display_order').notNull().default(0),
   // Post-Phase-11 MVP-completion pass: real weekly business-hours schedule,
   // closing the gap the Phase 11 report flagged (laoji-vendor's
   // BusinessHoursScreen was a fully client-local Zustand mock with no

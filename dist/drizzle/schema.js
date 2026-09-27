@@ -102,6 +102,8 @@ exports.vendors = (0, pg_core_1.pgTable)('vendors', {
     pickupLng: (0, pg_core_1.doublePrecision)('pickup_lng').notNull(),
     radiusKm: (0, pg_core_1.doublePrecision)('radius_km').notNull().default(5),
     isOpen: (0, pg_core_1.boolean)('is_open').notNull().default(true),
+    showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(true),
+    displayOrder: (0, pg_core_1.integer)('display_order').notNull().default(0),
     businessHours: (0, pg_core_1.jsonb)('business_hours').$type(),
     imageUrl: (0, pg_core_1.text)('image_url'),
     businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull().default('grocery'),

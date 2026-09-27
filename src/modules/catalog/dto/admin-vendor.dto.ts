@@ -67,6 +67,14 @@ export class CreateAdminVendorDto {
   @IsOptional()
   @IsString()
   upiId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  displayOrder?: number;
 }
 
 export class UpdateAdminVendorDto {
@@ -164,4 +172,28 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsString()
   upiId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  displayOrder?: number;
+}
+
+export class ReorderVendorItemDto {
+  @IsString()
+  id: string;
+
+  @IsNumber()
+  displayOrder: number;
+}
+
+export class ReorderVendorsDto {
+  @IsOptional()
+  orders?: ReorderVendorItemDto[];
+
+  @IsOptional()
+  vendorIds?: string[];
 }

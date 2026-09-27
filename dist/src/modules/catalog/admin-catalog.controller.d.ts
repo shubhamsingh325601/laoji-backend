@@ -4,7 +4,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
-import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
@@ -565,10 +565,10 @@ export declare class AdminCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -612,6 +612,8 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
@@ -638,6 +640,8 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
@@ -691,6 +695,34 @@ export declare class AdminCatalogController {
         tempPassword: string;
         createdAt: Date;
     }>;
+    reorderVendors(dto: ReorderVendorsDto): Promise<{
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        createdAt: Date;
+    }[]>;
     updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
         id: string;
         userId: string;
@@ -708,6 +740,8 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
@@ -796,10 +830,10 @@ export declare class AdminCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

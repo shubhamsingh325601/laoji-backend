@@ -19,11 +19,11 @@ export declare class PublicCatalogController {
         id: string;
         brand: string | null;
         name: string;
+        status: "active" | "inactive";
+        createdAt: Date;
         imageUrl: string | null;
         ownerVendorId: string | null;
         description: string | null;
-        status: "active" | "inactive";
-        createdAt: Date;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -60,6 +60,7 @@ export declare class PublicCatalogController {
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        displayOrder: number;
         distanceKm: number;
         id: string;
         vendorId: string;
@@ -159,11 +160,11 @@ export declare class PublicCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
             imageUrl: string | null;
             ownerVendorId: string | null;
             description: string | null;
-            status: "active" | "inactive";
-            createdAt: Date;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -173,8 +174,8 @@ export declare class PublicCatalogController {
         restaurants: (Omit<{
             id: string;
             name: string;
-            imageUrl: string | null;
             isOpen: boolean;
+            imageUrl: string | null;
             vendorId: string;
             cuisineTags: string | null;
             ratingAvg: number;

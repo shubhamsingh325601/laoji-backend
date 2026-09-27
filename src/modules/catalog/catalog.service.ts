@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -57,7 +57,7 @@ import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
-import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import type { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type {
@@ -1252,7 +1252,7 @@ export class CatalogService {
   private async vendorsInRadius(lat: number, lng: number) {
     const allVendors = await this.db.select().from(vendors);
     return allVendors.filter(
-      (v) => isVendorOpenNow(v) && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
+      (v) => (v.showInApp ?? true) && isVendorOpenNow(v) && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
     );
   }
 
@@ -1380,7 +1380,9 @@ export class CatalogService {
   async publicListRestaurants(lat: number, lng: number) {
     const allVendors = await this.db.select().from(vendors);
     const distanceKm = new Map(allVendors.map((v) => [v.id, haversineKm(lat, lng, v.pickupLat, v.pickupLng)]));
-    const nearbyVendors = allVendors.filter((v) => v.isOpen && distanceKm.get(v.id)! <= v.radiusKm);
+    const nearbyVendors = allVendors.filter(
+      (v) => (v.showInApp ?? true) && v.isOpen && distanceKm.get(v.id)! <= v.radiusKm,
+    );
     const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
     const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
     if (vendorIds.length === 0) return [];
@@ -1425,10 +1427,16 @@ export class CatalogService {
           ratingAvg: dynamicRating,
           ratingCount: dynamicCount,
           isOpen: openNow,
+          displayOrder: v?.displayOrder ?? 0,
           distanceKm: roundKm(distanceKm.get(r.vendorId)!),
         };
       })
-      .sort((a, b) => Number(b.isOpen) - Number(a.isOpen) || a.distanceKm - b.distanceKm);
+      .sort((a, b) => {
+        const orderA = vendorMap.get(a.vendorId)?.displayOrder ?? 9999;
+        const orderB = vendorMap.get(b.vendorId)?.displayOrder ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return Number(b.isOpen) - Number(a.isOpen) || a.distanceKm - b.distanceKm;
+      });
   }
 
   // `near` is the customer's location, when the client sends one — adds how
@@ -1438,6 +1446,9 @@ export class CatalogService {
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+    if (!vendor || vendor.showInApp === false) {
+      throw new NotFoundException('Store is currently not available');
+    }
     const openNow = restaurant.isOpen && (vendor ? isVendorOpenNow(vendor) : false);
     const distanceKm = near && vendor ? haversineKm(near.lat, near.lng, vendor.pickupLat, vendor.pickupLng) : null;
     const timings = effectiveMealTimings(restaurant.mealTimings);
@@ -2162,7 +2173,7 @@ export class CatalogService {
       })
       .from(vendors)
       .innerJoin(users, eq(vendors.userId, users.id))
-      .orderBy(desc(vendors.createdAt));
+      .orderBy(asc(vendors.displayOrder), asc(vendors.createdAt));
 
     return rows.map(({ vendor, user }) => ({
       id: vendor.id,
@@ -2179,8 +2190,10 @@ export class CatalogService {
       bankIfsc: vendor.bankIfsc,
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
       isOpen: vendor.isOpen,
+      showInApp: vendor.showInApp ?? true,
+      displayOrder: vendor.displayOrder ?? 0,
       deliveryRadiusKm: vendor.radiusKm,
       pickupLat: vendor.pickupLat,
       pickupLng: vendor.pickupLng,
@@ -2235,8 +2248,10 @@ export class CatalogService {
       bankIfsc: vendor.bankIfsc,
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
       isOpen: vendor.isOpen,
+      showInApp: vendor.showInApp ?? true,
+      displayOrder: vendor.displayOrder ?? 0,
       deliveryRadiusKm: vendor.radiusKm,
       pickupLat: vendor.pickupLat,
       pickupLng: vendor.pickupLng,
@@ -2735,6 +2750,8 @@ export class CatalogService {
         radiusKm: dto.deliveryRadiusKm ?? 5,
         kycStatus: kycStat,
         isOpen: true,
+        showInApp: dto.showInApp ?? true,
+        displayOrder: dto.displayOrder ?? 0,
       })
       .returning();
 
@@ -2793,6 +2810,25 @@ export class CatalogService {
     };
   }
 
+  async reorderVendors(dto: ReorderVendorsDto) {
+    if (dto.orders && Array.isArray(dto.orders)) {
+      for (const item of dto.orders) {
+        await this.db
+          .update(vendors)
+          .set({ displayOrder: item.displayOrder })
+          .where(eq(vendors.id, item.id));
+      }
+    } else if (dto.vendorIds && Array.isArray(dto.vendorIds)) {
+      for (let i = 0; i < dto.vendorIds.length; i++) {
+        await this.db
+          .update(vendors)
+          .set({ displayOrder: i + 1 })
+          .where(eq(vendors.id, dto.vendorIds[i]));
+      }
+    }
+    return this.listVendorsAdmin();
+  }
+
   async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {
     const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
     if (!v) throw new NotFoundException('Vendor not found');
@@ -2808,8 +2844,22 @@ export class CatalogService {
       updateFields.pickupLng = dto.pickupLng;
     }
     if (dto.kycStatus !== undefined && dto.kycStatus !== 'unverified') updateFields.kycStatus = dto.kycStatus;
-    if (dto.activity !== undefined) updateFields.isOpen = dto.activity === 'active';
-    if (dto.isOpen !== undefined) updateFields.isOpen = dto.isOpen;
+    if (dto.activity !== undefined) {
+      const active = dto.activity === 'active';
+      updateFields.isOpen = active;
+      updateFields.showInApp = active;
+    }
+    if (dto.showInApp !== undefined) {
+      updateFields.showInApp = dto.showInApp;
+      updateFields.isOpen = dto.showInApp;
+    }
+    if (dto.isOpen !== undefined) {
+      updateFields.isOpen = dto.isOpen;
+      if (!dto.isOpen) {
+        updateFields.showInApp = false;
+      }
+    }
+    if (dto.displayOrder !== undefined) updateFields.displayOrder = dto.displayOrder;
     if (dto.gstNumber !== undefined) updateFields.gstNumber = dto.gstNumber ? dto.gstNumber.trim() : null;
     if (dto.aadhaarNumber !== undefined) updateFields.aadhaarNumber = dto.aadhaarNumber ? dto.aadhaarNumber.trim() : null;
     if (dto.bankAccount !== undefined) updateFields.bankAccount = dto.bankAccount ? dto.bankAccount.trim() : null;
@@ -2818,8 +2868,9 @@ export class CatalogService {
 
     if (Object.keys(updateFields).length > 0) {
       await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id));
-      if (updateFields.isOpen !== undefined) {
-        await this.db.update(restaurants).set({ isOpen: updateFields.isOpen }).where(eq(restaurants.vendorId, id));
+      if (updateFields.isOpen !== undefined || updateFields.showInApp !== undefined) {
+        const restOpen = (updateFields.showInApp ?? v.showInApp ?? true) && (updateFields.isOpen ?? v.isOpen ?? true);
+        await this.db.update(restaurants).set({ isOpen: restOpen }).where(eq(restaurants.vendorId, id));
       }
     }
 

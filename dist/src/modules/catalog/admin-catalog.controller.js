@@ -66,6 +66,9 @@ let AdminCatalogController = class AdminCatalogController {
     createVendor(dto) {
         return this.catalog.createAdminVendor(dto);
     }
+    reorderVendors(dto) {
+        return this.catalog.reorderVendors(dto);
+    }
     updateVendor(id, dto) {
         return this.catalog.updateAdminVendor(id, dto);
     }
@@ -193,6 +196,13 @@ __decorate([
     __metadata("design:paramtypes", [admin_vendor_dto_1.CreateAdminVendorDto]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "createVendor", null);
+__decorate([
+    (0, common_1.Put)('vendors/reorder'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [admin_vendor_dto_1.ReorderVendorsDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "reorderVendors", null);
 __decorate([
     (0, common_1.Patch)('vendors/:id'),
     __param(0, (0, common_1.Param)('id')),

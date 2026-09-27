@@ -1148,6 +1148,40 @@ export declare const vendors: import("drizzle-orm/pg-core").PgTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        showInApp: import("drizzle-orm/pg-core").PgColumn<{
+            name: "show_in_app";
+            tableName: "vendors";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        displayOrder: import("drizzle-orm/pg-core").PgColumn<{
+            name: "display_order";
+            tableName: "vendors";
+            dataType: "number";
+            columnType: "PgInteger";
+            data: number;
+            driverParam: string | number;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         businessHours: import("drizzle-orm/pg-core").PgColumn<{
             name: "business_hours";
             tableName: "vendors";

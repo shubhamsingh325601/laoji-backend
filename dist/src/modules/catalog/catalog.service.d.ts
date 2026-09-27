@@ -6,7 +6,7 @@ import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
-import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import type { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type { CreateVendorCustomProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
@@ -46,6 +46,8 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -80,6 +82,8 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -93,21 +97,23 @@ export declare class CatalogService {
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
         id: string;
         createdAt: Date;
-        type: "grocery" | "restaurant" | "both";
         userId: string;
-        kycStatus: "pending" | "verified" | "rejected";
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        gstNumber: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
         pickupLat: number;
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -135,6 +141,8 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -163,6 +171,8 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -1033,10 +1043,10 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -1131,9 +1141,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1144,10 +1154,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1169,9 +1179,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1182,10 +1192,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1199,9 +1209,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1212,10 +1222,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1230,9 +1240,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1243,10 +1253,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1260,9 +1270,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1273,10 +1283,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1293,9 +1303,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1306,10 +1316,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1324,9 +1334,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1337,10 +1347,10 @@ export declare class CatalogService {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1360,9 +1370,9 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -1401,6 +1411,7 @@ export declare class CatalogService {
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        displayOrder: number;
         distanceKm: number;
         id: string;
         vendorId: string;
@@ -1490,9 +1501,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1621,12 +1632,12 @@ export declare class CatalogService {
         }[];
         id: string;
         name: string;
-        description: string | null;
         imageUrl: string | null;
-        menuCategoryId: string;
+        description: string | null;
         price: number;
-        isVeg: boolean;
         isAvailable: boolean;
+        menuCategoryId: string;
+        isVeg: boolean;
         mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
@@ -1663,14 +1674,14 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        imageUrl: string | null;
-        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        vendorId: string;
         productId: string | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
@@ -2169,10 +2180,10 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -2213,12 +2224,12 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        businessType: string;
-        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        businessType: string;
         categoryId: string | null;
+        vendorId: string;
         note: string | null;
     }>;
     listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {
@@ -2685,6 +2696,8 @@ export declare class CatalogService {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
@@ -2711,6 +2724,8 @@ export declare class CatalogService {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
@@ -2797,6 +2812,34 @@ export declare class CatalogService {
         tempPassword: string;
         createdAt: Date;
     }>;
+    reorderVendors(dto: ReorderVendorsDto): Promise<{
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        createdAt: Date;
+    }[]>;
     updateAdminVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
         id: string;
         userId: string;
@@ -2814,6 +2857,8 @@ export declare class CatalogService {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;

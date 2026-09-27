@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -9,7 +9,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
-import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -79,6 +79,11 @@ export class AdminCatalogController {
   @Post('vendors')
   createVendor(@Body() dto: CreateAdminVendorDto) {
     return this.catalog.createAdminVendor(dto);
+  }
+
+  @Put('vendors/reorder')
+  reorderVendors(@Body() dto: ReorderVendorsDto) {
+    return this.catalog.reorderVendors(dto);
   }
 
   @Patch('vendors/:id')

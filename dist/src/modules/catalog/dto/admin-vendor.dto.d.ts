@@ -15,6 +15,8 @@ export declare class CreateAdminVendorDto {
     bankAccount?: string;
     bankIfsc?: string;
     upiId?: string;
+    showInApp?: boolean;
+    displayOrder?: number;
 }
 export declare class UpdateAdminVendorDto {
     businessName?: string;
@@ -39,4 +41,14 @@ export declare class UpdateAdminVendorDto {
     bankAccount?: string;
     bankIfsc?: string;
     upiId?: string;
+    showInApp?: boolean;
+    displayOrder?: number;
+}
+export declare class ReorderVendorItemDto {
+    id: string;
+    displayOrder: number;
+}
+export declare class ReorderVendorsDto {
+    orders?: ReorderVendorItemDto[];
+    vendorIds?: string[];
 }

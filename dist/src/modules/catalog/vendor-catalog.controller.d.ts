@@ -13,21 +13,23 @@ export declare class VendorCatalogController {
     upsertProfile(user: JwtAccessPayload, dto: UpsertVendorProfileDto): Promise<{
         id: string;
         createdAt: Date;
-        type: "grocery" | "restaurant" | "both";
         userId: string;
-        kycStatus: "pending" | "verified" | "rejected";
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
-        businessName: string;
-        ownerName: string;
-        shopAddress: string | null;
-        gstNumber: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
         pickupLat: number;
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -61,6 +63,8 @@ export declare class VendorCatalogController {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -89,6 +93,8 @@ export declare class VendorCatalogController {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -117,6 +123,8 @@ export declare class VendorCatalogController {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
@@ -196,9 +204,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -209,10 +217,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -226,9 +234,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -239,10 +247,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -256,9 +264,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -269,10 +277,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -286,9 +294,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -299,10 +307,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -316,9 +324,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -329,10 +337,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -383,9 +391,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -396,10 +404,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -413,9 +421,9 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -426,10 +434,10 @@ export declare class VendorCatalogController {
         id: string;
         updatedAt: Date;
         vendorId: string;
-        price: number;
-        isAvailable: boolean;
         productId: string;
+        price: number;
         stockQty: number;
+        isAvailable: boolean;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -443,14 +451,14 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        imageUrl: string | null;
-        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        vendorId: string;
         productId: string | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{
@@ -473,12 +481,12 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        businessType: string;
-        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        businessType: string;
         categoryId: string | null;
+        vendorId: string;
         note: string | null;
     }>;
     myCategorySuggestions(user: JwtAccessPayload): Promise<{

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateAdminVendorDto = exports.CreateAdminVendorDto = void 0;
+exports.ReorderVendorsDto = exports.ReorderVendorItemDto = exports.UpdateAdminVendorDto = exports.CreateAdminVendorDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateAdminVendorDto {
@@ -29,6 +29,8 @@ class CreateAdminVendorDto {
     bankAccount;
     bankIfsc;
     upiId;
+    showInApp;
+    displayOrder;
 }
 exports.CreateAdminVendorDto = CreateAdminVendorDto;
 __decorate([
@@ -113,6 +115,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateAdminVendorDto.prototype, "showInApp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateAdminVendorDto.prototype, "displayOrder", void 0);
 class UpdateAdminVendorDto {
     businessName;
     ownerName;
@@ -136,6 +148,8 @@ class UpdateAdminVendorDto {
     bankAccount;
     bankIfsc;
     upiId;
+    showInApp;
+    displayOrder;
 }
 exports.UpdateAdminVendorDto = UpdateAdminVendorDto;
 __decorate([
@@ -254,4 +268,40 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateAdminVendorDto.prototype, "showInApp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "displayOrder", void 0);
+class ReorderVendorItemDto {
+    id;
+    displayOrder;
+}
+exports.ReorderVendorItemDto = ReorderVendorItemDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ReorderVendorItemDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ReorderVendorItemDto.prototype, "displayOrder", void 0);
+class ReorderVendorsDto {
+    orders;
+    vendorIds;
+}
+exports.ReorderVendorsDto = ReorderVendorsDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ReorderVendorsDto.prototype, "orders", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ReorderVendorsDto.prototype, "vendorIds", void 0);
 //# sourceMappingURL=admin-vendor.dto.js.map
