@@ -1,10 +1,12 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ResponseCacheInterceptor } from '../../common/cache/response-cache.interceptor';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BannerService } from './banner.service';
 import { BANNER_PLACEMENTS, type BannerPlacement, CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
 
+@UseInterceptors(ResponseCacheInterceptor)
 @Controller('banners')
 export class PublicBannerController {
   constructor(private readonly banners: BannerService) {}

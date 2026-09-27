@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseInterceptors } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { ResponseCacheInterceptor } from '../../common/cache/response-cache.interceptor';
 import { CouponService } from './coupon.service';
 import { ValidateCouponDto } from './dto/validate-coupon.dto';
 
@@ -13,6 +14,7 @@ export class PublicCouponController {
     private readonly config: ConfigService,
   ) {}
 
+  @UseInterceptors(ResponseCacheInterceptor)
   @Get('active')
   listActive() {
     return this.couponService.listActive();

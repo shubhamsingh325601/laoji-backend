@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, UseInterceptors } from '@nestjs/common';
+import { ResponseCacheInterceptor } from '../../common/cache/response-cache.interceptor';
 import { CatalogService } from './catalog.service';
 
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
@@ -16,6 +17,7 @@ function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
   return { lat: latNum, lng: lngNum };
 }
 
+@UseInterceptors(ResponseCacheInterceptor)
 @Controller('catalog')
 export class PublicCatalogController {
   constructor(private readonly catalog: CatalogService) {}
