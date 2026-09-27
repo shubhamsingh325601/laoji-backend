@@ -24,6 +24,7 @@ const DEFAULT_CONFIG = {
     deliveryFeeTier1: 10,
     deliveryFeeTier2: 15,
     deliveryFeeTier3: 20,
+    minOrderValue: 50,
     codThreshold: null,
 };
 let RevenueConfigService = class RevenueConfigService {
@@ -43,6 +44,7 @@ let RevenueConfigService = class RevenueConfigService {
             deliveryFeeTier1: dto.deliveryFeeTier1 ?? 10,
             deliveryFeeTier2: dto.deliveryFeeTier2 ?? 15,
             deliveryFeeTier3: dto.deliveryFeeTier3 ?? 20,
+            minOrderValue: dto.minOrderValue ?? 50,
             codThreshold: dto.codThreshold ?? null,
             notes: dto.notes ?? null,
             effectiveFrom: new Date(dto.effectiveFrom),
@@ -84,6 +86,7 @@ let RevenueConfigService = class RevenueConfigService {
             deliveryFeeTier1: row.deliveryFeeTier1 ?? 10,
             deliveryFeeTier2: row.deliveryFeeTier2 ?? 15,
             deliveryFeeTier3: row.deliveryFeeTier3 ?? 20,
+            minOrderValue: row.minOrderValue ?? 50,
             codThreshold: row.codThreshold,
         };
     }

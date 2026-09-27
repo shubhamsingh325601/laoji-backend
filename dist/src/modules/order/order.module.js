@@ -14,6 +14,7 @@ const delivery_module_1 = require("../delivery/delivery.module");
 const payment_module_1 = require("../payment/payment.module");
 const notification_module_1 = require("../notification/notification.module");
 const revenue_module_1 = require("../revenue/revenue.module");
+const coupon_module_1 = require("../coupon/coupon.module");
 const order_service_1 = require("./order.service");
 const customer_order_controller_1 = require("./customer-order.controller");
 const vendor_order_controller_1 = require("./vendor-order.controller");
@@ -23,7 +24,7 @@ let OrderModule = class OrderModule {
 exports.OrderModule = OrderModule;
 exports.OrderModule = OrderModule = __decorate([
     (0, common_1.Module)({
-        imports: [allocation_module_1.AllocationModule, catalog_module_1.CatalogModule, delivery_module_1.DeliveryModule, payment_module_1.PaymentModule, notification_module_1.NotificationModule, revenue_module_1.RevenueModule],
+        imports: [allocation_module_1.AllocationModule, catalog_module_1.CatalogModule, delivery_module_1.DeliveryModule, payment_module_1.PaymentModule, notification_module_1.NotificationModule, revenue_module_1.RevenueModule, coupon_module_1.CouponModule],
         controllers: [customer_order_controller_1.CustomerOrderController, vendor_order_controller_1.VendorOrderController, admin_order_controller_1.AdminOrderController],
         providers: [order_service_1.OrderService],
     })

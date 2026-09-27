@@ -21,6 +21,7 @@ class CreateRevenueConfigDto {
     deliveryFeeTier1;
     deliveryFeeTier2;
     deliveryFeeTier3;
+    minOrderValue;
     codThreshold;
     notes;
     effectiveFrom;
@@ -70,6 +71,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateRevenueConfigDto.prototype, "deliveryFeeTier3", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateRevenueConfigDto.prototype, "minOrderValue", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),

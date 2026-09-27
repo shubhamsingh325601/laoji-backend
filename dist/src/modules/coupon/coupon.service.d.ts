@@ -1,6 +1,24 @@
 import type { Db } from '../../config/database.module';
+import { coupons } from '../../../drizzle/schema';
 import type { CreateCouponDto } from './dto/create-coupon.dto';
 import type { UpdateCouponDto } from './dto/update-coupon.dto';
+type CouponRow = typeof coupons.$inferSelect;
+export interface CouponEvaluation {
+    valid: boolean;
+    message: string;
+    discount: number;
+    coupon?: ReturnType<typeof toPublicCoupon>;
+}
+declare function toPublicCoupon(c: CouponRow): {
+    code: string;
+    discountType: string;
+    discountValue: number;
+    minOrderValue: number;
+    maxDiscount: number | null;
+    description: string | null;
+    isFirstOrderOnly: boolean;
+    firstNOrders: number | null;
+};
 export declare class CouponService {
     private readonly db;
     constructor(db: Db);
@@ -13,11 +31,11 @@ export declare class CouponService {
         maxDiscount: number | null;
         description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
         isActive: boolean;
         createdAt: Date;
     }[]>;
     listActive(): Promise<{
-        id: string;
         code: string;
         discountType: string;
         discountValue: number;
@@ -25,18 +43,21 @@ export declare class CouponService {
         maxDiscount: number | null;
         description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
+        id: string;
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
-        createdAt: Date;
-        description: string | null;
-        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
         minOrderValue: number;
         maxDiscount: number | null;
+        description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
+        isActive: boolean;
+        createdAt: Date;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;
@@ -47,6 +68,7 @@ export declare class CouponService {
         maxDiscount: number | null;
         description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
         isActive: boolean;
         createdAt: Date;
     }>;
@@ -54,23 +76,20 @@ export declare class CouponService {
         success: boolean;
         message: string;
     }>;
-    validate(code: string, subtotal: number, userId?: string): Promise<{
-        valid: boolean;
-        message: string;
-        discount: number;
-        coupon?: undefined;
-    } | {
-        valid: boolean;
-        message: string;
-        discount: number;
-        coupon: {
-            code: string;
-            discountType: string;
-            discountValue: number;
-            minOrderValue: number;
-            maxDiscount: number | null;
-            description: string | null;
-            isFirstOrderOnly: boolean;
-        };
-    }>;
+    countPlacedOrders(userId: string): Promise<number>;
+    evaluate(code: string, ctx: {
+        subtotal: number;
+        deliveryFee: number;
+        userId?: string;
+    }): Promise<CouponEvaluation>;
+    findAutoApply(ctx: {
+        subtotal: number;
+        deliveryFee: number;
+        userId: string;
+    }): Promise<{
+        code: string;
+        evaluation: CouponEvaluation;
+    } | null>;
+    validate(code: string, subtotal: number, userId?: string): Promise<CouponEvaluation>;
 }
+export {};

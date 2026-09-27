@@ -17,6 +17,24 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const COUNTED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected'];
+function toPublicCoupon(c) {
+    return {
+        code: c.code,
+        discountType: c.discountType,
+        discountValue: c.discountValue,
+        minOrderValue: c.minOrderValue,
+        maxDiscount: c.maxDiscount,
+        description: c.description,
+        isFirstOrderOnly: c.isFirstOrderOnly,
+        firstNOrders: firstNOrdersOf(c),
+    };
+}
+function firstNOrdersOf(c) {
+    if (c.firstNOrders != null)
+        return c.firstNOrders;
+    return c.isFirstOrderOnly ? 1 : null;
+}
 let CouponService = class CouponService {
     db;
     constructor(db) {
@@ -26,20 +44,12 @@ let CouponService = class CouponService {
         return this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
     }
     async listActive() {
-        return this.db
-            .select({
-            id: schema_1.coupons.id,
-            code: schema_1.coupons.code,
-            discountType: schema_1.coupons.discountType,
-            discountValue: schema_1.coupons.discountValue,
-            minOrderValue: schema_1.coupons.minOrderValue,
-            maxDiscount: schema_1.coupons.maxDiscount,
-            description: schema_1.coupons.description,
-            isFirstOrderOnly: schema_1.coupons.isFirstOrderOnly,
-        })
+        const rows = await this.db
+            .select()
             .from(schema_1.coupons)
             .where((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+        return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
     }
     async create(dto) {
         const cleanCode = dto.code.trim().toUpperCase();
@@ -60,6 +70,7 @@ let CouponService = class CouponService {
             maxDiscount: dto.maxDiscount ?? null,
             description: dto.description ?? null,
             isFirstOrderOnly: dto.isFirstOrderOnly ?? false,
+            firstNOrders: dto.firstNOrders ?? null,
             isActive: dto.isActive ?? true,
         })
             .returning();
@@ -85,6 +96,8 @@ let CouponService = class CouponService {
             updates.description = dto.description;
         if (dto.isFirstOrderOnly !== undefined)
             updates.isFirstOrderOnly = dto.isFirstOrderOnly;
+        if (dto.firstNOrders !== undefined)
+            updates.firstNOrders = dto.firstNOrders;
         if (dto.isActive !== undefined)
             updates.isActive = dto.isActive;
         const [updated] = await this.db
@@ -102,7 +115,15 @@ let CouponService = class CouponService {
         await this.db.delete(schema_1.coupons).where((0, drizzle_orm_1.eq)(schema_1.coupons.id, id));
         return { success: true, message: 'Coupon deleted successfully' };
     }
-    async validate(code, subtotal, userId) {
+    async countPlacedOrders(userId) {
+        const counted = (table) => this.db
+            .select({ id: table.id })
+            .from(table)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(table.customerId, userId), (0, drizzle_orm_1.notInArray)(table.status, ['cancelled', 'failed']), (0, drizzle_orm_1.inArray)(table.paymentStatus, COUNTED_PAYMENT_STATUSES)));
+        const [grocery, food] = await Promise.all([counted(schema_1.groceryOrders), counted(schema_1.foodOrders)]);
+        return grocery.length + food.length;
+    }
+    async evaluate(code, ctx) {
         const cleanCode = (code || '').trim().toUpperCase();
         if (!cleanCode) {
             return { valid: false, message: 'Please enter a coupon code', discount: 0 };
@@ -111,59 +132,71 @@ let CouponService = class CouponService {
         if (!coupon || !coupon.isActive) {
             return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
         }
-        if (subtotal < coupon.minOrderValue) {
+        if (ctx.subtotal < coupon.minOrderValue) {
             return {
                 valid: false,
-                message: `Min order of ₹${coupon.minOrderValue} required for ${coupon.code} (add ₹${coupon.minOrderValue - subtotal} more)`,
+                message: `Min order of ₹${coupon.minOrderValue} required for ${coupon.code} (add ₹${coupon.minOrderValue - ctx.subtotal} more)`,
                 discount: 0,
             };
         }
-        if (coupon.isFirstOrderOnly) {
-            if (userId) {
-                const existingGrocery = await this.db
-                    .select({ id: schema_1.groceryOrders.id })
-                    .from(schema_1.groceryOrders)
-                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, userId), (0, drizzle_orm_1.notInArray)(schema_1.groceryOrders.status, ['cancelled', 'failed'])))
-                    .limit(1);
-                const existingFood = await this.db
-                    .select({ id: schema_1.foodOrders.id })
-                    .from(schema_1.foodOrders)
-                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, userId), (0, drizzle_orm_1.notInArray)(schema_1.foodOrders.status, ['cancelled', 'failed'])))
-                    .limit(1);
-                if (existingGrocery.length > 0 || existingFood.length > 0) {
-                    return {
-                        valid: false,
-                        message: `Coupon ${coupon.code} is valid only on your first order!`,
-                        discount: 0,
-                    };
-                }
+        const firstN = firstNOrdersOf(coupon);
+        if (firstN != null && ctx.userId) {
+            const placed = await this.countPlacedOrders(ctx.userId);
+            if (placed >= firstN) {
+                return {
+                    valid: false,
+                    message: firstN === 1
+                        ? `Coupon ${coupon.code} is valid only on your first order`
+                        : `Coupon ${coupon.code} is valid only on your first ${firstN} orders`,
+                    discount: 0,
+                };
             }
         }
         let discount = 0;
         if (coupon.discountType === 'percentage') {
-            const raw = Math.round((subtotal * coupon.discountValue) / 100);
+            const raw = Math.round((ctx.subtotal * coupon.discountValue) / 100);
             discount = coupon.maxDiscount ? Math.min(raw, coupon.maxDiscount) : raw;
         }
         else if (coupon.discountType === 'flat') {
-            discount = Math.min(coupon.discountValue, subtotal);
+            discount = Math.min(coupon.discountValue, ctx.subtotal);
         }
         else if (coupon.discountType === 'free_delivery') {
-            discount = 15;
+            if (ctx.deliveryFee <= 0) {
+                return { valid: false, message: 'Delivery is already free on this order', discount: 0 };
+            }
+            discount = ctx.deliveryFee;
         }
         return {
             valid: true,
-            message: `Coupon ${coupon.code} applied! Saved ₹${discount}`,
+            message: coupon.discountType === 'free_delivery'
+                ? `Coupon ${coupon.code} applied! Free delivery`
+                : `Coupon ${coupon.code} applied! Saved ₹${discount}`,
             discount,
-            coupon: {
-                code: coupon.code,
-                discountType: coupon.discountType,
-                discountValue: coupon.discountValue,
-                minOrderValue: coupon.minOrderValue,
-                maxDiscount: coupon.maxDiscount,
-                description: coupon.description,
-                isFirstOrderOnly: coupon.isFirstOrderOnly,
-            },
+            coupon: toPublicCoupon(coupon),
         };
+    }
+    async findAutoApply(ctx) {
+        if (ctx.deliveryFee <= 0)
+            return null;
+        const candidates = (await this.db
+            .select()
+            .from(schema_1.coupons)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.discountType, 'free_delivery')))).filter((c) => firstNOrdersOf(c) != null);
+        let best = null;
+        for (const c of candidates) {
+            const evaluation = await this.evaluate(c.code, ctx);
+            if (evaluation.valid && (!best || evaluation.discount > best.evaluation.discount)) {
+                best = { code: c.code, evaluation };
+            }
+        }
+        return best;
+    }
+    async validate(code, subtotal, userId) {
+        const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId });
+        if (res.valid && res.coupon?.discountType === 'free_delivery') {
+            return { ...res, discount: 0 };
+        }
+        return res;
     }
 };
 exports.CouponService = CouponService;

@@ -6,5 +6,6 @@ export declare class CreateCouponDto {
     maxDiscount?: number;
     description?: string;
     isFirstOrderOnly?: boolean;
+    firstNOrders?: number | null;
     isActive?: boolean;
 }

@@ -44,6 +44,7 @@ class CreateFoodOrderDto {
     items;
     deliveryAddressId;
     instructions;
+    couponCode;
 }
 exports.CreateFoodOrderDto = CreateFoodOrderDto;
 __decorate([
@@ -67,4 +68,10 @@ __decorate([
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], CreateFoodOrderDto.prototype, "instructions", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], CreateFoodOrderDto.prototype, "couponCode", void 0);
 //# sourceMappingURL=create-food-order.dto.js.map

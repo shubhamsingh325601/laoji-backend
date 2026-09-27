@@ -19,6 +19,7 @@ class CreateCouponDto {
     maxDiscount;
     description;
     isFirstOrderOnly;
+    firstNOrders;
     isActive;
 }
 exports.CreateCouponDto = CreateCouponDto;
@@ -57,6 +58,12 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateCouponDto.prototype, "isFirstOrderOnly", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Object)
+], CreateCouponDto.prototype, "firstNOrders", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

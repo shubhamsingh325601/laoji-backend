@@ -28,6 +28,12 @@ let CustomerOrderController = class CustomerOrderController {
     constructor(orders) {
         this.orders = orders;
     }
+    quoteGrocery(user, dto) {
+        return this.orders.quoteGroceryOrder(user.sub, dto);
+    }
+    quoteFood(user, dto) {
+        return this.orders.quoteFoodOrder(user.sub, dto);
+    }
     createGrocery(user, dto) {
         return this.orders.createGroceryOrder(user.sub, dto);
     }
@@ -54,6 +60,22 @@ let CustomerOrderController = class CustomerOrderController {
     }
 };
 exports.CustomerOrderController = CustomerOrderController;
+__decorate([
+    (0, common_1.Post)('grocery/quote'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_grocery_order_dto_1.CreateGroceryOrderDto]),
+    __metadata("design:returntype", void 0)
+], CustomerOrderController.prototype, "quoteGrocery", null);
+__decorate([
+    (0, common_1.Post)('food/quote'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_food_order_dto_1.CreateFoodOrderDto]),
+    __metadata("design:returntype", void 0)
+], CustomerOrderController.prototype, "quoteFood", null);
 __decorate([
     (0, throttler_1.Throttle)({ orderCreate: { limit: 10, ttl: 60_000 } }),
     (0, common_1.Post)('grocery'),

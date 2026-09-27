@@ -7,6 +7,7 @@ export interface ResolvedRevenueConfig {
     deliveryFeeTier1: number;
     deliveryFeeTier2: number;
     deliveryFeeTier3: number;
+    minOrderValue: number;
     codThreshold: number | null;
 }
 export declare class RevenueConfigService {
@@ -23,6 +24,7 @@ export declare class RevenueConfigService {
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -39,6 +41,7 @@ export declare class RevenueConfigService {
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;

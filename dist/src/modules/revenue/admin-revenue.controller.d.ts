@@ -17,6 +17,7 @@ export declare class AdminRevenueController {
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -33,6 +34,7 @@ export declare class AdminRevenueController {
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;

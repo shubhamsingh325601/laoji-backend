@@ -27,6 +27,7 @@ const order_module_1 = require("./modules/order/order.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const area_manager_module_1 = require("./modules/area-manager/area-manager.module");
 const coupon_module_1 = require("./modules/coupon/coupon.module");
+const banner_module_1 = require("./modules/banner/banner.module");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 let AppModule = class AppModule {
 };
@@ -67,6 +68,7 @@ exports.AppModule = AppModule = __decorate([
             dashboard_module_1.DashboardModule,
             area_manager_module_1.AreaManagerModule,
             coupon_module_1.CouponModule,
+            banner_module_1.BannerModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: throttler_guard_1.AppThrottlerGuard },

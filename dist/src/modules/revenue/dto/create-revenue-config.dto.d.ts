@@ -8,6 +8,7 @@ export declare class CreateRevenueConfigDto {
     deliveryFeeTier1?: number;
     deliveryFeeTier2?: number;
     deliveryFeeTier3?: number;
+    minOrderValue?: number;
     codThreshold?: number;
     notes?: string;
     effectiveFrom: string;

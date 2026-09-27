@@ -5,6 +5,7 @@ import { DeliveryService } from '../delivery/delivery.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { CouponService } from '../coupon/coupon.service';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -16,8 +17,69 @@ export declare class OrderService {
     private readonly payments;
     private readonly notifications;
     private readonly revenueConfig;
-    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService);
+    private readonly coupons;
+    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService, coupons: CouponService);
     private orderCode;
+    private priceGroceryCart;
+    private priceTotals;
+    private toQuote;
+    private assertOrderable;
+    quoteGroceryOrder(customerId: string, dto: CreateGroceryOrderDto): Promise<{
+        belowMinimum: boolean;
+        amountToMinimum: number;
+        amountToFreeDelivery: number;
+        subtotal: number;
+        distanceKm: number;
+        deliveryFee: number;
+        discount: number;
+        total: number;
+        minOrderValue: number;
+        freeDeliveryThreshold: number;
+        coupon: {
+            code: string;
+            valid: boolean;
+            message: string;
+            autoApplied: boolean;
+            details: {
+                code: string;
+                discountType: string;
+                discountValue: number;
+                minOrderValue: number;
+                maxDiscount: number | null;
+                description: string | null;
+                isFirstOrderOnly: boolean;
+                firstNOrders: number | null;
+            } | null;
+        } | null;
+    }>;
+    quoteFoodOrder(customerId: string, dto: CreateFoodOrderDto): Promise<{
+        belowMinimum: boolean;
+        amountToMinimum: number;
+        amountToFreeDelivery: number;
+        subtotal: number;
+        distanceKm: number;
+        deliveryFee: number;
+        discount: number;
+        total: number;
+        minOrderValue: number;
+        freeDeliveryThreshold: number;
+        coupon: {
+            code: string;
+            valid: boolean;
+            message: string;
+            autoApplied: boolean;
+            details: {
+                code: string;
+                discountType: string;
+                discountValue: number;
+                minOrderValue: number;
+                maxDiscount: number | null;
+                description: string | null;
+                isFirstOrderOnly: boolean;
+                firstNOrders: number | null;
+            } | null;
+        } | null;
+    }>;
     createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto): Promise<{
         items: {
             id: string;
@@ -56,6 +118,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -65,6 +129,7 @@ export declare class OrderService {
         deliveryOtp: string | null;
         createdAt: Date;
     }>;
+    private priceFoodCart;
     createFoodOrder(customerId: string, dto: CreateFoodOrderDto): Promise<{
         items: {
             id: string;
@@ -113,6 +178,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -130,6 +197,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -155,6 +224,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -214,6 +285,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -274,6 +347,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -289,8 +364,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        restaurantId: string;
         customerId: string;
+        restaurantId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -313,6 +388,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -338,6 +415,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -363,6 +442,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -389,6 +470,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -444,6 +527,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -496,6 +581,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -543,6 +630,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -561,6 +650,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -587,6 +678,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -654,6 +747,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -711,6 +806,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -768,6 +865,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -825,6 +924,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -847,6 +948,8 @@ export declare class OrderService {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -865,6 +968,8 @@ export declare class OrderService {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -912,6 +1017,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -968,6 +1075,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -1015,6 +1124,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -1071,6 +1182,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -1118,6 +1231,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -1174,6 +1289,8 @@ export declare class OrderService {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;

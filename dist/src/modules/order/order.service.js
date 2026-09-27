@@ -26,6 +26,7 @@ const order_placed_1 = require("../notification/templates/push/order-placed");
 const order_confirmed_1 = require("../notification/templates/push/order-confirmed");
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
+const coupon_service_1 = require("../coupon/coupon.service");
 const catalog_types_1 = require("../catalog/catalog.types");
 const meal_slots_1 = require("../catalog/meal-slots");
 const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'];
@@ -37,7 +38,8 @@ let OrderService = class OrderService {
     payments;
     notifications;
     revenueConfig;
-    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig) {
+    coupons;
+    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons) {
         this.db = db;
         this.allocation = allocation;
         this.catalog = catalog;
@@ -45,6 +47,7 @@ let OrderService = class OrderService {
         this.payments = payments;
         this.notifications = notifications;
         this.revenueConfig = revenueConfig;
+        this.coupons = coupons;
         this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
             this.handlePaymentSatisfied(type, orderId).catch((err) => {
                 console.error('[OrderService] handlePaymentSatisfied error:', err);
@@ -54,7 +57,7 @@ let OrderService = class OrderService {
     orderCode(orderId) {
         return orderId.slice(0, 8).toUpperCase();
     }
-    async createGroceryOrder(customerId, dto) {
+    async priceGroceryCart(customerId, dto) {
         const [address] = await this.db
             .select()
             .from(schema_1.addresses)
@@ -70,9 +73,68 @@ let OrderService = class OrderService {
         const [firstProduct] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, dto.items[0].productId)).limit(1);
         const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
         const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
-        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
+        const distanceKm = candidate.distance ?? 1;
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+        return { candidate, revenue, ...pricing };
+    }
+    async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode) {
+        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+        const ctx = { subtotal, deliveryFee, userId: customerId };
+        let code = couponCode?.trim().toUpperCase() ?? '';
+        let autoApplied = false;
+        let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
+        if (couponCode === undefined && subtotal >= revenue.minOrderValue) {
+            const auto = await this.coupons.findAutoApply(ctx);
+            if (auto) {
+                code = auto.code;
+                coupon = auto.evaluation;
+                autoApplied = true;
+            }
+        }
+        const discount = coupon?.valid ? coupon.discount : 0;
+        return {
+            subtotal,
+            distanceKm: (0, catalog_types_1.roundKm)(distanceKm),
+            deliveryFee,
+            discount,
+            total: Math.max(0, subtotal + deliveryFee - discount),
+            minOrderValue: revenue.minOrderValue,
+            freeDeliveryThreshold: revenue.freeDeliveryThreshold,
+            coupon: coupon
+                ? { code, valid: coupon.valid, message: coupon.message, autoApplied, details: coupon.coupon ?? null }
+                : null,
+        };
+    }
+    toQuote(p) {
+        const deliveryAlreadyFree = p.deliveryFee <= 0 || (!!p.coupon?.valid && p.coupon.details?.discountType === 'free_delivery');
+        return {
+            ...p,
+            belowMinimum: p.subtotal < p.minOrderValue,
+            amountToMinimum: Math.max(0, p.minOrderValue - p.subtotal),
+            amountToFreeDelivery: deliveryAlreadyFree ? 0 : Math.max(0, p.freeDeliveryThreshold - p.subtotal),
+        };
+    }
+    assertOrderable(p) {
+        if (p.subtotal < p.minOrderValue) {
+            throw new common_1.BadRequestException(`Minimum order is ₹${p.minOrderValue} — add ₹${p.minOrderValue - p.subtotal} more to place this order`);
+        }
+        if (p.coupon && !p.coupon.valid) {
+            throw new common_1.BadRequestException(p.coupon.message);
+        }
+    }
+    async quoteGroceryOrder(customerId, dto) {
+        const { candidate: _candidate, revenue: _revenue, ...pricing } = await this.priceGroceryCart(customerId, dto);
+        return this.toQuote(pricing);
+    }
+    async quoteFoodOrder(customerId, dto) {
+        const { pricing } = await this.priceFoodCart(customerId, dto);
+        return this.toQuote(pricing);
+    }
+    async createGroceryOrder(customerId, dto) {
+        const priced = await this.priceGroceryCart(customerId, dto);
+        this.assertOrderable(priced);
+        const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
         const commissionPct = revenue.commissionPct;
-        const total = subtotal + deliveryFee;
         const [order] = await this.db
             .insert(schema_1.groceryOrders)
             .values({
@@ -82,6 +144,8 @@ let OrderService = class OrderService {
             deliveryFee,
             platformCommission: subtotal * commissionPct,
             commissionPct,
+            couponCode: discount > 0 ? priced.coupon.code : null,
+            discount,
             total,
             instructions: dto.instructions ?? null,
             vendorId: candidate.vendorId,
@@ -102,7 +166,7 @@ let OrderService = class OrderService {
         });
         return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
     }
-    async createFoodOrder(customerId, dto) {
+    async priceFoodCart(customerId, dto) {
         const [address] = await this.db
             .select()
             .from(schema_1.addresses)
@@ -174,9 +238,14 @@ let OrderService = class OrderService {
             };
         });
         const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+        return { revenue, orderItemRows, pricing };
+    }
+    async createFoodOrder(customerId, dto) {
+        const { revenue, orderItemRows, pricing } = await this.priceFoodCart(customerId, dto);
+        this.assertOrderable(pricing);
+        const { subtotal, deliveryFee, discount, total } = pricing;
         const commissionPct = revenue.commissionPct;
-        const total = subtotal + deliveryFee;
         const [order] = await this.db
             .insert(schema_1.foodOrders)
             .values({
@@ -186,6 +255,8 @@ let OrderService = class OrderService {
             deliveryFee,
             platformCommission: subtotal * commissionPct,
             commissionPct,
+            couponCode: discount > 0 ? pricing.coupon.code : null,
+            discount,
             total,
             instructions: dto.instructions ?? null,
             restaurantId: dto.restaurantId,
@@ -712,6 +783,7 @@ exports.OrderService = OrderService = __decorate([
         delivery_service_1.DeliveryService,
         payment_service_1.PaymentService,
         notification_service_1.NotificationService,
-        revenue_config_service_1.RevenueConfigService])
+        revenue_config_service_1.RevenueConfigService,
+        coupon_service_1.CouponService])
 ], OrderService);
 //# sourceMappingURL=order.service.js.map

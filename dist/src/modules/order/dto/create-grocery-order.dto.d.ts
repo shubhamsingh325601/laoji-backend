@@ -6,4 +6,5 @@ export declare class CreateGroceryOrderDto {
     items: GroceryOrderLineDto[];
     deliveryAddressId: string;
     instructions?: string;
+    couponCode?: string;
 }

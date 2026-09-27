@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -267,6 +267,8 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
+    couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
+    discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
@@ -312,6 +314,8 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
+    couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
+    discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
@@ -429,6 +433,7 @@ exports.revenueConfig = (0, pg_core_1.pgTable)('revenue_config', {
     deliveryFeeTier1: (0, pg_core_1.doublePrecision)('delivery_fee_tier1').default(10),
     deliveryFeeTier2: (0, pg_core_1.doublePrecision)('delivery_fee_tier2').default(15),
     deliveryFeeTier3: (0, pg_core_1.doublePrecision)('delivery_fee_tier3').default(20),
+    minOrderValue: (0, pg_core_1.doublePrecision)('min_order_value').default(50),
     codThreshold: (0, pg_core_1.doublePrecision)('cod_threshold'),
     notes: (0, pg_core_1.text)('notes'),
     effectiveFrom: (0, pg_core_1.timestamp)('effective_from', { withTimezone: true }).notNull(),
@@ -521,7 +526,21 @@ exports.coupons = (0, pg_core_1.pgTable)('coupons', {
     maxDiscount: (0, pg_core_1.doublePrecision)('max_discount'),
     description: (0, pg_core_1.text)('description'),
     isFirstOrderOnly: (0, pg_core_1.boolean)('is_first_order_only').notNull().default(false),
+    firstNOrders: (0, pg_core_1.integer)('first_n_orders'),
     isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.banners = (0, pg_core_1.pgTable)('banners', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    title: (0, pg_core_1.varchar)('title', { length: 150 }).notNull(),
+    subtitle: (0, pg_core_1.text)('subtitle'),
+    imageUrl: (0, pg_core_1.text)('image_url').notNull(),
+    link: (0, pg_core_1.text)('link'),
+    placement: (0, pg_core_1.varchar)('placement', { length: 20 }).notNull().default('home'),
+    sortOrder: (0, pg_core_1.integer)('sort_order').notNull().default(0),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    startsAt: (0, pg_core_1.timestamp)('starts_at', { withTimezone: true }),
+    endsAt: (0, pg_core_1.timestamp)('ends_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 //# sourceMappingURL=schema.js.map

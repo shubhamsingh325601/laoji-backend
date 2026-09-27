@@ -14,6 +14,8 @@ export declare class AdminOrderController {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -32,6 +34,8 @@ export declare class AdminOrderController {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -79,6 +83,8 @@ export declare class AdminOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -135,6 +141,8 @@ export declare class AdminOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -182,6 +190,8 @@ export declare class AdminOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -238,6 +248,8 @@ export declare class AdminOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;

@@ -6,6 +6,62 @@ import { RateFoodOrderDto } from './dto/rate-food-order.dto';
 export declare class CustomerOrderController {
     private readonly orders;
     constructor(orders: OrderService);
+    quoteGrocery(user: JwtAccessPayload, dto: CreateGroceryOrderDto): Promise<{
+        belowMinimum: boolean;
+        amountToMinimum: number;
+        amountToFreeDelivery: number;
+        subtotal: number;
+        distanceKm: number;
+        deliveryFee: number;
+        discount: number;
+        total: number;
+        minOrderValue: number;
+        freeDeliveryThreshold: number;
+        coupon: {
+            code: string;
+            valid: boolean;
+            message: string;
+            autoApplied: boolean;
+            details: {
+                code: string;
+                discountType: string;
+                discountValue: number;
+                minOrderValue: number;
+                maxDiscount: number | null;
+                description: string | null;
+                isFirstOrderOnly: boolean;
+                firstNOrders: number | null;
+            } | null;
+        } | null;
+    }>;
+    quoteFood(user: JwtAccessPayload, dto: CreateFoodOrderDto): Promise<{
+        belowMinimum: boolean;
+        amountToMinimum: number;
+        amountToFreeDelivery: number;
+        subtotal: number;
+        distanceKm: number;
+        deliveryFee: number;
+        discount: number;
+        total: number;
+        minOrderValue: number;
+        freeDeliveryThreshold: number;
+        coupon: {
+            code: string;
+            valid: boolean;
+            message: string;
+            autoApplied: boolean;
+            details: {
+                code: string;
+                discountType: string;
+                discountValue: number;
+                minOrderValue: number;
+                maxDiscount: number | null;
+                description: string | null;
+                isFirstOrderOnly: boolean;
+                firstNOrders: number | null;
+            } | null;
+        } | null;
+    }>;
     createGrocery(user: JwtAccessPayload, dto: CreateGroceryOrderDto): Promise<{
         items: {
             id: string;
@@ -44,6 +100,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -61,6 +119,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -116,6 +176,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -173,6 +235,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -190,6 +254,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -256,6 +322,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -268,8 +336,8 @@ export declare class CustomerOrderController {
     rateFoodOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        restaurantId: string;
         customerId: string;
+        restaurantId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -312,6 +380,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -368,6 +438,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;

@@ -42,6 +42,8 @@ export declare class UserService {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -58,6 +60,8 @@ export declare class UserService {
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;

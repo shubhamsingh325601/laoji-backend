@@ -13,20 +13,22 @@ export declare class AdminCouponController {
         maxDiscount: number | null;
         description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
         isActive: boolean;
         createdAt: Date;
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
-        createdAt: Date;
-        description: string | null;
-        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
         minOrderValue: number;
         maxDiscount: number | null;
+        description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
+        isActive: boolean;
+        createdAt: Date;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;
@@ -37,6 +39,7 @@ export declare class AdminCouponController {
         maxDiscount: number | null;
         description: string | null;
         isFirstOrderOnly: boolean;
+        firstNOrders: number | null;
         isActive: boolean;
         createdAt: Date;
     }>;

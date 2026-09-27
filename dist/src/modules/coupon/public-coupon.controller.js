@@ -14,36 +14,38 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PublicCouponController = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
 const coupon_service_1 = require("./coupon.service");
 const validate_coupon_dto_1 = require("./dto/validate-coupon.dto");
 let PublicCouponController = class PublicCouponController {
     couponService;
     jwtService;
-    constructor(couponService, jwtService) {
+    config;
+    constructor(couponService, jwtService, config) {
         this.couponService = couponService;
         this.jwtService = jwtService;
+        this.config = config;
     }
     listActive() {
         return this.couponService.listActive();
     }
     async validate(dto, req) {
-        let userId = dto.userId;
-        if (!userId) {
-            const authHeader = req.headers.authorization;
-            if (authHeader && authHeader.startsWith('Bearer ')) {
-                try {
-                    const token = authHeader.split(' ')[1];
-                    const decoded = this.jwtService.decode(token);
-                    if (decoded && decoded.sub) {
-                        userId = decoded.sub;
-                    }
-                }
-                catch {
-                }
-            }
+        return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req));
+    }
+    async userIdFrom(req) {
+        const header = req.headers.authorization;
+        if (!header?.startsWith('Bearer '))
+            return undefined;
+        try {
+            const payload = await this.jwtService.verifyAsync(header.slice(7), {
+                secret: this.config.get('JWT_ACCESS_SECRET'),
+            });
+            return payload.sub;
         }
-        return this.couponService.validate(dto.code, dto.subtotal, userId);
+        catch {
+            return undefined;
+        }
     }
 };
 exports.PublicCouponController = PublicCouponController;
@@ -64,6 +66,7 @@ __decorate([
 exports.PublicCouponController = PublicCouponController = __decorate([
     (0, common_1.Controller)('coupons'),
     __metadata("design:paramtypes", [coupon_service_1.CouponService,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        config_1.ConfigService])
 ], PublicCouponController);
 //# sourceMappingURL=public-coupon.controller.js.map
