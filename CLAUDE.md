@@ -1191,3 +1191,49 @@ rows. Vendors can suggest new products and categories to Laoji. Migration
 **Verified end-to-end** against a throwaway Postgres (migrations 0000–0020
 from scratch, 0020 applied twice), 67 HTTP checks covering every rule above,
 plus unit tests in `catalog-ownership.spec.ts`.
+
+## Offers, vouchers, banners & server-side pricing notes
+
+Product decision: no platform fee; ₹50 minimum order; delivery free at
+subtotal ≥ ₹99, otherwise by distance (≤3 km ₹10, 3–5 km ₹15, >5 km ₹20);
+new customers get free delivery on their first 3 orders (voucher `FREEDEL3`,
+min ₹50); `FIRST10` is retired. Migration `0021_offers_vouchers_banners`
+(idempotent; on hosted databases run
+`npx ts-node scripts/migrate-offers-vouchers-banners.ts`).
+
+- **The backend is the only place prices are computed.** `priceTotals` in
+  `order.service.ts` backs both `POST /orders/{grocery|food}/quote` (the
+  cart/checkout bill) and order create, so what the app shows is what is
+  charged. total = subtotal + deliveryFee − discount. Orders store
+  `discount` and `couponCode`. `revenue_config.min_order_value` (default 50)
+  is enforced on create (`assertOrderable`).
+- **Coupons:** `coupons.first_n_orders` limits a coupon to a customer's
+  first N orders, counting only paid / pending_cod / collected orders that
+  aren't cancelled or failed. A `free_delivery` discount equals the fee and is
+  **platform-funded**: the rider is still paid the fee and the vendor payout
+  stays on subtotal. `couponCode` on quote/create has three meanings: a code
+  applies that voucher; `''` means "no voucher" (customer removed it); the
+  field **left out** auto-applies the best eligible active `free_delivery`
+  voucher that has a first-N limit (i.e. FREEDEL3), provided the order meets
+  the minimum and has a fee to waive. The quote then returns
+  `coupon.autoApplied: true` plus `coupon.details`, which the app adopts as
+  its applied coupon. Old builds that never send a code get it too. When a
+  free-delivery voucher applies, `amountToFreeDelivery` is 0. `GET
+  /coupons/active` feeds the app's Offers screen and cart chips.
+- `POST /coupons/validate` takes the caller only from a verified access token
+  (`userId` in the body is ignored); admin coupon `:id` routes use
+  `ParseUUIDPipe`.
+- **Banners:** `GET /banners?placement=home|promo|order` (public, live ones only:
+  active and inside `starts_at`/`ends_at`), admin CRUD at `/admin/banners`.
+  `promo` is the home-screen offer card (first live one; hidden when none —
+  it used to be a hardcoded "Win a Fitness Band" card). `placement` is a
+  varchar, so a new placement needs no migration.
+  Upload type `banners` is allowed for Cloudinary signatures.
+- **Admin panel:** Coupons (First N orders column/field), Revenue Config
+  (min order + distance tiers), Banners page, Order detail shows the voucher
+  row as "(platform-funded)".
+
+**Verified end-to-end** against a local embedded Postgres: 62 API checks
+across customer → vendor → rider → admin settlement, 20 admin-UI checks in
+Chrome, and 21 customer-app UI checks on Expo web (recipe in
+`../.claude/skills/verify/SKILL.md`).
