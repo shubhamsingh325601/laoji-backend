@@ -35,7 +35,8 @@ import { NotificationService } from '../notification/notification.service';
 import { orderPlacedVendorPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
-import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
+import { CouponService } from '../coupon/coupon.service';
 import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
 import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
@@ -54,6 +55,7 @@ export class OrderService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly revenueConfig: RevenueConfigService,
+    private readonly coupons: CouponService,
   ) {
     this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
       this.handlePaymentSatisfied(type, orderId).catch((err) => {
@@ -68,7 +70,9 @@ export class OrderService {
 
   // ---------- Customer: checkout ----------
 
-  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+  // Everything a grocery checkout charges, worked out once for both the quote
+  // and the real order so the app never shows a price the order won't use.
+  private async priceGroceryCart(customerId: string, dto: CreateGroceryOrderDto) {
     const [address] = await this.db
       .select()
       .from(addresses)
@@ -99,9 +103,89 @@ export class OrderService {
     // Rules are set on Laoji categories; a store's own copy of one counts as it.
     const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
     const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
-    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, candidate.distance ?? 1);
+    const distanceKm = candidate.distance ?? 1;
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    return { candidate, revenue, ...pricing };
+  }
+
+  // Delivery fee, minimum order and voucher on top of an item subtotal.
+  // couponCode: a code applies that voucher; undefined (field left out) lets
+  // an eligible welcome voucher apply itself; '' means "no voucher".
+  private async priceTotals(
+    customerId: string,
+    subtotal: number,
+    distanceKm: number,
+    revenue: ResolvedRevenueConfig,
+    couponCode: string | undefined,
+  ) {
+    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    const ctx = { subtotal, deliveryFee, userId: customerId };
+    let code = couponCode?.trim().toUpperCase() ?? '';
+    let autoApplied = false;
+    let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
+    if (couponCode === undefined && subtotal >= revenue.minOrderValue) {
+      const auto = await this.coupons.findAutoApply(ctx);
+      if (auto) {
+        code = auto.code;
+        coupon = auto.evaluation;
+        autoApplied = true;
+      }
+    }
+    const discount = coupon?.valid ? coupon.discount : 0;
+    return {
+      subtotal,
+      distanceKm: roundKm(distanceKm),
+      deliveryFee,
+      discount,
+      total: Math.max(0, subtotal + deliveryFee - discount),
+      minOrderValue: revenue.minOrderValue,
+      freeDeliveryThreshold: revenue.freeDeliveryThreshold,
+      coupon: coupon
+        ? { code, valid: coupon.valid, message: coupon.message, autoApplied, details: coupon.coupon ?? null }
+        : null,
+    };
+  }
+
+  private toQuote(p: Awaited<ReturnType<OrderService['priceTotals']>>) {
+    // A free-delivery voucher already zeroes the fee, so "add ₹X more for
+    // free delivery" would be misleading.
+    const deliveryAlreadyFree =
+      p.deliveryFee <= 0 || (!!p.coupon?.valid && p.coupon.details?.discountType === 'free_delivery');
+    return {
+      ...p,
+      belowMinimum: p.subtotal < p.minOrderValue,
+      amountToMinimum: Math.max(0, p.minOrderValue - p.subtotal),
+      amountToFreeDelivery: deliveryAlreadyFree ? 0 : Math.max(0, p.freeDeliveryThreshold - p.subtotal),
+    };
+  }
+
+  // Checkout refuses what the quote would have flagged.
+  private assertOrderable(p: Awaited<ReturnType<OrderService['priceTotals']>>) {
+    if (p.subtotal < p.minOrderValue) {
+      throw new BadRequestException(
+        `Minimum order is ₹${p.minOrderValue} — add ₹${p.minOrderValue - p.subtotal} more to place this order`,
+      );
+    }
+    if (p.coupon && !p.coupon.valid) {
+      throw new BadRequestException(p.coupon.message);
+    }
+  }
+
+  async quoteGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+    const { candidate: _candidate, revenue: _revenue, ...pricing } = await this.priceGroceryCart(customerId, dto);
+    return this.toQuote(pricing);
+  }
+
+  async quoteFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+    const { pricing } = await this.priceFoodCart(customerId, dto);
+    return this.toQuote(pricing);
+  }
+
+  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+    const priced = await this.priceGroceryCart(customerId, dto);
+    this.assertOrderable(priced);
+    const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
     const commissionPct = revenue.commissionPct;
-    const total = subtotal + deliveryFee;
 
     const [order] = await this.db
       .insert(groceryOrders)
@@ -112,6 +196,8 @@ export class OrderService {
         deliveryFee,
         platformCommission: subtotal * commissionPct,
         commissionPct,
+        couponCode: discount > 0 ? priced.coupon!.code : null,
+        discount,
         total,
         instructions: dto.instructions ?? null,
         vendorId: candidate.vendorId,
@@ -140,7 +226,7 @@ export class OrderService {
     return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
   }
 
-  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+  private async priceFoodCart(customerId: string, dto: CreateFoodOrderDto) {
     const [address] = await this.db
       .select()
       .from(addresses)
@@ -238,9 +324,15 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    return { revenue, orderItemRows, pricing };
+  }
+
+  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+    const { revenue, orderItemRows, pricing } = await this.priceFoodCart(customerId, dto);
+    this.assertOrderable(pricing);
+    const { subtotal, deliveryFee, discount, total } = pricing;
     const commissionPct = revenue.commissionPct;
-    const total = subtotal + deliveryFee;
     const [order] = await this.db
       .insert(foodOrders)
       .values({
@@ -250,6 +342,8 @@ export class OrderService {
         deliveryFee,
         platformCommission: subtotal * commissionPct,
         commissionPct,
+        couponCode: discount > 0 ? pricing.coupon!.code : null,
+        discount,
         total,
         instructions: dto.instructions ?? null,
         restaurantId: dto.restaurantId,
