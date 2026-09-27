@@ -18,6 +18,7 @@ import { OrderModule } from './modules/order/order.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { CouponModule } from './modules/coupon/coupon.module';
+import { BannerModule } from './modules/banner/banner.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -72,6 +73,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     DashboardModule,
     AreaManagerModule,
     CouponModule,
+    BannerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },
