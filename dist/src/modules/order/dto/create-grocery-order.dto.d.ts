@@ -7,4 +7,5 @@ export declare class CreateGroceryOrderDto {
     deliveryAddressId: string;
     instructions?: string;
     couponCode?: string;
+    idempotencyKey?: string;
 }

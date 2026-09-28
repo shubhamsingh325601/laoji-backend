@@ -9,6 +9,7 @@ export declare class AdminOrderController {
             customerName: string;
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
@@ -29,6 +30,7 @@ export declare class AdminOrderController {
             customerName: string;
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
@@ -78,6 +80,7 @@ export declare class AdminOrderController {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -136,6 +139,7 @@ export declare class AdminOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -185,6 +189,7 @@ export declare class AdminOrderController {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -243,6 +248,7 @@ export declare class AdminOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;

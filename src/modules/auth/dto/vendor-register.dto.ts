@@ -43,7 +43,6 @@ export class VendorRegisterDto {
   @IsOptional()
   @IsNumber()
   @Min(0.5)
-  @Max(50)
   radiusKm?: number;
 
   @IsOptional()

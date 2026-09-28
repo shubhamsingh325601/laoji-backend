@@ -262,6 +262,7 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     customerId: (0, pg_core_1.uuid)('customer_id')
         .notNull()
         .references(() => exports.users.id),
+    idempotencyKey: (0, pg_core_1.varchar)('idempotency_key', { length: 120 }),
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
@@ -279,7 +280,9 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     deliveryPartnerId: (0, pg_core_1.uuid)('delivery_partner_id').references(() => exports.deliveryPartners.id),
     deliveryOtp: (0, pg_core_1.varchar)('delivery_otp', { length: 6 }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('grocery_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+]);
 exports.groceryOrderItems = (0, pg_core_1.pgTable)('grocery_order_items', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     groceryOrderId: (0, pg_core_1.uuid)('grocery_order_id')
@@ -309,6 +312,7 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     customerId: (0, pg_core_1.uuid)('customer_id')
         .notNull()
         .references(() => exports.users.id),
+    idempotencyKey: (0, pg_core_1.varchar)('idempotency_key', { length: 120 }),
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
@@ -328,7 +332,9 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     deliveryPartnerId: (0, pg_core_1.uuid)('delivery_partner_id').references(() => exports.deliveryPartners.id),
     deliveryOtp: (0, pg_core_1.varchar)('delivery_otp', { length: 6 }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('food_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+]);
 exports.foodOrderItems = (0, pg_core_1.pgTable)('food_order_items', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     foodOrderId: (0, pg_core_1.uuid)('food_order_id')

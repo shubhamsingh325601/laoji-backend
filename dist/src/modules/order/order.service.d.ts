@@ -113,6 +113,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -173,6 +174,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -192,6 +194,7 @@ export declare class OrderService {
     listMyGroceryOrders(customerId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -219,6 +222,7 @@ export declare class OrderService {
     listMyFoodOrders(customerId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -280,6 +284,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -342,6 +347,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -364,8 +370,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -383,6 +389,7 @@ export declare class OrderService {
         attemptId: string;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -410,6 +417,7 @@ export declare class OrderService {
     listVendorHistoryGroceryOrders(userId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -437,6 +445,7 @@ export declare class OrderService {
     listVendorHistoryFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -465,6 +474,7 @@ export declare class OrderService {
     listVendorActiveGroceryOrders(userId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -522,6 +532,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -576,6 +587,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -625,6 +637,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -645,6 +658,7 @@ export declare class OrderService {
     listVendorIncomingFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -673,6 +687,7 @@ export declare class OrderService {
     listVendorActiveFoodOrders(userId: string): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -742,6 +757,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -801,6 +817,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -860,6 +877,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -919,6 +937,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -943,6 +962,7 @@ export declare class OrderService {
             customerName: string;
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
@@ -963,6 +983,7 @@ export declare class OrderService {
             customerName: string;
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
@@ -1012,6 +1033,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -1070,6 +1092,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -1119,6 +1142,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -1177,6 +1201,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -1226,6 +1251,7 @@ export declare class OrderService {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -1284,6 +1310,7 @@ export declare class OrderService {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;

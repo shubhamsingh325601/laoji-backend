@@ -238,6 +238,7 @@ export declare class DeliveryService {
         grocery: {
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
@@ -257,6 +258,7 @@ export declare class DeliveryService {
         food: {
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;

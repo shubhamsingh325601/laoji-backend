@@ -418,42 +418,49 @@ export const actorRoleEnum = pgEnum('actor_role', [
   'admin',
 ]);
 
-export const groceryOrders = pgTable('grocery_orders', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  customerId: uuid('customer_id')
-    .notNull()
-    .references(() => users.id),
-  status: orderStatusEnum('status').notNull().default('placed'),
-  subtotal: doublePrecision('subtotal').notNull(),
-  deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
-  platformCommission: doublePrecision('platform_commission').notNull().default(0),
-  // Phase 8: the *rate* that produced platform_commission above, snapshotted
-  // at order-creation time alongside the already-existing computed amount —
-  // revenue_config resolution happens once, here, and never again; a later
-  // rule change must never retroactively alter an already-placed order.
-  commissionPct: doublePrecision('commission_pct').notNull().default(0),
-  // Voucher applied at checkout. total = subtotal + delivery_fee - discount;
-  // a free-delivery voucher's discount equals the delivery fee, so the
-  // delivery partner is still paid the fee.
-  couponCode: varchar('coupon_code', { length: 50 }),
-  discount: doublePrecision('discount').notNull().default(0),
-  total: doublePrecision('total').notNull(),
-  // Simple string for now — Payment module (Phase 6) owns the real
-  // provider-backed payment_status lifecycle behind PaymentProvider.
-  paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
-  instructions: text('instructions'),
-  vendorId: uuid('vendor_id').references(() => vendors.id),
-  deliveryAddressId: uuid('delivery_address_id')
-    .notNull()
-    .references(() => addresses.id),
-  // Phase 5 additions. deliveryOtp is stored in plain text deliberately —
-  // unlike the login OTP (Phase 1, dev-only), this one is a real, repeatedly
-  // customer-facing doorstep code for the lifetime of the delivery, not a
-  // credential; the customer's own order view has to keep re-displaying it.
-  deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
-  deliveryOtp: varchar('delivery_otp', { length: 6 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const groceryOrders = pgTable(
+  'grocery_orders',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => users.id),
+    idempotencyKey: varchar('idempotency_key', { length: 120 }),
+    status: orderStatusEnum('status').notNull().default('placed'),
+    subtotal: doublePrecision('subtotal').notNull(),
+    deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    platformCommission: doublePrecision('platform_commission').notNull().default(0),
+    // Phase 8: the *rate* that produced platform_commission above, snapshotted
+    // at order-creation time alongside the already-existing computed amount —
+    // revenue_config resolution happens once, here, and never again; a later
+    // rule change must never retroactively alter an already-placed order.
+    commissionPct: doublePrecision('commission_pct').notNull().default(0),
+    // Voucher applied at checkout. total = subtotal + delivery_fee - discount;
+    // a free-delivery voucher's discount equals the delivery fee, so the
+    // delivery partner is still paid the fee.
+    couponCode: varchar('coupon_code', { length: 50 }),
+    discount: doublePrecision('discount').notNull().default(0),
+    total: doublePrecision('total').notNull(),
+    // Simple string for now — Payment module (Phase 6) owns the real
+    // provider-backed payment_status lifecycle behind PaymentProvider.
+    paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+    instructions: text('instructions'),
+    vendorId: uuid('vendor_id').references(() => vendors.id),
+    deliveryAddressId: uuid('delivery_address_id')
+      .notNull()
+      .references(() => addresses.id),
+    // Phase 5 additions. deliveryOtp is stored in plain text deliberately —
+    // unlike the login OTP (Phase 1, dev-only), this one is a real, repeatedly
+    // customer-facing doorstep code for the lifetime of the delivery, not a
+    // credential; the customer's own order view has to keep re-displaying it.
+    deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
+    deliveryOtp: varchar('delivery_otp', { length: 6 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('grocery_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+  ],
+);
 
 export const groceryOrderItems = pgTable('grocery_order_items', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -481,31 +488,38 @@ export const allocationAttempts = pgTable('allocation_attempts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const foodOrders = pgTable('food_orders', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  customerId: uuid('customer_id')
-    .notNull()
-    .references(() => users.id),
-  status: orderStatusEnum('status').notNull().default('placed'),
-  subtotal: doublePrecision('subtotal').notNull(),
-  deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
-  platformCommission: doublePrecision('platform_commission').notNull().default(0),
-  commissionPct: doublePrecision('commission_pct').notNull().default(0),
-  couponCode: varchar('coupon_code', { length: 50 }),
-  discount: doublePrecision('discount').notNull().default(0),
-  total: doublePrecision('total').notNull(),
-  paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
-  instructions: text('instructions'),
-  restaurantId: uuid('restaurant_id')
-    .notNull()
-    .references(() => restaurants.id),
-  deliveryAddressId: uuid('delivery_address_id')
-    .notNull()
-    .references(() => addresses.id),
-  deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
-  deliveryOtp: varchar('delivery_otp', { length: 6 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const foodOrders = pgTable(
+  'food_orders',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => users.id),
+    idempotencyKey: varchar('idempotency_key', { length: 120 }),
+    status: orderStatusEnum('status').notNull().default('placed'),
+    subtotal: doublePrecision('subtotal').notNull(),
+    deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    platformCommission: doublePrecision('platform_commission').notNull().default(0),
+    commissionPct: doublePrecision('commission_pct').notNull().default(0),
+    couponCode: varchar('coupon_code', { length: 50 }),
+    discount: doublePrecision('discount').notNull().default(0),
+    total: doublePrecision('total').notNull(),
+    paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+    instructions: text('instructions'),
+    restaurantId: uuid('restaurant_id')
+      .notNull()
+      .references(() => restaurants.id),
+    deliveryAddressId: uuid('delivery_address_id')
+      .notNull()
+      .references(() => addresses.id),
+    deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
+    deliveryOtp: varchar('delivery_otp', { length: 6 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('food_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+  ],
+);
 
 export const foodOrderItems = pgTable('food_order_items', {
   id: uuid('id').defaultRandom().primaryKey(),

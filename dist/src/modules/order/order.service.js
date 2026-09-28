@@ -131,40 +131,82 @@ let OrderService = class OrderService {
         return this.toQuote(pricing);
     }
     async createGroceryOrder(customerId, dto) {
+        const idempotencyKey = dto.idempotencyKey?.trim() || null;
+        if (idempotencyKey) {
+            const [existing] = await this.db
+                .select()
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.idempotencyKey, idempotencyKey)))
+                .limit(1);
+            if (existing) {
+                return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+            }
+        }
+        else {
+            const fiveSecondsAgo = new Date(Date.now() - 5000);
+            const [recentPlaced] = await this.db
+                .select()
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.deliveryAddressId, dto.deliveryAddressId), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'placed'), (0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, fiveSecondsAgo)))
+                .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt))
+                .limit(1);
+            if (recentPlaced) {
+                return this.getGroceryOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+            }
+        }
         const priced = await this.priceGroceryCart(customerId, dto);
         this.assertOrderable(priced);
         const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
         const commissionPct = revenue.commissionPct;
-        const [order] = await this.db
-            .insert(schema_1.groceryOrders)
-            .values({
-            customerId,
-            status: 'placed',
-            subtotal,
-            deliveryFee,
-            platformCommission: subtotal * commissionPct,
-            commissionPct,
-            couponCode: discount > 0 ? priced.coupon.code : null,
-            discount,
-            total,
-            instructions: dto.instructions ?? null,
-            vendorId: candidate.vendorId,
-            deliveryAddressId: dto.deliveryAddressId,
-        })
-            .returning();
-        await this.db.insert(schema_1.groceryOrderItems).values(dto.items.map((line) => ({
-            groceryOrderId: order.id,
-            productId: line.productId,
-            qty: line.qty,
-            unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
-        })));
-        await this.db.insert(schema_1.orderStatusHistory).values({
-            groceryOrderId: order.id,
-            status: 'placed',
-            actorRole: 'customer',
-            changedBy: customerId,
-        });
-        return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+        try {
+            const [order] = await this.db
+                .insert(schema_1.groceryOrders)
+                .values({
+                customerId,
+                idempotencyKey,
+                status: 'placed',
+                subtotal,
+                deliveryFee,
+                platformCommission: subtotal * commissionPct,
+                commissionPct,
+                couponCode: discount > 0 ? priced.coupon.code : null,
+                discount,
+                total,
+                instructions: dto.instructions ?? null,
+                vendorId: candidate.vendorId,
+                deliveryAddressId: dto.deliveryAddressId,
+            })
+                .returning();
+            await this.db.insert(schema_1.groceryOrderItems).values(dto.items.map((line) => ({
+                groceryOrderId: order.id,
+                productId: line.productId,
+                qty: line.qty,
+                unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
+            })));
+            await this.db.insert(schema_1.orderStatusHistory).values({
+                groceryOrderId: order.id,
+                status: 'placed',
+                actorRole: 'customer',
+                changedBy: customerId,
+            });
+            return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+        }
+        catch (err) {
+            if (idempotencyKey &&
+                (err?.code === '23505' ||
+                    err?.message?.includes('grocery_orders_customer_idempotency_idx') ||
+                    err?.message?.includes('idempotency'))) {
+                const [existing] = await this.db
+                    .select()
+                    .from(schema_1.groceryOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.idempotencyKey, idempotencyKey)))
+                    .limit(1);
+                if (existing) {
+                    return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+                }
+            }
+            throw err;
+        }
     }
     async priceFoodCart(customerId, dto) {
         const [address] = await this.db
@@ -242,35 +284,77 @@ let OrderService = class OrderService {
         return { revenue, orderItemRows, pricing };
     }
     async createFoodOrder(customerId, dto) {
+        const idempotencyKey = dto.idempotencyKey?.trim() || null;
+        if (idempotencyKey) {
+            const [existing] = await this.db
+                .select()
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.foodOrders.idempotencyKey, idempotencyKey)))
+                .limit(1);
+            if (existing) {
+                return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+            }
+        }
+        else {
+            const fiveSecondsAgo = new Date(Date.now() - 5000);
+            const [recentPlaced] = await this.db
+                .select()
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, dto.restaurantId), (0, drizzle_orm_1.eq)(schema_1.foodOrders.deliveryAddressId, dto.deliveryAddressId), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'placed'), (0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, fiveSecondsAgo)))
+                .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt))
+                .limit(1);
+            if (recentPlaced) {
+                return this.getFoodOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+            }
+        }
         const { revenue, orderItemRows, pricing } = await this.priceFoodCart(customerId, dto);
         this.assertOrderable(pricing);
         const { subtotal, deliveryFee, discount, total } = pricing;
         const commissionPct = revenue.commissionPct;
-        const [order] = await this.db
-            .insert(schema_1.foodOrders)
-            .values({
-            customerId,
-            status: 'placed',
-            subtotal,
-            deliveryFee,
-            platformCommission: subtotal * commissionPct,
-            commissionPct,
-            couponCode: discount > 0 ? pricing.coupon.code : null,
-            discount,
-            total,
-            instructions: dto.instructions ?? null,
-            restaurantId: dto.restaurantId,
-            deliveryAddressId: dto.deliveryAddressId,
-        })
-            .returning();
-        await this.db.insert(schema_1.foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
-        await this.db.insert(schema_1.orderStatusHistory).values({
-            foodOrderId: order.id,
-            status: 'placed',
-            actorRole: 'customer',
-            changedBy: customerId,
-        });
-        return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+        try {
+            const [order] = await this.db
+                .insert(schema_1.foodOrders)
+                .values({
+                customerId,
+                idempotencyKey,
+                status: 'placed',
+                subtotal,
+                deliveryFee,
+                platformCommission: subtotal * commissionPct,
+                commissionPct,
+                couponCode: discount > 0 ? pricing.coupon.code : null,
+                discount,
+                total,
+                instructions: dto.instructions ?? null,
+                restaurantId: dto.restaurantId,
+                deliveryAddressId: dto.deliveryAddressId,
+            })
+                .returning();
+            await this.db.insert(schema_1.foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
+            await this.db.insert(schema_1.orderStatusHistory).values({
+                foodOrderId: order.id,
+                status: 'placed',
+                actorRole: 'customer',
+                changedBy: customerId,
+            });
+            return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+        }
+        catch (err) {
+            if (idempotencyKey &&
+                (err?.code === '23505' ||
+                    err?.message?.includes('food_orders_customer_idempotency_idx') ||
+                    err?.message?.includes('idempotency'))) {
+                const [existing] = await this.db
+                    .select()
+                    .from(schema_1.foodOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, customerId), (0, drizzle_orm_1.eq)(schema_1.foodOrders.idempotencyKey, idempotencyKey)))
+                    .limit(1);
+                if (existing) {
+                    return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+                }
+            }
+            throw err;
+        }
     }
     async listMyGroceryOrders(customerId) {
         const orders = await this.db

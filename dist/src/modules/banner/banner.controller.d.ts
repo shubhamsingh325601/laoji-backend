@@ -589,9 +589,9 @@ export declare class AdminBannerController {
     }>, "orderBy">;
     create(dto: CreateBannerDto): Promise<{
         id: string;
-        imageUrl: string;
         link: string | null;
         createdAt: Date;
+        imageUrl: string;
         sortOrder: number;
         isActive: boolean;
         title: string;

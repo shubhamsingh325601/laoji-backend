@@ -95,6 +95,7 @@ export declare class CustomerOrderController {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -114,6 +115,7 @@ export declare class CustomerOrderController {
     myGroceryOrders(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -171,6 +173,7 @@ export declare class CustomerOrderController {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -230,6 +233,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -249,6 +253,7 @@ export declare class CustomerOrderController {
     myFoodOrders(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -317,6 +322,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -336,8 +342,8 @@ export declare class CustomerOrderController {
     rateFoodOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -375,6 +381,7 @@ export declare class CustomerOrderController {
         } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
@@ -433,6 +440,7 @@ export declare class CustomerOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;

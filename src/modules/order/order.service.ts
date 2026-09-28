@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -182,48 +182,98 @@ export class OrderService {
   }
 
   async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+    const idempotencyKey = dto.idempotencyKey?.trim() || null;
+    if (idempotencyKey) {
+      const [existing] = await this.db
+        .select()
+        .from(groceryOrders)
+        .where(and(eq(groceryOrders.customerId, customerId), eq(groceryOrders.idempotencyKey, idempotencyKey)))
+        .limit(1);
+      if (existing) {
+        return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+      }
+    } else {
+      const fiveSecondsAgo = new Date(Date.now() - 5000);
+      const [recentPlaced] = await this.db
+        .select()
+        .from(groceryOrders)
+        .where(
+          and(
+            eq(groceryOrders.customerId, customerId),
+            eq(groceryOrders.deliveryAddressId, dto.deliveryAddressId),
+            eq(groceryOrders.status, 'placed'),
+            gte(groceryOrders.createdAt, fiveSecondsAgo),
+          ),
+        )
+        .orderBy(desc(groceryOrders.createdAt))
+        .limit(1);
+      if (recentPlaced) {
+        return this.getGroceryOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+      }
+    }
+
     const priced = await this.priceGroceryCart(customerId, dto);
     this.assertOrderable(priced);
     const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
     const commissionPct = revenue.commissionPct;
 
-    const [order] = await this.db
-      .insert(groceryOrders)
-      .values({
-        customerId,
-        status: 'placed',
-        subtotal,
-        deliveryFee,
-        platformCommission: subtotal * commissionPct,
-        commissionPct,
-        couponCode: discount > 0 ? priced.coupon!.code : null,
-        discount,
-        total,
-        instructions: dto.instructions ?? null,
-        vendorId: candidate.vendorId,
-        deliveryAddressId: dto.deliveryAddressId,
-      })
-      .returning();
+    try {
+      const [order] = await this.db
+        .insert(groceryOrders)
+        .values({
+          customerId,
+          idempotencyKey,
+          status: 'placed',
+          subtotal,
+          deliveryFee,
+          platformCommission: subtotal * commissionPct,
+          commissionPct,
+          couponCode: discount > 0 ? priced.coupon!.code : null,
+          discount,
+          total,
+          instructions: dto.instructions ?? null,
+          vendorId: candidate.vendorId,
+          deliveryAddressId: dto.deliveryAddressId,
+        })
+        .returning();
 
-    await this.db.insert(groceryOrderItems).values(
-      dto.items.map((line) => ({
+      await this.db.insert(groceryOrderItems).values(
+        dto.items.map((line) => ({
+          groceryOrderId: order.id,
+          productId: line.productId,
+          qty: line.qty,
+          unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
+        })),
+      );
+
+      await this.db.insert(orderStatusHistory).values({
         groceryOrderId: order.id,
-        productId: line.productId,
-        qty: line.qty,
-        unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
-      })),
-    );
+        status: 'placed',
+        actorRole: 'customer',
+        changedBy: customerId,
+      });
 
-    await this.db.insert(orderStatusHistory).values({
-      groceryOrderId: order.id,
-      status: 'placed',
-      actorRole: 'customer',
-      changedBy: customerId,
-    });
-
-    // Customer and vendor notifications are deferred until payment is satisfied
-    // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
-    return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+      // Customer and vendor notifications are deferred until payment is satisfied
+      // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
+      return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+    } catch (err: any) {
+      if (
+        idempotencyKey &&
+        (err?.code === '23505' ||
+          err?.message?.includes('grocery_orders_customer_idempotency_idx') ||
+          err?.message?.includes('idempotency'))
+      ) {
+        const [existing] = await this.db
+          .select()
+          .from(groceryOrders)
+          .where(and(eq(groceryOrders.customerId, customerId), eq(groceryOrders.idempotencyKey, idempotencyKey)))
+          .limit(1);
+        if (existing) {
+          return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+        }
+      }
+      throw err;
+    }
   }
 
   private async priceFoodCart(customerId: string, dto: CreateFoodOrderDto) {
@@ -329,40 +379,92 @@ export class OrderService {
   }
 
   async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+    const idempotencyKey = dto.idempotencyKey?.trim() || null;
+    if (idempotencyKey) {
+      const [existing] = await this.db
+        .select()
+        .from(foodOrders)
+        .where(and(eq(foodOrders.customerId, customerId), eq(foodOrders.idempotencyKey, idempotencyKey)))
+        .limit(1);
+      if (existing) {
+        return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+      }
+    } else {
+      const fiveSecondsAgo = new Date(Date.now() - 5000);
+      const [recentPlaced] = await this.db
+        .select()
+        .from(foodOrders)
+        .where(
+          and(
+            eq(foodOrders.customerId, customerId),
+            eq(foodOrders.restaurantId, dto.restaurantId),
+            eq(foodOrders.deliveryAddressId, dto.deliveryAddressId),
+            eq(foodOrders.status, 'placed'),
+            gte(foodOrders.createdAt, fiveSecondsAgo),
+          ),
+        )
+        .orderBy(desc(foodOrders.createdAt))
+        .limit(1);
+      if (recentPlaced) {
+        return this.getFoodOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+      }
+    }
+
     const { revenue, orderItemRows, pricing } = await this.priceFoodCart(customerId, dto);
     this.assertOrderable(pricing);
     const { subtotal, deliveryFee, discount, total } = pricing;
     const commissionPct = revenue.commissionPct;
-    const [order] = await this.db
-      .insert(foodOrders)
-      .values({
-        customerId,
+
+    try {
+      const [order] = await this.db
+        .insert(foodOrders)
+        .values({
+          customerId,
+          idempotencyKey,
+          status: 'placed',
+          subtotal,
+          deliveryFee,
+          platformCommission: subtotal * commissionPct,
+          commissionPct,
+          couponCode: discount > 0 ? pricing.coupon!.code : null,
+          discount,
+          total,
+          instructions: dto.instructions ?? null,
+          restaurantId: dto.restaurantId,
+          deliveryAddressId: dto.deliveryAddressId,
+        })
+        .returning();
+
+      await this.db.insert(foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
+
+      await this.db.insert(orderStatusHistory).values({
+        foodOrderId: order.id,
         status: 'placed',
-        subtotal,
-        deliveryFee,
-        platformCommission: subtotal * commissionPct,
-        commissionPct,
-        couponCode: discount > 0 ? pricing.coupon!.code : null,
-        discount,
-        total,
-        instructions: dto.instructions ?? null,
-        restaurantId: dto.restaurantId,
-        deliveryAddressId: dto.deliveryAddressId,
-      })
-      .returning();
+        actorRole: 'customer',
+        changedBy: customerId,
+      });
 
-    await this.db.insert(foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
-
-    await this.db.insert(orderStatusHistory).values({
-      foodOrderId: order.id,
-      status: 'placed',
-      actorRole: 'customer',
-      changedBy: customerId,
-    });
-
-    // Customer and vendor notifications are deferred until payment is satisfied
-    // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
-    return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+      // Customer and vendor notifications are deferred until payment is satisfied
+      // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
+      return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+    } catch (err: any) {
+      if (
+        idempotencyKey &&
+        (err?.code === '23505' ||
+          err?.message?.includes('food_orders_customer_idempotency_idx') ||
+          err?.message?.includes('idempotency'))
+      ) {
+        const [existing] = await this.db
+          .select()
+          .from(foodOrders)
+          .where(and(eq(foodOrders.customerId, customerId), eq(foodOrders.idempotencyKey, idempotencyKey)))
+          .limit(1);
+        if (existing) {
+          return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+        }
+      }
+      throw err;
+    }
   }
 
   // ---------- Customer: read own orders ----------
