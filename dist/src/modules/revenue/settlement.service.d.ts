@@ -43,6 +43,9 @@ export declare class SettlementService {
         message: string;
         availableBalance: number;
         kycStatus: "verified";
+        payoutMethod: string;
+        payoutDestination: string | null;
+        bankIfsc: string | null;
     }>;
     requestPartnerWithdrawal(userId: string): Promise<{
         success: boolean;

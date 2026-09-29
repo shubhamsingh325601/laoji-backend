@@ -2,6 +2,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { UpdateRestaurantDto } from './dto/restaurant.dto';
 import { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
+import { UpdateMealTimingsDto } from './dto/meal-timings.dto';
 export declare class VendorMenuController {
     private readonly catalog;
     constructor(catalog: CatalogService);
@@ -9,10 +10,15 @@ export declare class VendorMenuController {
         id: string;
         name: string;
         isOpen: boolean;
+        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
         ratingAvg: number;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
     }>;
     updateRestaurant(user: JwtAccessPayload, dto: UpdateRestaurantDto): Promise<{
         id: string;
@@ -22,7 +28,24 @@ export declare class VendorMenuController {
         imageUrl: string | null;
         ratingAvg: number;
         isOpen: boolean;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
     }>;
+    mealTimings(user: JwtAccessPayload): Promise<{
+        label: string;
+        slot: import("./meal-slots").MealSlot;
+        start: string;
+        end: string;
+    }[]>;
+    updateMealTimings(user: JwtAccessPayload, dto: UpdateMealTimingsDto): Promise<{
+        label: string;
+        slot: import("./meal-slots").MealSlot;
+        start: string;
+        end: string;
+    }[]>;
     listMenuCategories(user: JwtAccessPayload): Promise<{
         id: string;
         restaurantId: string;
@@ -65,6 +88,7 @@ export declare class VendorMenuController {
         imageUrl: string | null;
         isVeg: boolean;
         isAvailable: boolean;
+        mealSlots: string[] | null;
     }[]>;
     createMenuItem(user: JwtAccessPayload, dto: CreateMenuItemDto): Promise<{
         addons: {
@@ -77,18 +101,19 @@ export declare class VendorMenuController {
         variants: {
             id: string;
             name: string;
+            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
-            isDefault: boolean;
         }[];
         id: string;
         name: string;
-        description: string | null;
         imageUrl: string | null;
-        menuCategoryId: string;
+        description: string | null;
         price: number;
-        isVeg: boolean;
         isAvailable: boolean;
+        menuCategoryId: string;
+        isVeg: boolean;
+        mealSlots: string[] | null;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{
         addons: {
@@ -113,6 +138,7 @@ export declare class VendorMenuController {
         imageUrl: string | null;
         isVeg: boolean;
         isAvailable: boolean;
+        mealSlots: string[] | null;
     }>;
     deleteMenuItem(user: JwtAccessPayload, id: string): Promise<void>;
 }

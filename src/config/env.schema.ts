@@ -20,8 +20,8 @@ export const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.preprocess(cleanString, z.string().min(1, 'JWT_ACCESS_SECRET is required')),
   JWT_REFRESH_SECRET: z.preprocess(cleanString, z.string().min(1, 'JWT_REFRESH_SECRET is required')),
-  JWT_ACCESS_EXPIRES_IN: z.preprocess(cleanString, z.string().default('15m')),
-  JWT_REFRESH_EXPIRES_IN: z.preprocess(cleanString, z.string().default('30d')),
+  JWT_ACCESS_EXPIRES_IN: z.preprocess(cleanString, z.string().default('7d')),
+  JWT_REFRESH_EXPIRES_IN: z.preprocess(cleanString, z.string().default('90d')),
 
   CLOUDINARY_CLOUD_NAME: z.preprocess(cleanString, z.string().default('')),
   CLOUDINARY_API_KEY: z.preprocess(cleanString, z.string().default('')),
@@ -35,7 +35,7 @@ export const envSchema = z.object({
   RESEND_FROM_EMAIL: z.preprocess(cleanString, z.string().default('Laoji <no-reply@laojionline.com>')),
 
   PAYMENT_PROVIDER: z.preprocess(cleanString, z.enum(['upi_deeplink', 'razorpay']).default('upi_deeplink')),
-  UPI_VPA: z.preprocess(cleanString, z.string().default('laoji@upi')),
+  UPI_VPA: z.preprocess(cleanString, z.string().default('8005949152-3@ybl')),
   UPI_PAYEE_NAME: z.preprocess(cleanString, z.string().default('Laoji')),
 
   GOOGLE_MAPS_API_KEY: z.preprocess(cleanString, z.string().default('')),

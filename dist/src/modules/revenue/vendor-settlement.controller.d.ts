@@ -19,5 +19,8 @@ export declare class VendorSettlementController {
         message: string;
         availableBalance: number;
         kycStatus: "verified";
+        payoutMethod: string;
+        payoutDestination: string | null;
+        bankIfsc: string | null;
     }>;
 }

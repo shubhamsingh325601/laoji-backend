@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.foodOrderRatings = exports.settlements = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -102,7 +102,11 @@ exports.vendors = (0, pg_core_1.pgTable)('vendors', {
     pickupLng: (0, pg_core_1.doublePrecision)('pickup_lng').notNull(),
     radiusKm: (0, pg_core_1.doublePrecision)('radius_km').notNull().default(5),
     isOpen: (0, pg_core_1.boolean)('is_open').notNull().default(true),
+    showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(true),
+    displayOrder: (0, pg_core_1.integer)('display_order').notNull().default(0),
     businessHours: (0, pg_core_1.jsonb)('business_hours').$type(),
+    imageUrl: (0, pg_core_1.text)('image_url'),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull().default('grocery'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.deliveryPartners = (0, pg_core_1.pgTable)('delivery_partners', {
@@ -113,6 +117,8 @@ exports.deliveryPartners = (0, pg_core_1.pgTable)('delivery_partners', {
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     kycStatus: (0, exports.kycDocumentStatusEnum)('kyc_status').notNull().default('pending'),
     vehicleType: (0, pg_core_1.varchar)('vehicle_type', { length: 30 }).notNull(),
+    vehicleNumber: (0, pg_core_1.varchar)('vehicle_number', { length: 50 }),
+    vehicleModel: (0, pg_core_1.varchar)('vehicle_model', { length: 100 }),
     aadhaarNumber: (0, pg_core_1.varchar)('aadhaar_number', { length: 20 }),
     drivingLicense: (0, pg_core_1.varchar)('driving_license', { length: 50 }),
     bankAccount: (0, pg_core_1.varchar)('bank_account', { length: 50 }),
@@ -129,6 +135,11 @@ exports.categories = (0, pg_core_1.pgTable)('categories', {
     parentId: (0, pg_core_1.uuid)('parent_id').references(() => exports.categories.id),
     name: (0, pg_core_1.varchar)('name', { length: 150 }).notNull(),
     imageUrl: (0, pg_core_1.text)('image_url'),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }),
+    ownerVendorId: (0, pg_core_1.uuid)('owner_vendor_id').references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    templateCategoryId: (0, pg_core_1.uuid)('template_category_id').references(() => exports.categories.id, {
+        onDelete: 'set null',
+    }),
 });
 exports.productStatusEnum = (0, pg_core_1.pgEnum)('product_status', ['active', 'inactive']);
 exports.products = (0, pg_core_1.pgTable)('products', {
@@ -143,7 +154,12 @@ exports.products = (0, pg_core_1.pgTable)('products', {
     size: (0, pg_core_1.varchar)('size', { length: 50 }),
     mrp: (0, pg_core_1.doublePrecision)('mrp'),
     imageUrl: (0, pg_core_1.text)('image_url'),
+    attributes: (0, pg_core_1.jsonb)('attributes').$type(),
     status: (0, exports.productStatusEnum)('status').notNull().default('active'),
+    ownerVendorId: (0, pg_core_1.uuid)('owner_vendor_id').references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    templateProductId: (0, pg_core_1.uuid)('template_product_id').references(() => exports.products.id, {
+        onDelete: 'set null',
+    }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
@@ -157,6 +173,10 @@ exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
     price: (0, pg_core_1.doublePrecision)('price').notNull(),
     stockQty: (0, pg_core_1.integer)('stock_qty').notNull().default(0),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    offerTag: (0, pg_core_1.varchar)('offer_tag', { length: 100 }),
+    lowStockThreshold: (0, pg_core_1.integer)('low_stock_threshold'),
+    restockEta: (0, pg_core_1.date)('restock_eta', { mode: 'string' }),
+    lastRestockedAt: (0, pg_core_1.timestamp)('last_restocked_at', { withTimezone: true }),
     updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.uniqueIndex)('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)]);
 exports.restaurants = (0, pg_core_1.pgTable)('restaurants', {
@@ -170,6 +190,7 @@ exports.restaurants = (0, pg_core_1.pgTable)('restaurants', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     ratingAvg: (0, pg_core_1.doublePrecision)('rating_avg').notNull().default(0),
     isOpen: (0, pg_core_1.boolean)('is_open').notNull().default(true),
+    mealTimings: (0, pg_core_1.jsonb)('meal_timings').$type(),
 });
 exports.menuCategories = (0, pg_core_1.pgTable)('menu_categories', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
@@ -190,6 +211,7 @@ exports.menuItems = (0, pg_core_1.pgTable)('menu_items', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     isVeg: (0, pg_core_1.boolean)('is_veg').notNull().default(true),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    mealSlots: (0, pg_core_1.jsonb)('meal_slots').$type(),
 });
 exports.menuItemAddons = (0, pg_core_1.pgTable)('menu_item_addons', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
@@ -240,11 +262,14 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     customerId: (0, pg_core_1.uuid)('customer_id')
         .notNull()
         .references(() => exports.users.id),
+    idempotencyKey: (0, pg_core_1.varchar)('idempotency_key', { length: 120 }),
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
+    couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
+    discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
@@ -255,7 +280,9 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     deliveryPartnerId: (0, pg_core_1.uuid)('delivery_partner_id').references(() => exports.deliveryPartners.id),
     deliveryOtp: (0, pg_core_1.varchar)('delivery_otp', { length: 6 }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('grocery_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+]);
 exports.groceryOrderItems = (0, pg_core_1.pgTable)('grocery_order_items', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     groceryOrderId: (0, pg_core_1.uuid)('grocery_order_id')
@@ -285,11 +312,14 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     customerId: (0, pg_core_1.uuid)('customer_id')
         .notNull()
         .references(() => exports.users.id),
+    idempotencyKey: (0, pg_core_1.varchar)('idempotency_key', { length: 120 }),
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
+    couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
+    discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
@@ -302,7 +332,9 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     deliveryPartnerId: (0, pg_core_1.uuid)('delivery_partner_id').references(() => exports.deliveryPartners.id),
     deliveryOtp: (0, pg_core_1.varchar)('delivery_otp', { length: 6 }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('food_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+]);
 exports.foodOrderItems = (0, pg_core_1.pgTable)('food_order_items', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     foodOrderId: (0, pg_core_1.uuid)('food_order_id')
@@ -403,6 +435,11 @@ exports.revenueConfig = (0, pg_core_1.pgTable)('revenue_config', {
     scopeRefId: (0, pg_core_1.uuid)('scope_ref_id'),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull(),
     deliveryFeeFlat: (0, pg_core_1.doublePrecision)('delivery_fee_flat').notNull(),
+    freeDeliveryThreshold: (0, pg_core_1.doublePrecision)('free_delivery_threshold').default(99),
+    deliveryFeeTier1: (0, pg_core_1.doublePrecision)('delivery_fee_tier1').default(10),
+    deliveryFeeTier2: (0, pg_core_1.doublePrecision)('delivery_fee_tier2').default(15),
+    deliveryFeeTier3: (0, pg_core_1.doublePrecision)('delivery_fee_tier3').default(20),
+    minOrderValue: (0, pg_core_1.doublePrecision)('min_order_value').default(50),
     codThreshold: (0, pg_core_1.doublePrecision)('cod_threshold'),
     notes: (0, pg_core_1.text)('notes'),
     effectiveFrom: (0, pg_core_1.timestamp)('effective_from', { withTimezone: true }).notNull(),
@@ -429,6 +466,21 @@ exports.productSuggestions = (0, pg_core_1.pgTable)('product_suggestions', {
     status: (0, exports.productSuggestionStatusEnum)('status').notNull().default('pending'),
     rejectionReason: (0, pg_core_1.text)('rejection_reason'),
     productId: (0, pg_core_1.uuid)('product_id').references(() => exports.products.id),
+    reviewedBy: (0, pg_core_1.uuid)('reviewed_by').references(() => exports.users.id),
+    reviewedAt: (0, pg_core_1.timestamp)('reviewed_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.categorySuggestions = (0, pg_core_1.pgTable)('category_suggestions', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    vendorId: (0, pg_core_1.uuid)('vendor_id')
+        .notNull()
+        .references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    name: (0, pg_core_1.varchar)('name', { length: 150 }).notNull(),
+    businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull(),
+    note: (0, pg_core_1.text)('note'),
+    status: (0, exports.productSuggestionStatusEnum)('status').notNull().default('pending'),
+    rejectionReason: (0, pg_core_1.text)('rejection_reason'),
+    categoryId: (0, pg_core_1.uuid)('category_id').references(() => exports.categories.id, { onDelete: 'set null' }),
     reviewedBy: (0, pg_core_1.uuid)('reviewed_by').references(() => exports.users.id),
     reviewedAt: (0, pg_core_1.timestamp)('reviewed_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -461,4 +513,40 @@ exports.foodOrderRatings = (0, pg_core_1.pgTable)('food_order_ratings', {
     comment: (0, pg_core_1.text)('comment'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.check)('food_order_ratings_rating_range', (0, drizzle_orm_1.sql) `${table.rating} between 1 and 5`)]);
+exports.areaManagers = (0, pg_core_1.pgTable)('area_managers', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    name: (0, pg_core_1.varchar)('name', { length: 200 }).notNull(),
+    email: (0, pg_core_1.varchar)('email', { length: 255 }).notNull().unique(),
+    phone: (0, pg_core_1.varchar)('phone', { length: 20 }).notNull(),
+    pincode: (0, pg_core_1.varchar)('pincode', { length: 20 }).notNull().default('325601'),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.coupons = (0, pg_core_1.pgTable)('coupons', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    code: (0, pg_core_1.varchar)('code', { length: 50 }).notNull().unique(),
+    discountType: (0, pg_core_1.varchar)('discount_type', { length: 20 }).notNull().default('flat'),
+    discountValue: (0, pg_core_1.doublePrecision)('discount_value').notNull().default(0),
+    minOrderValue: (0, pg_core_1.doublePrecision)('min_order_value').notNull().default(0),
+    maxDiscount: (0, pg_core_1.doublePrecision)('max_discount'),
+    description: (0, pg_core_1.text)('description'),
+    isFirstOrderOnly: (0, pg_core_1.boolean)('is_first_order_only').notNull().default(false),
+    firstNOrders: (0, pg_core_1.integer)('first_n_orders'),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.banners = (0, pg_core_1.pgTable)('banners', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    title: (0, pg_core_1.varchar)('title', { length: 150 }).notNull(),
+    subtitle: (0, pg_core_1.text)('subtitle'),
+    imageUrl: (0, pg_core_1.text)('image_url').notNull(),
+    link: (0, pg_core_1.text)('link'),
+    placement: (0, pg_core_1.varchar)('placement', { length: 20 }).notNull().default('home'),
+    sortOrder: (0, pg_core_1.integer)('sort_order').notNull().default(0),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    startsAt: (0, pg_core_1.timestamp)('starts_at', { withTimezone: true }),
+    endsAt: (0, pg_core_1.timestamp)('ends_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 //# sourceMappingURL=schema.js.map

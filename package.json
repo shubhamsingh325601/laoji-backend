@@ -25,7 +25,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
-    "seed:admin:live": "ts-node -r tsconfig-paths/register scripts/seed-admin-live.ts"
+    "seed:admin:live": "ts-node -r tsconfig-paths/register scripts/seed-admin-live.ts",
+    "seed:golden-cafe": "ts-node -r tsconfig-paths/register scripts/seed-golden-cafe.ts",
+    "seed:new-vendors": "ts-node -r tsconfig-paths/register scripts/seed-new-vendors.ts",
+    "verify:new-vendors": "ts-node -r tsconfig-paths/register scripts/verify-new-vendors.ts"
   },
   "dependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -73,6 +76,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.0.0",
     "jest": "^30.0.0",
+    "pg-mem": "^3.0.14",
     "prettier": "^3.4.2",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
@@ -94,5 +98,17 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "multer": "^2.3.0",
+    "nanoid": "^3.3.18",
+    "fast-uri": "^3.1.6",
+    "esbuild": "^0.28.1",
+    "uuid": "^11.1.1",
+    "qs": "^6.16.0",
+    "js-yaml": "^4.3.2",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "^3.15.2"
+    }
   }
 }

@@ -16,6 +16,18 @@ import { RateFoodOrderDto } from './dto/rate-food-order.dto';
 export class CustomerOrderController {
   constructor(private readonly orders: OrderService) {}
 
+  // Prices a cart exactly as checkout would (delivery fee by distance,
+  // minimum order, voucher) without placing it.
+  @Post('grocery/quote')
+  quoteGrocery(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateGroceryOrderDto) {
+    return this.orders.quoteGroceryOrder(user.sub, dto);
+  }
+
+  @Post('food/quote')
+  quoteFood(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateFoodOrderDto) {
+    return this.orders.quoteFoodOrder(user.sub, dto);
+  }
+
   @Throttle({ orderCreate: { limit: 10, ttl: 60_000 } })
   @Post('grocery')
   createGrocery(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateGroceryOrderDto) {

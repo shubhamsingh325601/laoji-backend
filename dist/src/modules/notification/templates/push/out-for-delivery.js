@@ -1,11 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.outForDeliveryCustomerPush = outForDeliveryCustomerPush;
-function outForDeliveryCustomerPush(orderCode) {
+function outForDeliveryCustomerPush(orderCode, orderId, type = 'grocery') {
     return {
         title: 'Out for delivery',
         body: `Order ${orderCode} is out for delivery — hang tight!`,
-        data: { event: 'out_for_delivery', orderCode },
+        data: {
+            event: 'out_for_delivery',
+            orderCode,
+            ...(orderId ? { orderId, type, link: `/order/${orderId}?type=${type}` } : {}),
+        },
     };
 }
 //# sourceMappingURL=out-for-delivery.js.map

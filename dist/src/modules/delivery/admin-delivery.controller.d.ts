@@ -59,6 +59,8 @@ export declare class AdminDeliveryController {
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         drivingLicense: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -70,6 +72,8 @@ export declare class AdminDeliveryController {
         userId: string;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         aadhaarNumber: string | null;
         drivingLicense: string | null;
         bankAccount: string | null;

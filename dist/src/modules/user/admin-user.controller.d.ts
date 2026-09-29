@@ -35,11 +35,14 @@ export declare class AdminUserController {
         recentOrders: ({
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -51,11 +54,14 @@ export declare class AdminUserController {
         } | {
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;

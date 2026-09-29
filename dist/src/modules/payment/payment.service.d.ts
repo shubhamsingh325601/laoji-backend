@@ -4,7 +4,11 @@ import { UpiDeepLinkProvider } from './providers/upi-deeplink.provider';
 import { CodProvider } from './providers/cod.provider';
 import { RazorpayProvider } from './providers/razorpay.provider';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
-type OrderType = 'grocery' | 'food';
+export type OrderType = 'grocery' | 'food';
+export interface PaymentSatisfiedEvent {
+    type: OrderType;
+    orderId: string;
+}
 export declare class PaymentService {
     private readonly db;
     private readonly config;
@@ -12,6 +16,8 @@ export declare class PaymentService {
     private readonly cod;
     private readonly razorpay;
     private readonly revenueConfig;
+    private readonly paymentSatisfied$;
+    readonly onPaymentSatisfied: import("rxjs").Observable<PaymentSatisfiedEvent>;
     constructor(db: Db, config: ConfigService, upi: UpiDeepLinkProvider, cod: CodProvider, razorpay: RazorpayProvider, revenueConfig: RevenueConfigService);
     private vendorIdForOrder;
     isSatisfied(status: string | null | undefined): boolean;
@@ -116,4 +122,3 @@ export declare class PaymentService {
         updatedAt: Date;
     }>;
 }
-export {};

@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 const VENDOR_TYPES = ['grocery', 'restaurant', 'both'];
 class VendorRegisterDto {
     phone;
+    email;
     password;
     businessName;
     ownerName;
@@ -22,6 +23,8 @@ class VendorRegisterDto {
     pickupLat;
     pickupLng;
     radiusKm;
+    businessType;
+    imageUrl;
 }
 exports.VendorRegisterDto = VendorRegisterDto;
 __decorate([
@@ -29,6 +32,11 @@ __decorate([
     (0, class_validator_1.Matches)(/^[0-9]{10}$/, { message: 'Phone must be a 10-digit number' }),
     __metadata("design:type", String)
 ], VendorRegisterDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEmail)({}, { message: 'Please enter a valid email address' }),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.Length)(4, 100, { message: 'Password must be at least 4 characters' }),
@@ -69,7 +77,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0.5),
-    (0, class_validator_1.Max)(50),
     __metadata("design:type", Number)
 ], VendorRegisterDto.prototype, "radiusKm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "businessType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VendorRegisterDto.prototype, "imageUrl", void 0);
 //# sourceMappingURL=vendor-register.dto.js.map

@@ -1,22 +1,35 @@
 import type { Db } from '../../config/database.module';
+import { mealTimingsView } from './meal-slots';
 import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
+import type { UpdateMealTimingsDto } from './dto/meal-timings.dto';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
-import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
-import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
-import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
+import type { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
+import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
+import type { CreateVendorCustomProductDto, UpdateVendorCustomProductDto, UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
+type VendorRef = {
+    id: string;
+    businessType: string;
+};
 export declare class CatalogService {
     private readonly db;
     private readonly notifications;
     constructor(db: Db, notifications: NotificationService);
     getVendorByUserId(userId: string): Promise<{
+        isOpenNow: boolean;
+        locationIsDefault: boolean;
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
+        ratingAvg: number;
+        ratingCount: number;
         id: string;
         userId: string;
         businessName: string;
@@ -33,18 +46,26 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
+        businessType: string;
         createdAt: Date;
     } | null>;
     requireVendor(userId: string): Promise<{
+        isOpenNow: boolean;
+        locationIsDefault: boolean;
         email: string | null;
         phone: string | null;
         mustChangePassword: boolean;
+        ratingAvg: number;
+        ratingCount: number;
         id: string;
         userId: string;
         businessName: string;
@@ -61,12 +82,16 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
+        businessType: string;
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
@@ -87,14 +112,19 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
+        businessType: string;
     }>;
     updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto): Promise<{
+        isOpenNow: boolean;
         id: string;
         userId: string;
         businessName: string;
@@ -111,12 +141,46 @@ export declare class CatalogService {
         pickupLng: number;
         radiusKm: number;
         isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         businessHours: {
             day: number;
             isOpen: boolean;
             openTime: string;
             closeTime: string;
         }[] | null;
+        imageUrl: string | null;
+        businessType: string;
+        createdAt: Date;
+    }>;
+    updateVendorLocation(userId: string, dto: UpdateVendorLocationDto): Promise<{
+        isOpenNow: boolean;
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        pickupLat: number;
+        pickupLng: number;
+        radiusKm: number;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
+        imageUrl: string | null;
+        businessType: string;
         createdAt: Date;
     }>;
     deleteVendorAccount(userId: string): Promise<{
@@ -208,11 +272,67 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateCategoryId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_category_id";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
     }, "single", Record<"categories", "not-null">, false, never, {
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -284,16 +404,80 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateCategoryId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_category_id";
+            tableName: "categories";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
     }>;
+    listCustomerCategories(): Promise<{
+        id: string;
+        parentId: string | null;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }[]>;
     listCategoriesTree(): Promise<{
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string;
         subcategories: {
             id: string;
             name: string;
             imageUrl: string | null;
             parentId: string | null;
+            businessType: string;
             productCount: number;
         }[];
     }[]>;
@@ -301,18 +485,25 @@ export declare class CatalogService {
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
         parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
         message: string;
     }>;
+    private detachStoresFromCategories;
     listProducts(categoryId?: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"products", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -475,6 +666,25 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -488,6 +698,40 @@ export declare class CatalogService {
             isAutoincrement: false;
             hasRuntimeDefault: false;
             enumValues: ["active", "inactive"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
             baseColumn: never;
             identity: undefined;
             generated: undefined;
@@ -519,7 +763,10 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -683,6 +930,25 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -696,6 +962,40 @@ export declare class CatalogService {
             isAutoincrement: false;
             hasRuntimeDefault: false;
             enumValues: ["active", "inactive"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
             baseColumn: never;
             identity: undefined;
             generated: undefined;
@@ -728,21 +1028,30 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
-    createProduct(dto: CreateProductDto): Promise<{
+    createProduct(dto: CreateProductDto & {
+        attributes?: Record<string, string | number | boolean> | null;
+        ownerVendorId?: string | null;
+    }): Promise<{
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
+        ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        attributes: Record<string, string | number | boolean> | null;
+        templateProductId: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -754,76 +1063,329 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
     deleteProduct(id: string): Promise<{
         success: boolean;
         message: string;
     }>;
+    private categoryIndex;
+    private ownCategoryCopies;
+    private vendorCategories;
+    listVendorCategories(vendor: VendorRef): Promise<{
+        isOwn: boolean;
+        inShop: boolean;
+        productCount: number;
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }[]>;
+    private businessTypeRoot;
+    createVendorCategory(vendor: VendorRef, dto: {
+        name?: string;
+        templateCategoryId?: string;
+    }): Promise<{
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }>;
+    private moveOwnProducts;
+    renameVendorCategory(vendor: VendorRef, id: string, name: string): Promise<{
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        businessType: string | null;
+        parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
+    }>;
+    deleteVendorCategory(vendor: VendorRef, id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    listVendorCatalogProducts(vendor: VendorRef, categoryId?: string): Promise<{
+        categoryName: string | null;
+        listingId: string | null;
+        id: string;
+        categoryId: string;
+        brand: string | null;
+        name: string;
+        description: string | null;
+        unit: string;
+        size: string | null;
+        mrp: number | null;
+        imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
+        status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
+        createdAt: Date;
+    }[]>;
     listVendorProducts(vendorId: string): Promise<{
         product: {
-            id: string;
             categoryId: string;
+            id: string;
             brand: string | null;
             name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
             description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
-            imageUrl: string | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }[]>;
+    private listingView;
+    private listingResponse;
+    private assertListableBy;
+    private findListingOf;
+    private productForListing;
+    private copyProductForStore;
+    private normalizeRestockEta;
+    private assertRestockEtaNotPast;
+    upsertVendorProduct(vendor: VendorRef, dto: UpsertVendorProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
-        updatedAt: Date;
-    }[]>;
-    upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto): Promise<{
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }>;
+    createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
         id: string;
-        vendorId: string;
-        price: number;
-        isAvailable: boolean;
-        productId: string;
-        stockQty: number;
         updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
     private requireOwnVendorProduct;
-    updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto): Promise<{
+    updateVendorProduct(vendor: VendorRef, id: string, dto: UpdateVendorProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         productId: string;
         price: number;
         stockQty: number;
         isAvailable: boolean;
-        updatedAt: Date;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
     }>;
-    deleteVendorProduct(vendorId: string, id: string): Promise<void>;
+    restockVendorProduct(vendorId: string, id: string, qty: number): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }>;
+    deleteVendorProduct(vendorId: string, id: string): Promise<{
+        success: boolean;
+    }>;
+    createVendorCustomProduct(vendor: VendorRef, dto: CreateVendorCustomProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }>;
+    private requireListingOfProduct;
+    updateVendorCustomProduct(vendor: VendorRef, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
+        product: {
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        };
+        isOwnProduct: boolean;
+        id: string;
+        updatedAt: Date;
+        vendorId: string;
+        productId: string;
+        price: number;
+        stockQty: number;
+        isAvailable: boolean;
+        offerTag: string | null;
+        lowStockThreshold: number | null;
+        restockEta: string | null;
+        lastRestockedAt: Date | null;
+    }>;
+    deleteVendorCustomProduct(vendorId: string, productId: string): Promise<{
+        success: boolean;
+    }>;
     private vendorsInRadius;
     publicListProducts(lat: number, lng: number, categoryId?: string): Promise<{
+        categoryId: string;
         price: number;
         inStock: boolean;
+        restockEta: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
-        categoryId: string;
+        ownerVendorId: string | null;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        attributes: Record<string, string | number | boolean> | null;
+        templateProductId: string | null;
     }[]>;
+    customerCategoryId(categoryId: string): Promise<string>;
     publicGetProduct(id: string, lat: number, lng: number): Promise<{
+        categoryId: string;
         price: number;
         inStock: boolean;
+        restockEta: string | null;
         id: string;
-        categoryId: string;
         brand: string | null;
         name: string;
         description: string | null;
@@ -831,23 +1393,59 @@ export declare class CatalogService {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
     private aggregateByProduct;
     publicListRestaurants(lat: number, lng: number): Promise<{
+        mealTimings: {
+            label: string;
+            slot: import("./meal-slots").MealSlot;
+            start: string;
+            end: string;
+        }[];
+        imageUrl: string | null;
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
+        displayOrder: number;
+        distanceKm: number;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
+    }[]>;
+    publicGetRestaurant(id: string, near?: {
+        lat: number;
+        lng: number;
+    }): Promise<{
         imageUrl: string | null;
         ratingAvg: number;
-        isOpen: boolean;
-    }[]>;
-    publicGetRestaurant(id: string): Promise<{
+        ratingCount: number;
         isOpen: boolean;
         menuCategories: {
+            id: string;
+            name: string;
+            items: any[];
+        }[];
+        id: string;
+        vendorId: string;
+        name: string;
+        cuisineTags: string | null;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
+    } | {
+        menuCategories: {
             items: {
+                mealSlots: string[];
+                servedNow: boolean;
+                isAvailable: boolean;
                 addons: {
                     id: string;
                     menuItemId: string;
@@ -869,33 +1467,81 @@ export declare class CatalogService {
                 price: number;
                 imageUrl: string | null;
                 isVeg: boolean;
-                isAvailable: boolean;
             }[];
             id: string;
             restaurantId: string;
             name: string;
             sortOrder: number;
         }[];
+        distanceKm?: number | undefined;
+        deliversToYou?: boolean | undefined;
+        mealTimings: {
+            label: string;
+            slot: import("./meal-slots").MealSlot;
+            start: string;
+            end: string;
+        }[];
+        imageUrl: string | null;
+        ratingAvg: number;
+        ratingCount: number;
+        isOpen: boolean;
         id: string;
         vendorId: string;
         name: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
-        ratingAvg: number;
     }>;
     publicSearch(lat: number, lng: number, query: string): Promise<{
-        products: any[];
-        restaurants: any[];
+        products: {
+            categoryId: string;
+            price: number;
+            inStock: boolean;
+            restockEta: string | null;
+            id: string;
+            brand: string | null;
+            name: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            imageUrl: string | null;
+            ownerVendorId: string | null;
+            description: string | null;
+            unit: string;
+            size: string | null;
+            mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
+        }[];
+        restaurants: (Omit<{
+            id: string;
+            name: string;
+            isOpen: boolean;
+            imageUrl: string | null;
+            vendorId: string;
+            cuisineTags: string | null;
+            ratingAvg: number;
+            mealTimings: {
+                slot: string;
+                start: string;
+                end: string;
+            }[] | null;
+        }, "mealTimings"> & {
+            mealTimings: ReturnType<typeof mealTimingsView>;
+            distanceKm: number;
+        })[];
         dishes: any[];
     }>;
     getOrCreateRestaurant(vendorId: string): Promise<{
         id: string;
         name: string;
         isOpen: boolean;
+        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
-        imageUrl: string | null;
         ratingAvg: number;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
     }>;
     recalcRestaurantRating(restaurantId: string): Promise<void>;
     updateRestaurant(vendorId: string, dto: UpdateRestaurantDto): Promise<{
@@ -906,7 +1552,24 @@ export declare class CatalogService {
         imageUrl: string | null;
         ratingAvg: number;
         isOpen: boolean;
+        mealTimings: {
+            slot: string;
+            start: string;
+            end: string;
+        }[] | null;
     }>;
+    getMealTimings(vendorId: string): Promise<{
+        label: string;
+        slot: import("./meal-slots").MealSlot;
+        start: string;
+        end: string;
+    }[]>;
+    updateMealTimings(vendorId: string, dto: UpdateMealTimingsDto): Promise<{
+        label: string;
+        slot: import("./meal-slots").MealSlot;
+        start: string;
+        end: string;
+    }[]>;
     listMenuCategories(vendorId: string): Promise<{
         id: string;
         restaurantId: string;
@@ -950,6 +1613,7 @@ export declare class CatalogService {
         imageUrl: string | null;
         isVeg: boolean;
         isAvailable: boolean;
+        mealSlots: string[] | null;
     }[]>;
     createMenuItem(vendorId: string, dto: CreateMenuItemDto): Promise<{
         addons: {
@@ -962,18 +1626,19 @@ export declare class CatalogService {
         variants: {
             id: string;
             name: string;
+            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
-            isDefault: boolean;
         }[];
         id: string;
         name: string;
-        description: string | null;
         imageUrl: string | null;
-        menuCategoryId: string;
+        description: string | null;
         price: number;
-        isVeg: boolean;
         isAvailable: boolean;
+        menuCategoryId: string;
+        isVeg: boolean;
+        mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
     updateMenuItem(vendorId: string, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -999,24 +1664,25 @@ export declare class CatalogService {
         imageUrl: string | null;
         isVeg: boolean;
         isAvailable: boolean;
+        mealSlots: string[] | null;
     }>;
     deleteMenuItem(vendorId: string, id: string): Promise<void>;
     private replaceAddons;
     private replaceVariants;
-    createProductSuggestion(vendorId: string, dto: CreateProductSuggestionDto): Promise<{
+    createProductSuggestion(vendor: VendorRef, dto: CreateProductSuggestionDto): Promise<{
         id: string;
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        vendorId: string;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
+        vendorId: string;
         productId: string | null;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -1514,12 +2180,15 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
         id: string;
         vendorId: string;
@@ -1550,6 +2219,466 @@ export declare class CatalogService {
         reviewedAt: Date | null;
         createdAt: Date;
     }>;
+    createCategorySuggestion(vendor: VendorRef, dto: CreateCategorySuggestionDto): Promise<{
+        id: string;
+        name: string;
+        status: "pending" | "rejected" | "approved";
+        createdAt: Date;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        businessType: string;
+        categoryId: string | null;
+        vendorId: string;
+        note: string | null;
+    }>;
+    listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        vendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "vendor_id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        name: import("drizzle-orm/pg-core").PgColumn<{
+            name: "name";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 150;
+        }>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
+        note: import("drizzle-orm/pg-core").PgColumn<{
+            name: "note";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        status: import("drizzle-orm/pg-core").PgColumn<{
+            name: "status";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgEnumColumn";
+            data: "pending" | "rejected" | "approved";
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: ["pending", "approved", "rejected"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        rejectionReason: import("drizzle-orm/pg-core").PgColumn<{
+            name: "rejection_reason";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        categoryId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "category_id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        reviewedBy: import("drizzle-orm/pg-core").PgColumn<{
+            name: "reviewed_by";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        reviewedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "reviewed_at";
+            tableName: "category_suggestions";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "category_suggestions";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }[], {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        vendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "vendor_id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        name: import("drizzle-orm/pg-core").PgColumn<{
+            name: "name";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 150;
+        }>;
+        businessType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "business_type";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
+        note: import("drizzle-orm/pg-core").PgColumn<{
+            name: "note";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        status: import("drizzle-orm/pg-core").PgColumn<{
+            name: "status";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgEnumColumn";
+            data: "pending" | "rejected" | "approved";
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: ["pending", "approved", "rejected"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        rejectionReason: import("drizzle-orm/pg-core").PgColumn<{
+            name: "rejection_reason";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        categoryId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "category_id";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        reviewedBy: import("drizzle-orm/pg-core").PgColumn<{
+            name: "reviewed_by";
+            tableName: "category_suggestions";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        reviewedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "reviewed_at";
+            tableName: "category_suggestions";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "category_suggestions";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    }>, "where" | "orderBy">;
+    listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
+        vendorName: string;
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    private requirePendingCategorySuggestion;
+    approveCategorySuggestion(adminUserId: string, id: string, dto: ApproveCategorySuggestionDto): Promise<{
+        category: {
+            id: string;
+            parentId: string | null;
+            name: string;
+            imageUrl: string | null;
+            businessType: string | null;
+            ownerVendorId: string | null;
+            templateCategoryId: string | null;
+        };
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
+    rejectCategorySuggestion(adminUserId: string, id: string, reason: string): Promise<{
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
     listVendorsAdmin(): Promise<{
         id: string;
         userId: string;
@@ -1559,9 +2688,20 @@ export declare class CatalogService {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -1576,9 +2716,20 @@ export declare class CatalogService {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -1586,6 +2737,54 @@ export declare class CatalogService {
         ratingCount: number;
         productCount: number;
         createdAt: Date;
+    }>;
+    getAdminVendorListings(vendorId: string): Promise<{
+        id: string;
+        itemType: "grocery" | "menu_item";
+        productId?: string;
+        name: string;
+        description: string | null;
+        category: string;
+        categoryId?: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        isVeg?: boolean;
+        stockQty?: number;
+    }[]>;
+    addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto): Promise<{
+        id: string;
+        itemType: "menu_item";
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        isVeg: boolean;
+        categoryId: string;
+        productId?: undefined;
+        stockQty?: undefined;
+    } | {
+        id: string;
+        itemType: "grocery";
+        productId: string;
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        categoryId: string;
+        stockQty: number;
+        isVeg?: undefined;
+    }>;
+    updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
+        success: boolean;
+    }>;
+    deleteAdminVendorItem(vendorId: string, itemId: string): Promise<{
+        success: boolean;
     }>;
     createAdminVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
@@ -1596,20 +2795,30 @@ export declare class CatalogService {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
         tempPassword: string;
         createdAt: Date;
     }>;
-    updateAdminVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+    reorderVendors(dto: ReorderVendorsDto): Promise<{
         id: string;
         userId: string;
         businessName: string;
         ownerName: string;
+        phone: string | null;
+        email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
@@ -1618,16 +2827,48 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
-        radiusKm: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        createdAt: Date;
+    }[]>;
+    updateAdminVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
         isOpen: boolean;
-        businessHours: {
-            day: number;
-            isOpen: boolean;
-            openTime: string;
-            closeTime: string;
-        }[] | null;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        rating: number;
+        ratingCount: number;
+        productCount: number;
         createdAt: Date;
     }>;
     deleteAdminVendor(id: string): Promise<{
@@ -1635,3 +2876,4 @@ export declare class CatalogService {
         message: string;
     }>;
 }
+export {};

@@ -4,7 +4,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { deliveryPartners, kycDocuments, vendors } from '../../../drizzle/schema';
+import { deliveryPartners, kycDocuments, users, vendors } from '../../../drizzle/schema';
 import type { UserRole } from '../auth/auth.types';
 import type { UploadType } from './dto/signature-request.dto';
 import { NotificationService } from '../notification/notification.service';
@@ -105,17 +105,48 @@ export class UploadsService {
 
   async listMyKycDocuments(userId: string) {
     return this.db
-      .select()
+      .select({
+        id: kycDocuments.id,
+        userId: kycDocuments.userId,
+        role: kycDocuments.role,
+        docType: kycDocuments.docType,
+        secureUrl: kycDocuments.secureUrl,
+        publicId: kycDocuments.publicId,
+        status: kycDocuments.status,
+        rejectionReason: kycDocuments.rejectionReason,
+        reviewedBy: kycDocuments.reviewedBy,
+        reviewedAt: kycDocuments.reviewedAt,
+        uploadedAt: kycDocuments.uploadedAt,
+      })
       .from(kycDocuments)
-      .where(eq(kycDocuments.userId, userId))
+      .innerJoin(users, eq(kycDocuments.userId, users.id))
+      .where(and(eq(kycDocuments.userId, userId), eq(users.status, 'active')))
       .orderBy(desc(kycDocuments.uploadedAt));
   }
 
   async listAllKycDocuments(status?: 'pending' | 'verified' | 'rejected') {
     return this.db
-      .select()
+      .select({
+        id: kycDocuments.id,
+        userId: kycDocuments.userId,
+        role: kycDocuments.role,
+        docType: kycDocuments.docType,
+        secureUrl: kycDocuments.secureUrl,
+        publicId: kycDocuments.publicId,
+        status: kycDocuments.status,
+        rejectionReason: kycDocuments.rejectionReason,
+        reviewedBy: kycDocuments.reviewedBy,
+        reviewedAt: kycDocuments.reviewedAt,
+        uploadedAt: kycDocuments.uploadedAt,
+      })
       .from(kycDocuments)
-      .where(status ? eq(kycDocuments.status, status) : undefined)
+      .innerJoin(users, eq(kycDocuments.userId, users.id))
+      .where(
+        and(
+          eq(users.status, 'active'),
+          status ? eq(kycDocuments.status, status) : undefined,
+        ),
+      )
       .orderBy(desc(kycDocuments.uploadedAt));
   }
 
@@ -140,11 +171,26 @@ export class UploadsService {
 
   private async rollUpKycStatus(userId: string, role: UserRole): Promise<'pending' | 'verified' | 'rejected'> {
     const docs = await this.db.select().from(kycDocuments).where(eq(kycDocuments.userId, userId));
-    const rolledUp: 'pending' | 'verified' | 'rejected' = docs.some((d) => d.status === 'rejected')
-      ? 'rejected'
-      : docs.length > 0 && docs.every((d) => d.status === 'verified')
-        ? 'verified'
-        : 'pending';
+    const mandatoryKeys =
+      role === 'vendor'
+        ? ['aadhaar_front', 'aadhaar_back']
+        : role === 'delivery_partner'
+          ? ['aadhaar_front', 'aadhaar_back']
+          : [];
+
+    const hasRejected = docs.some((d) => d.status === 'rejected');
+    const allMandatoryUploaded = mandatoryKeys.length > 0 && mandatoryKeys.every((key) => docs.some((d) => d.docType === key));
+    const allMandatoryVerified = allMandatoryUploaded && mandatoryKeys.every((key) => docs.some((d) => d.docType === key && d.status === 'verified'));
+    const allDocsVerified = docs.length > 0 && docs.every((d) => d.status === 'verified');
+
+    let rolledUp: 'pending' | 'verified' | 'rejected';
+    if (hasRejected) {
+      rolledUp = 'rejected';
+    } else if (allMandatoryVerified && allDocsVerified) {
+      rolledUp = 'verified';
+    } else {
+      rolledUp = 'pending';
+    }
 
     if (role === 'vendor') {
       await this.db.update(vendors).set({ kycStatus: rolledUp }).where(eq(vendors.userId, userId));

@@ -15,6 +15,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   doublePrecision,
   integer,
   jsonb,
@@ -171,6 +172,8 @@ export const vendors = pgTable('vendors', {
   // Manual master switch — vendor can force-close any time (holiday, out of
   // stock, etc.) regardless of what the weekly schedule below says.
   isOpen: boolean('is_open').notNull().default(true),
+  showInApp: boolean('show_in_app').notNull().default(true),
+  displayOrder: integer('display_order').notNull().default(0),
   // Post-Phase-11 MVP-completion pass: real weekly business-hours schedule,
   // closing the gap the Phase 11 report flagged (laoji-vendor's
   // BusinessHoursScreen was a fully client-local Zustand mock with no
@@ -183,6 +186,8 @@ export const vendors = pgTable('vendors', {
   businessHours: jsonb('business_hours').$type<
     { day: number; isOpen: boolean; openTime: string; closeTime: string }[]
   >(),
+  imageUrl: text('image_url'),
+  businessType: varchar('business_type', { length: 50 }).notNull().default('grocery'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -199,6 +204,8 @@ export const deliveryPartners = pgTable('delivery_partners', {
   // Reuses kyc_document_status's value set, same as vendors.kycStatus.
   kycStatus: kycDocumentStatusEnum('kyc_status').notNull().default('pending'),
   vehicleType: varchar('vehicle_type', { length: 30 }).notNull(),
+  vehicleNumber: varchar('vehicle_number', { length: 50 }),
+  vehicleModel: varchar('vehicle_model', { length: 100 }),
   aadhaarNumber: varchar('aadhaar_number', { length: 20 }),
   drivingLicense: varchar('driving_license', { length: 50 }),
   bankAccount: varchar('bank_account', { length: 50 }),
@@ -219,6 +226,21 @@ export const categories = pgTable('categories', {
   parentId: uuid('parent_id').references((): AnyPgColumn => categories.id),
   name: varchar('name', { length: 150 }).notNull(),
   imageUrl: text('image_url'),
+  // Which vendor business type (vendors.business_type) this category belongs
+  // to, so a clothing store isn't offered grocery categories. Normally set on
+  // root categories only — subcategories inherit their parent's. Null =
+  // 'grocery': every category created before this column existed was one.
+  businessType: varchar('business_type', { length: 50 }),
+  // The vendor whose own store category this is. Null = a Laoji category:
+  // admin-managed, what customers browse by, and a template vendors copy
+  // into their stores. A vendor renaming or deleting its categories never
+  // touches Laoji's or another store's.
+  ownerVendorId: uuid('owner_vendor_id').references((): AnyPgColumn => vendors.id, { onDelete: 'cascade' }),
+  // The Laoji category a vendor's category was made from (at most one per
+  // vendor). Customers find that vendor's products under the Laoji one.
+  templateCategoryId: uuid('template_category_id').references((): AnyPgColumn => categories.id, {
+    onDelete: 'set null',
+  }),
 });
 
 export const productStatusEnum = pgEnum('product_status', ['active', 'inactive']);
@@ -235,7 +257,24 @@ export const products = pgTable('products', {
   size: varchar('size', { length: 50 }),
   mrp: doublePrecision('mrp'),
   imageUrl: text('image_url'),
+  // Business-type-specific details from the vendor's add-product form
+  // (e.g. clothing "gender", medical "prescriptionRequired") — the fields
+  // are defined per type in src/modules/catalog/product-forms.ts. Null for
+  // admin-created products and ones added by app builds predating the form.
+  attributes: jsonb('attributes').$type<Record<string, string | number | boolean>>(),
   status: productStatusEnum('status').notNull().default('active'),
+  // The vendor that created this product itself from the Vendor app, making
+  // it that vendor's own item. Null = the admin-managed master catalog that
+  // every vendor picks from (admin-created, seeded, or an approved product
+  // suggestion). Vendor-created products from before this column existed are
+  // null too: nothing recorded who made them.
+  ownerVendorId: uuid('owner_vendor_id').references(() => vendors.id, { onDelete: 'cascade' }),
+  // The Laoji product a vendor's product was copied from: a vendor that
+  // changes a Laoji product's details gets its own copy, and Laoji's stays
+  // as it was (see CatalogService#productForListing).
+  templateProductId: uuid('template_product_id').references((): AnyPgColumn => products.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -252,6 +291,15 @@ export const vendorProducts = pgTable(
     price: doublePrecision('price').notNull(),
     stockQty: integer('stock_qty').notNull().default(0),
     isAvailable: boolean('is_available').notNull().default(true),
+    offerTag: varchar('offer_tag', { length: 100 }),
+    lowStockThreshold: integer('low_stock_threshold'),
+    // When an out-of-stock (or paused) listing is expected back, as a plain
+    // IST calendar date — vendors answer "back by Thursday", not a time.
+    // Cleared automatically once the listing is sellable again (stock > 0
+    // and available), see CatalogService#normalizeRestockEta.
+    restockEta: date('restock_eta', { mode: 'string' }),
+    // Set whenever stock goes up (restock action or a higher stock edit).
+    lastRestockedAt: timestamp('last_restocked_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('vendor_products_vendor_product_idx').on(table.vendorId, table.productId)],
@@ -268,6 +316,9 @@ export const restaurants = pgTable('restaurants', {
   imageUrl: text('image_url'),
   ratingAvg: doublePrecision('rating_avg').notNull().default(0),
   isOpen: boolean('is_open').notNull().default(true),
+  // The restaurant's own meal-slot windows ("HH:mm", IST). Null or a missing
+  // slot = the platform default for it — see catalog/meal-slots.ts.
+  mealTimings: jsonb('meal_timings').$type<{ slot: string; start: string; end: string }[]>(),
 });
 
 export const menuCategories = pgTable('menu_categories', {
@@ -290,6 +341,9 @@ export const menuItems = pgTable('menu_items', {
   imageUrl: text('image_url'),
   isVeg: boolean('is_veg').notNull().default(true),
   isAvailable: boolean('is_available').notNull().default(true),
+  // Meal slots this item is served in (e.g. ["breakfast"]), checked against
+  // the restaurant's meal_timings. Null or empty = served all day.
+  mealSlots: jsonb('meal_slots').$type<string[]>(),
 });
 
 export const menuItemAddons = pgTable('menu_item_addons', {
@@ -364,37 +418,49 @@ export const actorRoleEnum = pgEnum('actor_role', [
   'admin',
 ]);
 
-export const groceryOrders = pgTable('grocery_orders', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  customerId: uuid('customer_id')
-    .notNull()
-    .references(() => users.id),
-  status: orderStatusEnum('status').notNull().default('placed'),
-  subtotal: doublePrecision('subtotal').notNull(),
-  deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
-  platformCommission: doublePrecision('platform_commission').notNull().default(0),
-  // Phase 8: the *rate* that produced platform_commission above, snapshotted
-  // at order-creation time alongside the already-existing computed amount —
-  // revenue_config resolution happens once, here, and never again; a later
-  // rule change must never retroactively alter an already-placed order.
-  commissionPct: doublePrecision('commission_pct').notNull().default(0),
-  total: doublePrecision('total').notNull(),
-  // Simple string for now — Payment module (Phase 6) owns the real
-  // provider-backed payment_status lifecycle behind PaymentProvider.
-  paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
-  instructions: text('instructions'),
-  vendorId: uuid('vendor_id').references(() => vendors.id),
-  deliveryAddressId: uuid('delivery_address_id')
-    .notNull()
-    .references(() => addresses.id),
-  // Phase 5 additions. deliveryOtp is stored in plain text deliberately —
-  // unlike the login OTP (Phase 1, dev-only), this one is a real, repeatedly
-  // customer-facing doorstep code for the lifetime of the delivery, not a
-  // credential; the customer's own order view has to keep re-displaying it.
-  deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
-  deliveryOtp: varchar('delivery_otp', { length: 6 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const groceryOrders = pgTable(
+  'grocery_orders',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => users.id),
+    idempotencyKey: varchar('idempotency_key', { length: 120 }),
+    status: orderStatusEnum('status').notNull().default('placed'),
+    subtotal: doublePrecision('subtotal').notNull(),
+    deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    platformCommission: doublePrecision('platform_commission').notNull().default(0),
+    // Phase 8: the *rate* that produced platform_commission above, snapshotted
+    // at order-creation time alongside the already-existing computed amount —
+    // revenue_config resolution happens once, here, and never again; a later
+    // rule change must never retroactively alter an already-placed order.
+    commissionPct: doublePrecision('commission_pct').notNull().default(0),
+    // Voucher applied at checkout. total = subtotal + delivery_fee - discount;
+    // a free-delivery voucher's discount equals the delivery fee, so the
+    // delivery partner is still paid the fee.
+    couponCode: varchar('coupon_code', { length: 50 }),
+    discount: doublePrecision('discount').notNull().default(0),
+    total: doublePrecision('total').notNull(),
+    // Simple string for now — Payment module (Phase 6) owns the real
+    // provider-backed payment_status lifecycle behind PaymentProvider.
+    paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+    instructions: text('instructions'),
+    vendorId: uuid('vendor_id').references(() => vendors.id),
+    deliveryAddressId: uuid('delivery_address_id')
+      .notNull()
+      .references(() => addresses.id),
+    // Phase 5 additions. deliveryOtp is stored in plain text deliberately —
+    // unlike the login OTP (Phase 1, dev-only), this one is a real, repeatedly
+    // customer-facing doorstep code for the lifetime of the delivery, not a
+    // credential; the customer's own order view has to keep re-displaying it.
+    deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
+    deliveryOtp: varchar('delivery_otp', { length: 6 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('grocery_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+  ],
+);
 
 export const groceryOrderItems = pgTable('grocery_order_items', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -422,29 +488,38 @@ export const allocationAttempts = pgTable('allocation_attempts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const foodOrders = pgTable('food_orders', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  customerId: uuid('customer_id')
-    .notNull()
-    .references(() => users.id),
-  status: orderStatusEnum('status').notNull().default('placed'),
-  subtotal: doublePrecision('subtotal').notNull(),
-  deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
-  platformCommission: doublePrecision('platform_commission').notNull().default(0),
-  commissionPct: doublePrecision('commission_pct').notNull().default(0),
-  total: doublePrecision('total').notNull(),
-  paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
-  instructions: text('instructions'),
-  restaurantId: uuid('restaurant_id')
-    .notNull()
-    .references(() => restaurants.id),
-  deliveryAddressId: uuid('delivery_address_id')
-    .notNull()
-    .references(() => addresses.id),
-  deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
-  deliveryOtp: varchar('delivery_otp', { length: 6 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const foodOrders = pgTable(
+  'food_orders',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => users.id),
+    idempotencyKey: varchar('idempotency_key', { length: 120 }),
+    status: orderStatusEnum('status').notNull().default('placed'),
+    subtotal: doublePrecision('subtotal').notNull(),
+    deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    platformCommission: doublePrecision('platform_commission').notNull().default(0),
+    commissionPct: doublePrecision('commission_pct').notNull().default(0),
+    couponCode: varchar('coupon_code', { length: 50 }),
+    discount: doublePrecision('discount').notNull().default(0),
+    total: doublePrecision('total').notNull(),
+    paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
+    instructions: text('instructions'),
+    restaurantId: uuid('restaurant_id')
+      .notNull()
+      .references(() => restaurants.id),
+    deliveryAddressId: uuid('delivery_address_id')
+      .notNull()
+      .references(() => addresses.id),
+    deliveryPartnerId: uuid('delivery_partner_id').references(() => deliveryPartners.id),
+    deliveryOtp: varchar('delivery_otp', { length: 6 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('food_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+  ],
+);
 
 export const foodOrderItems = pgTable('food_order_items', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -635,6 +710,12 @@ export const revenueConfig = pgTable('revenue_config', {
   // replaces. A distance/tiered delivery-fee rule isn't implemented (small
   // single-city MVP scope); flagged, not silently modeled as if it existed.
   deliveryFeeFlat: doublePrecision('delivery_fee_flat').notNull(),
+  freeDeliveryThreshold: doublePrecision('free_delivery_threshold').default(99),
+  deliveryFeeTier1: doublePrecision('delivery_fee_tier1').default(10), // <= 3km
+  deliveryFeeTier2: doublePrecision('delivery_fee_tier2').default(15), // 3-5km
+  deliveryFeeTier3: doublePrecision('delivery_fee_tier3').default(20), // > 5km
+  // Smallest item subtotal checkout accepts.
+  minOrderValue: doublePrecision('min_order_value').default(50),
   // Max order total eligible for COD; null = no cap.
   codThreshold: doublePrecision('cod_threshold'),
   // Free-text "why this rule exists" — surfaced in Admin's version-history
@@ -672,6 +753,28 @@ export const productSuggestions = pgTable('product_suggestions', {
   status: productSuggestionStatusEnum('status').notNull().default('pending'),
   rejectionReason: text('rejection_reason'),
   productId: uuid('product_id').references(() => products.id),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A vendor asking Laoji to add a category to its list, same review flow as
+// product suggestions. `categoryId` is the Laoji category an approval made
+// (or matched to an existing one).
+export const categorySuggestions = pgTable('category_suggestions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id')
+    .notNull()
+    .references(() => vendors.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 150 }).notNull(),
+  // The suggesting store's business type: an approval files the category
+  // under that type's root unless admin picks another parent.
+  businessType: varchar('business_type', { length: 50 }).notNull(),
+  // What the vendor would put in it, to help admin decide.
+  note: text('note'),
+  status: productSuggestionStatusEnum('status').notNull().default('pending'),
+  rejectionReason: text('rejection_reason'),
+  categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   reviewedBy: uuid('reviewed_by').references(() => users.id),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -725,3 +828,49 @@ export const foodOrderRatings = pgTable(
   },
   (table) => [check('food_order_ratings_rating_range', sql`${table.rating} between 1 and 5`)],
 );
+
+export const areaManagers = pgTable('area_managers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  pincode: varchar('pincode', { length: 20 }).notNull().default('325601'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const coupons = pgTable('coupons', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  discountType: varchar('discount_type', { length: 20 }).notNull().default('flat'),
+  discountValue: doublePrecision('discount_value').notNull().default(0),
+  minOrderValue: doublePrecision('min_order_value').notNull().default(0),
+  maxDiscount: doublePrecision('max_discount'),
+  description: text('description'),
+  isFirstOrderOnly: boolean('is_first_order_only').notNull().default(false),
+  // Valid only while the customer has placed fewer than this many orders
+  // (cancelled/failed don't count). Null = no limit. isFirstOrderOnly is the
+  // older way of saying 1 and still works.
+  firstNOrders: integer('first_n_orders'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Admin-managed promo banners shown in the Customer app. `placement` picks the
+// screen: 'home' (home carousel) or 'order' (order-tracking screen).
+export const banners = pgTable('banners', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: varchar('title', { length: 150 }).notNull(),
+  subtitle: text('subtitle'),
+  imageUrl: text('image_url').notNull(),
+  // In-app route opened on tap, e.g. "/category/<id>"; null = not tappable.
+  link: text('link'),
+  placement: varchar('placement', { length: 20 }).notNull().default('home'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateMenuItemDto = exports.CreateMenuItemDto = exports.MenuItemVariantInput = exports.MenuItemAddonInput = exports.UpdateMenuCategoryDto = exports.CreateMenuCategoryDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const meal_slots_1 = require("../meal-slots");
 class CreateMenuCategoryDto {
     name;
     sortOrder;
@@ -91,6 +92,7 @@ class CreateMenuItemDto {
     price;
     imageUrl;
     isVeg;
+    mealSlots;
     addons;
     variants;
 }
@@ -127,6 +129,12 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsIn)(meal_slots_1.MEAL_SLOTS, { each: true }),
+    __metadata("design:type", Array)
+], CreateMenuItemDto.prototype, "mealSlots", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
     (0, class_transformer_1.Type)(() => MenuItemAddonInput),
     __metadata("design:type", Array)
@@ -146,6 +154,7 @@ class UpdateMenuItemDto {
     imageUrl;
     isVeg;
     isAvailable;
+    mealSlots;
     addons;
     variants;
 }
@@ -187,6 +196,12 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateMenuItemDto.prototype, "isAvailable", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsIn)(meal_slots_1.MEAL_SLOTS, { each: true }),
+    __metadata("design:type", Array)
+], UpdateMenuItemDto.prototype, "mealSlots", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),

@@ -1,6 +1,7 @@
 declare const VENDOR_TYPES: readonly ["grocery", "restaurant", "both"];
 export declare class VendorRegisterDto {
     phone: string;
+    email?: string;
     password: string;
     businessName: string;
     ownerName: string;
@@ -9,5 +10,7 @@ export declare class VendorRegisterDto {
     pickupLat: number;
     pickupLng: number;
     radiusKm?: number;
+    businessType?: string;
+    imageUrl?: string;
 }
 export {};

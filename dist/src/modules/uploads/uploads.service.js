@@ -93,16 +93,42 @@ let UploadsService = class UploadsService {
     }
     async listMyKycDocuments(userId) {
         return this.db
-            .select()
+            .select({
+            id: schema_1.kycDocuments.id,
+            userId: schema_1.kycDocuments.userId,
+            role: schema_1.kycDocuments.role,
+            docType: schema_1.kycDocuments.docType,
+            secureUrl: schema_1.kycDocuments.secureUrl,
+            publicId: schema_1.kycDocuments.publicId,
+            status: schema_1.kycDocuments.status,
+            rejectionReason: schema_1.kycDocuments.rejectionReason,
+            reviewedBy: schema_1.kycDocuments.reviewedBy,
+            reviewedAt: schema_1.kycDocuments.reviewedAt,
+            uploadedAt: schema_1.kycDocuments.uploadedAt,
+        })
             .from(schema_1.kycDocuments)
-            .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId))
+            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, schema_1.users.id))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
     }
     async listAllKycDocuments(status) {
         return this.db
-            .select()
+            .select({
+            id: schema_1.kycDocuments.id,
+            userId: schema_1.kycDocuments.userId,
+            role: schema_1.kycDocuments.role,
+            docType: schema_1.kycDocuments.docType,
+            secureUrl: schema_1.kycDocuments.secureUrl,
+            publicId: schema_1.kycDocuments.publicId,
+            status: schema_1.kycDocuments.status,
+            rejectionReason: schema_1.kycDocuments.rejectionReason,
+            reviewedBy: schema_1.kycDocuments.reviewedBy,
+            reviewedAt: schema_1.kycDocuments.reviewedAt,
+            uploadedAt: schema_1.kycDocuments.uploadedAt,
+        })
             .from(schema_1.kycDocuments)
-            .where(status ? (0, drizzle_orm_1.eq)(schema_1.kycDocuments.status, status) : undefined)
+            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, schema_1.users.id))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.status, 'active'), status ? (0, drizzle_orm_1.eq)(schema_1.kycDocuments.status, status) : undefined))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
     }
     async reviewKycDocument(adminUserId, docId, status, rejectionReason) {
@@ -125,11 +151,25 @@ let UploadsService = class UploadsService {
     }
     async rollUpKycStatus(userId, role) {
         const docs = await this.db.select().from(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
-        const rolledUp = docs.some((d) => d.status === 'rejected')
-            ? 'rejected'
-            : docs.length > 0 && docs.every((d) => d.status === 'verified')
-                ? 'verified'
-                : 'pending';
+        const mandatoryKeys = role === 'vendor'
+            ? ['aadhaar_front', 'aadhaar_back']
+            : role === 'delivery_partner'
+                ? ['aadhaar_front', 'aadhaar_back']
+                : [];
+        const hasRejected = docs.some((d) => d.status === 'rejected');
+        const allMandatoryUploaded = mandatoryKeys.length > 0 && mandatoryKeys.every((key) => docs.some((d) => d.docType === key));
+        const allMandatoryVerified = allMandatoryUploaded && mandatoryKeys.every((key) => docs.some((d) => d.docType === key && d.status === 'verified'));
+        const allDocsVerified = docs.length > 0 && docs.every((d) => d.status === 'verified');
+        let rolledUp;
+        if (hasRejected) {
+            rolledUp = 'rejected';
+        }
+        else if (allMandatoryVerified && allDocsVerified) {
+            rolledUp = 'verified';
+        }
+        else {
+            rolledUp = 'pending';
+        }
         if (role === 'vendor') {
             await this.db.update(schema_1.vendors).set({ kycStatus: rolledUp }).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId));
         }

@@ -3,25 +3,37 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.orderCancelledCustomerPush = orderCancelledCustomerPush;
 exports.orderCancelledVendorPush = orderCancelledVendorPush;
 exports.orderCancelledPartnerPush = orderCancelledPartnerPush;
-function orderCancelledCustomerPush(orderCode) {
+function orderCancelledCustomerPush(orderCode, orderId, type = 'grocery') {
     return {
         title: 'Order cancelled',
         body: `Order ${orderCode} could not be completed and has been cancelled. Any payment will be refunded.`,
-        data: { event: 'order_cancelled', orderCode },
+        data: {
+            event: 'order_cancelled',
+            orderCode,
+            ...(orderId ? { orderId, type, link: `/order/${orderId}?type=${type}` } : {}),
+        },
     };
 }
-function orderCancelledVendorPush(orderCode) {
+function orderCancelledVendorPush(orderCode, orderId) {
     return {
         title: 'Order cancelled',
         body: `Order ${orderCode} was cancelled.`,
-        data: { event: 'order_cancelled', orderCode },
+        data: {
+            event: 'order_cancelled',
+            orderCode,
+            ...(orderId ? { orderId, link: `/order/${orderId}` } : {}),
+        },
     };
 }
-function orderCancelledPartnerPush(orderCode) {
+function orderCancelledPartnerPush(orderCode, orderId) {
     return {
         title: 'Assignment cancelled',
         body: `Your assignment for order ${orderCode} was cancelled.`,
-        data: { event: 'order_cancelled', orderCode },
+        data: {
+            event: 'order_cancelled',
+            orderCode,
+            ...(orderId ? { orderId, link: `/orders` } : {}),
+        },
     };
 }
 //# sourceMappingURL=order-cancelled.js.map

@@ -1,6 +1,6 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { DeliveryService } from './delivery.service';
-import { AdvanceDeliveryStatusDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
+import { AdvanceDeliveryStatusDto, ReportNotHandedOverDto, VerifyDeliveryDto } from './dto/delivery-order.dto';
 export declare class DeliveryOrderController {
     private readonly delivery;
     constructor(delivery: DeliveryService);
@@ -18,11 +18,14 @@ export declare class DeliveryOrderController {
         grocery: {
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -35,11 +38,14 @@ export declare class DeliveryOrderController {
         food: {
             id: string;
             customerId: string;
+            idempotencyKey: string | null;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
             commissionPct: number;
+            couponCode: string | null;
+            discount: number;
             total: number;
             paymentStatus: string;
             instructions: string | null;
@@ -58,6 +64,7 @@ export declare class DeliveryOrderController {
         itemCount: number;
         deliveryFee: number;
         pickupName: string;
+        pickupAddress: string;
         pickupPhone: string;
         pickupLat: number | null;
         pickupLng: number | null;
@@ -66,6 +73,19 @@ export declare class DeliveryOrderController {
         dropoffAddress: string;
         dropoffLat: number | null;
         dropoffLng: number | null;
+        instructions: string;
+        total: number;
+        paymentStatus: string;
+        isCod: boolean;
+        isPaid: boolean;
+        paymentMethod: "cod" | "online";
+        collectCashAmount: number;
+        items: {
+            id?: string;
+            name: string;
+            qty: number;
+            price: number;
+        }[];
     }>;
     accept(user: JwtAccessPayload, type: 'grocery' | 'food', id: string): Promise<{
         ok: boolean;
@@ -78,5 +98,24 @@ export declare class DeliveryOrderController {
     }>;
     verifyDelivery(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: VerifyDeliveryDto): Promise<{
         ok: boolean;
+    }>;
+    reportNotHandedOver(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: ReportNotHandedOverDto): Promise<{
+        success: boolean;
+        message: string;
+        escalation: {
+            sent: boolean;
+            reason: string;
+            manager?: undefined;
+        } | {
+            sent: boolean;
+            manager: {
+                id: string;
+                name: string;
+                email: string;
+                phone: string;
+                pincode: string;
+            };
+            reason?: undefined;
+        };
     }>;
 }

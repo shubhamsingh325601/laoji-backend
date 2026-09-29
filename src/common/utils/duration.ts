@@ -20,7 +20,7 @@ const UNIT_MS: Record<string, number> = {
 /** Parses duration strings like "15m", "30d", "900" into milliseconds with safe fallback. */
 export function parseDurationMs(
   input: string | number | undefined,
-  defaultMs: number = 15 * 60 * 1000,
+  defaultMs: number = 7 * 24 * 60 * 60 * 1000,
 ): number {
   if (input === undefined || input === null) return defaultMs;
   if (typeof input === 'number') {

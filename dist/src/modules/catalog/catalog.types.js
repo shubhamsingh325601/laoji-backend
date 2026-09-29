@@ -1,6 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DEFAULT_PICKUP = exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
 exports.haversineKm = haversineKm;
+exports.roundKm = roundKm;
+exports.categoryBusinessType = categoryBusinessType;
+exports.isCategoryVisibleTo = isCategoryVisibleTo;
+exports.isDefaultPickup = isDefaultPickup;
+exports.istDateString = istDateString;
 exports.isVendorOpenNow = isVendorOpenNow;
 function haversineKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
@@ -12,6 +18,52 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 function toRad(deg) {
     return (deg * Math.PI) / 180;
+}
+function roundKm(km) {
+    return Math.round(km * 10) / 10;
+}
+exports.BUSINESS_TYPES = [
+    'grocery',
+    'restaurant',
+    'clothing',
+    'stationery',
+    'medical',
+    'vegetables_fruits',
+    'electronics',
+    'general',
+];
+exports.BUSINESS_TYPE_ROOT_CATEGORY = {
+    grocery: 'Grocery',
+    clothing: 'Clothing',
+    stationery: 'Stationery',
+    medical: 'Medical',
+    vegetables_fruits: 'Fruits & Vegetables',
+    electronics: 'Electronics',
+    general: 'General Store',
+};
+function categoryBusinessType(category, byId) {
+    if (category.businessType)
+        return category.businessType;
+    const parent = category.parentId ? byId.get(category.parentId) : undefined;
+    return parent?.businessType ?? 'grocery';
+}
+function isCategoryVisibleTo(categoryType, vendorBusinessType) {
+    return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
+}
+exports.DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 };
+const FALLBACK_PICKUPS = [exports.DEFAULT_PICKUP, { lat: 16.705, lng: 74.2433 }];
+function isDefaultPickup(lat, lng) {
+    return FALLBACK_PICKUPS.some((p) => p.lat === lat && p.lng === lng);
+}
+function istDateString(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now);
+    const part = (type) => parts.find((p) => p.type === type)?.value ?? '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
 }
 function isVendorOpenNow(vendor, now = new Date()) {
     if (!vendor.isOpen)

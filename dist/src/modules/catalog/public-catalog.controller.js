@@ -14,13 +14,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PublicCatalogController = void 0;
 const common_1 = require("@nestjs/common");
-const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const catalog_service_1 = require("./catalog.service");
 function parseCoord(lat, lng) {
-    const latNum = Number(lat);
-    const lngNum = Number(lng);
-    if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum)) {
-        throw new common_1.BadRequestException('lat and lng query params are required');
+    let latNum = Number(lat);
+    let lngNum = Number(lng);
+    if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
+        return { lat: 24.924, lng: 76.283 };
+    }
+    if (Math.abs(latNum - 16.705) < 0.05 && Math.abs(lngNum - 74.2433) < 0.05) {
+        latNum = 24.924;
+        lngNum = 76.283;
     }
     return { lat: latNum, lng: lngNum };
 }
@@ -30,7 +34,7 @@ let PublicCatalogController = class PublicCatalogController {
         this.catalog = catalog;
     }
     categories() {
-        return this.catalog.listCategoriesFlat();
+        return this.catalog.listCustomerCategories();
     }
     products(lat, lng, categoryId) {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
@@ -44,8 +48,11 @@ let PublicCatalogController = class PublicCatalogController {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
         return this.catalog.publicListRestaurants(latNum, lngNum);
     }
-    restaurant(id) {
-        return this.catalog.publicGetRestaurant(id);
+    restaurant(id, lat, lng) {
+        return this.catalog.publicGetRestaurant(id, lat && lng ? parseCoord(lat, lng) : undefined);
+    }
+    vendorListings(id) {
+        return this.catalog.getAdminVendorListings(id);
     }
     search(lat, lng, q) {
         const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
@@ -88,10 +95,19 @@ __decorate([
 __decorate([
     (0, common_1.Get)('restaurants/:id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('lat')),
+    __param(2, (0, common_1.Query)('lng')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], PublicCatalogController.prototype, "restaurant", null);
+__decorate([
+    (0, common_1.Get)('vendors/:id/listings'),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], PublicCatalogController.prototype, "restaurant", null);
+], PublicCatalogController.prototype, "vendorListings", null);
 __decorate([
     (0, common_1.Get)('search'),
     __param(0, (0, common_1.Query)('lat')),
@@ -102,7 +118,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PublicCatalogController.prototype, "search", null);
 exports.PublicCatalogController = PublicCatalogController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Controller)('catalog'),
     __metadata("design:paramtypes", [catalog_service_1.CatalogService])
 ], PublicCatalogController);

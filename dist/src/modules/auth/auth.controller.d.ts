@@ -6,6 +6,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerLoginDto, CustomerRegisterDto } from './dto/customer-auth.dto';
+import { PartnerLoginDto, PartnerRegisterDto } from './dto/partner-auth.dto';
 import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
 import { CreatePasswordDto } from './dto/create-password.dto';
 import type { JwtAccessPayload } from './auth.types';
@@ -32,6 +33,34 @@ export declare class AuthController {
         userId: string;
         role: import("./auth.types").UserRole;
         user: any;
+    }>;
+    partnerLogin(dto: PartnerLoginDto): Promise<{
+        tokens: import("./auth.types").TokenPair;
+        userId: string;
+        role: import("./auth.types").UserRole;
+        user: any;
+        partner?: any;
+    }>;
+    deliveryPartnerLogin(dto: PartnerLoginDto): Promise<{
+        tokens: import("./auth.types").TokenPair;
+        userId: string;
+        role: import("./auth.types").UserRole;
+        user: any;
+        partner?: any;
+    }>;
+    partnerRegister(dto: PartnerRegisterDto): Promise<{
+        tokens: import("./auth.types").TokenPair;
+        userId: string;
+        role: import("./auth.types").UserRole;
+        user: any;
+        partner?: any;
+    }>;
+    deliveryPartnerRegister(dto: PartnerRegisterDto): Promise<{
+        tokens: import("./auth.types").TokenPair;
+        userId: string;
+        role: import("./auth.types").UserRole;
+        user: any;
+        partner?: any;
     }>;
     adminLogin(dto: AdminLoginDto): Promise<{
         tokens: import("./auth.types").TokenPair;

@@ -23,6 +23,7 @@ const admin_login_dto_1 = require("./dto/admin-login.dto");
 const vendor_login_dto_1 = require("./dto/vendor-login.dto");
 const vendor_register_dto_1 = require("./dto/vendor-register.dto");
 const customer_auth_dto_1 = require("./dto/customer-auth.dto");
+const partner_auth_dto_1 = require("./dto/partner-auth.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const create_password_dto_1 = require("./dto/create-password.dto");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
@@ -46,6 +47,18 @@ let AuthController = class AuthController {
     }
     customerRegister(dto) {
         return this.auth.customerRegister(dto);
+    }
+    partnerLogin(dto) {
+        return this.auth.partnerLogin(dto.phone, dto.password, dto.deviceId);
+    }
+    deliveryPartnerLogin(dto) {
+        return this.auth.partnerLogin(dto.phone, dto.password, dto.deviceId);
+    }
+    partnerRegister(dto) {
+        return this.auth.partnerRegister(dto);
+    }
+    deliveryPartnerRegister(dto) {
+        return this.auth.partnerRegister(dto);
     }
     adminLogin(dto) {
         return this.auth.adminLogin(dto.email, dto.password);
@@ -109,6 +122,38 @@ __decorate([
     __metadata("design:paramtypes", [customer_auth_dto_1.CustomerRegisterDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "customerRegister", null);
+__decorate([
+    (0, throttler_1.Throttle)({ partnerLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('partner/login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [partner_auth_dto_1.PartnerLoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "partnerLogin", null);
+__decorate([
+    (0, throttler_1.Throttle)({ partnerLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('delivery-partner/login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [partner_auth_dto_1.PartnerLoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "deliveryPartnerLogin", null);
+__decorate([
+    (0, throttler_1.Throttle)({ partnerLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('partner/register'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [partner_auth_dto_1.PartnerRegisterDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "partnerRegister", null);
+__decorate([
+    (0, throttler_1.Throttle)({ partnerLogin: { limit: 10, ttl: 60_000 } }),
+    (0, common_1.Post)('delivery-partner/register'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [partner_auth_dto_1.PartnerRegisterDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "deliveryPartnerRegister", null);
 __decorate([
     (0, throttler_1.Throttle)({ adminLogin: { limit: 10, ttl: 60_000 } }),
     (0, common_1.Post)('admin/login'),

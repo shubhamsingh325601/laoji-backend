@@ -16,12 +16,17 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { RevenueModule } from './modules/revenue/revenue.module';
 import { OrderModule } from './modules/order/order.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AreaManagerModule } from './modules/area-manager/area-manager.module';
+import { CouponModule } from './modules/coupon/coupon.module';
+import { BannerModule } from './modules/banner/banner.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseCacheModule } from './common/cache/response-cache.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    ResponseCacheModule,
     ThrottlerModule.forRoot({
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 100 },
@@ -68,6 +73,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     RevenueModule,
     OrderModule,
     DashboardModule,
+    AreaManagerModule,
+    CouponModule,
+    BannerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

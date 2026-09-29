@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VerifyDeliveryDto = exports.AdvanceDeliveryStatusDto = exports.DELIVERY_FORWARD_STATUSES = void 0;
+exports.ReportNotHandedOverDto = exports.VerifyDeliveryDto = exports.AdvanceDeliveryStatusDto = exports.DELIVERY_FORWARD_STATUSES = void 0;
 const class_validator_1 = require("class-validator");
 exports.DELIVERY_FORWARD_STATUSES = ['picked_up', 'out_for_delivery'];
 class AdvanceDeliveryStatusDto {
@@ -29,4 +29,13 @@ __decorate([
     (0, class_validator_1.Length)(4, 6),
     __metadata("design:type", String)
 ], VerifyDeliveryDto.prototype, "otp", void 0);
+class ReportNotHandedOverDto {
+    reason;
+}
+exports.ReportNotHandedOverDto = ReportNotHandedOverDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ReportNotHandedOverDto.prototype, "reason", void 0);
 //# sourceMappingURL=delivery-order.dto.js.map

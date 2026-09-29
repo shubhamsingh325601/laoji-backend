@@ -23,7 +23,11 @@ const catalog_service_1 = require("./catalog.service");
 const vendor_profile_dto_1 = require("./dto/vendor-profile.dto");
 const business_hours_dto_1 = require("./dto/business-hours.dto");
 const vendor_product_dto_1 = require("./dto/vendor-product.dto");
+const category_dto_1 = require("./dto/category.dto");
 const product_suggestion_dto_1 = require("./dto/product-suggestion.dto");
+const category_suggestion_dto_1 = require("./dto/category-suggestion.dto");
+const create_grocery_product_dto_1 = require("./dto/create-grocery-product.dto");
+const product_forms_1 = require("./product-forms");
 let VendorCatalogController = class VendorCatalogController {
     catalog;
     constructor(catalog) {
@@ -38,14 +42,38 @@ let VendorCatalogController = class VendorCatalogController {
     async updateBusinessHours(user, dto) {
         return this.catalog.updateBusinessHours(user.sub, dto);
     }
+    async updateLocation(user, dto) {
+        return this.catalog.updateVendorLocation(user.sub, dto);
+    }
     async deleteAccount(user) {
         return this.catalog.deleteVendorAccount(user.sub);
     }
     async deleteAccountAlt(user) {
         return this.catalog.deleteVendorAccount(user.sub);
     }
-    browseMasterCatalog(categoryId) {
-        return this.catalog.listProducts(categoryId);
+    async myCategories(user) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.listVendorCategories(vendor);
+    }
+    async createCategory(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createVendorCategory(vendor, dto);
+    }
+    async updateVendorCategory(user, id, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.renameVendorCategory(vendor, id, dto.name);
+    }
+    async deleteVendorCategory(user, id) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.deleteVendorCategory(vendor, id);
+    }
+    async productForm(user) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return (0, product_forms_1.productFormFor)(vendor.businessType);
+    }
+    async browseMasterCatalog(user, categoryId) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.listVendorCatalogProducts(vendor, categoryId);
     }
     async myListings(user) {
         const vendor = await this.catalog.requireVendor(user.sub);
@@ -53,23 +81,69 @@ let VendorCatalogController = class VendorCatalogController {
     }
     async upsertListing(user, dto) {
         const vendor = await this.catalog.requireVendor(user.sub);
-        return this.catalog.upsertVendorProduct(vendor.id, dto);
+        return this.catalog.upsertVendorProduct(vendor, dto);
+    }
+    async createNewProduct(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createVendorProduct(vendor, dto);
     }
     async updateListing(user, id, dto) {
         const vendor = await this.catalog.requireVendor(user.sub);
-        return this.catalog.updateVendorProduct(vendor.id, id, dto);
+        return this.catalog.updateVendorProduct(vendor, id, dto);
+    }
+    async restockListing(user, id, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.restockVendorProduct(vendor.id, id, dto.qty);
     }
     async deleteListing(user, id) {
         const vendor = await this.catalog.requireVendor(user.sub);
         return this.catalog.deleteVendorProduct(vendor.id, id);
     }
+    async listCategories(user) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.listVendorCategories(vendor);
+    }
+    async createCategoryFlat(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createVendorCategory(vendor, { name: dto.name });
+    }
+    async updateCategory(user, id, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        if (!dto.name)
+            throw new common_1.BadRequestException('Category name is required');
+        return this.catalog.renameVendorCategory(vendor, id, dto.name);
+    }
+    async deleteCategory(user, id) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.deleteVendorCategory(vendor, id);
+    }
+    async createCustomProduct(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createVendorCustomProduct(vendor, dto);
+    }
+    async updateCustomProduct(user, productId, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.updateVendorCustomProduct(vendor, productId, dto);
+    }
+    async deleteCustomProduct(user, productId) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.deleteVendorCustomProduct(vendor.id, productId);
+    }
     async submitSuggestion(user, dto) {
         const vendor = await this.catalog.requireVendor(user.sub);
-        return this.catalog.createProductSuggestion(vendor.id, dto);
+        return this.catalog.createProductSuggestion(vendor, dto);
     }
     async myProductSuggestions(user) {
         const vendor = await this.catalog.requireVendor(user.sub);
         return this.catalog.listMyProductSuggestions(vendor.id);
+    }
+    async submitCategorySuggestion(user, dto) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.createCategorySuggestion(vendor, dto);
+    }
+    async myCategorySuggestions(user) {
+        const vendor = await this.catalog.requireVendor(user.sub);
+        return this.catalog.listMyCategorySuggestions(vendor.id);
     }
 };
 exports.VendorCatalogController = VendorCatalogController;
@@ -97,6 +171,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "updateBusinessHours", null);
 __decorate([
+    (0, common_1.Patch)('vendors/me/location'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vendor_profile_dto_1.UpdateVendorLocationDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "updateLocation", null);
+__decorate([
     (0, common_1.Delete)('vendors/me'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
@@ -111,11 +193,51 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "deleteAccountAlt", null);
 __decorate([
-    (0, common_1.Get)('vendor/catalog/products'),
-    __param(0, (0, common_1.Query)('categoryId')),
+    (0, common_1.Get)('vendor/catalog/categories'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "myCategories", null);
+__decorate([
+    (0, common_1.Post)('vendor/catalog/categories'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, category_dto_1.CreateVendorCategoryDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "createCategory", null);
+__decorate([
+    (0, common_1.Patch)('vendor/catalog/categories/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, category_dto_1.UpdateVendorCategoryDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "updateVendorCategory", null);
+__decorate([
+    (0, common_1.Delete)('vendor/catalog/categories/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteVendorCategory", null);
+__decorate([
+    (0, common_1.Get)('vendor/catalog/product-form'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "productForm", null);
+__decorate([
+    (0, common_1.Get)('vendor/catalog/products'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('categoryId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "browseMasterCatalog", null);
 __decorate([
     (0, common_1.Get)('vendor/products'),
@@ -133,6 +255,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "upsertListing", null);
 __decorate([
+    (0, common_1.Post)('vendor/products/new'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_grocery_product_dto_1.CreateGroceryProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "createNewProduct", null);
+__decorate([
     (0, common_1.Patch)('vendor/products/:id'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
@@ -142,6 +272,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "updateListing", null);
 __decorate([
+    (0, common_1.Post)('vendor/products/:id/restock'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, vendor_product_dto_1.RestockVendorProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "restockListing", null);
+__decorate([
     (0, common_1.Delete)('vendor/products/:id'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
@@ -149,6 +288,63 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "deleteListing", null);
+__decorate([
+    (0, common_1.Get)('vendor/categories'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "listCategories", null);
+__decorate([
+    (0, common_1.Post)('vendor/categories'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, category_dto_1.CreateCategoryDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "createCategoryFlat", null);
+__decorate([
+    (0, common_1.Patch)('vendor/categories/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, category_dto_1.UpdateCategoryDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "updateCategory", null);
+__decorate([
+    (0, common_1.Delete)('vendor/categories/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteCategory", null);
+__decorate([
+    (0, common_1.Post)('vendor/products/custom'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vendor_product_dto_1.CreateVendorCustomProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "createCustomProduct", null);
+__decorate([
+    (0, common_1.Patch)('vendor/products/custom/:productId'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('productId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, vendor_product_dto_1.UpdateVendorCustomProductDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "updateCustomProduct", null);
+__decorate([
+    (0, common_1.Delete)('vendor/products/custom/:productId'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('productId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "deleteCustomProduct", null);
 __decorate([
     (0, throttler_1.Throttle)({ productSuggestion: { limit: 5, ttl: 60_000 } }),
     (0, common_1.Post)('vendor/product-suggestions'),
@@ -165,6 +361,22 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], VendorCatalogController.prototype, "myProductSuggestions", null);
+__decorate([
+    (0, throttler_1.Throttle)({ productSuggestion: { limit: 5, ttl: 60_000 } }),
+    (0, common_1.Post)('vendor/category-suggestions'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, category_suggestion_dto_1.CreateCategorySuggestionDto]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "submitCategorySuggestion", null);
+__decorate([
+    (0, common_1.Get)('vendor/category-suggestions'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VendorCatalogController.prototype, "myCategorySuggestions", null);
 exports.VendorCatalogController = VendorCatalogController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('vendor'),

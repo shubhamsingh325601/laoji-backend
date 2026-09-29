@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -7,10 +7,12 @@ import { DRIZZLE } from '../../config/database.module';
 import {
   authTokens,
   categories,
+  categorySuggestions,
   foodOrderRatings,
   foodOrders,
   groceryOrderItems,
   groceryOrders,
+  kycDocuments,
   menuCategories,
   menuItemAddons,
   menuItems,
@@ -22,14 +24,50 @@ import {
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
-import { haversineKm, isVendorOpenNow } from './catalog.types';
+import {
+  BUSINESS_TYPE_ROOT_CATEGORY,
+  categoryBusinessType,
+  DEFAULT_PICKUP,
+  haversineKm,
+  isCategoryVisibleTo,
+  isDefaultPickup,
+  istDateString,
+  isVendorOpenNow,
+  roundKm,
+} from './catalog.types';
+import { productFormFor, readProductAttributes } from './product-forms';
+import {
+  laojiCategoryId,
+  normalizeAttributes,
+  ownCopiesByTemplate,
+  productDetailChanges,
+  shopCategoryId,
+  type ProductDetailInput,
+} from './catalog-ownership';
+import {
+  effectiveMealTimings,
+  isServedNow,
+  mealTimingsView,
+  normalizeMealSlots,
+  validateMealTimings,
+} from './meal-slots';
 import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
+import type { UpdateMealTimingsDto } from './dto/meal-timings.dto';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
-import type { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
-import type { UpsertVendorProfileDto } from './dto/vendor-profile.dto';
-import type { UpdateVendorProductDto, UpsertVendorProductDto } from './dto/vendor-product.dto';
+import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
+import type { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
+import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
+import type {
+  CreateVendorCustomProductDto,
+  UpdateVendorCustomProductDto,
+  UpdateVendorProductDto,
+  UpsertVendorProductDto,
+  VendorProductDetailsDto,
+} from './dto/vendor-product.dto';
+import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type {
   CreateMenuCategoryDto,
@@ -44,6 +82,17 @@ import {
   productSuggestionApprovedVendorPush,
   productSuggestionRejectedVendorPush,
 } from '../notification/templates/push/product-suggestion';
+import {
+  categorySuggestionApprovedVendorPush,
+  categorySuggestionRejectedVendorPush,
+} from '../notification/templates/push/category-suggestion';
+
+type Category = typeof categories.$inferSelect;
+type Product = typeof products.$inferSelect;
+type Listing = typeof vendorProducts.$inferSelect;
+type VendorRef = { id: string; businessType: string };
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 @Injectable()
 export class CatalogService {
@@ -58,11 +107,41 @@ export class CatalogService {
     const [row] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
     if (!row) return null;
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+    // Dynamic rating calculation from real food order reviews / restaurant data
+    const [rest] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, row.id)).limit(1);
+    let ratingAvg = 4.8;
+    let ratingCount = 0;
+    if (rest) {
+      const [agg] = await this.db
+        .select({
+          count: sql<number>`count(*)::int`,
+          avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+        })
+        .from(foodOrderRatings)
+        .where(eq(foodOrderRatings.restaurantId, rest.id));
+
+      if (agg && Number(agg.count) > 0) {
+        ratingAvg = Math.round(Number(agg.avg) * 10) / 10;
+        ratingCount = Number(agg.count);
+      } else if (rest.ratingAvg && Number(rest.ratingAvg) > 0) {
+        ratingAvg = Math.round(Number(rest.ratingAvg) * 10) / 10;
+        ratingCount = 0;
+      }
+    }
+
+    const isOpenNow = isVendorOpenNow(row);
+
     return {
       ...row,
+      isOpenNow,
+      // Still on the fallback pickup point, i.e. never set from the shop's GPS.
+      locationIsDefault: isDefaultPickup(row.pickupLat, row.pickupLng),
       email: user?.email ?? null,
       phone: user?.phone ?? null,
       mustChangePassword: user?.mustChangePassword ?? false,
+      ratingAvg,
+      ratingCount,
     };
   }
 
@@ -74,7 +153,15 @@ export class CatalogService {
 
   async upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto) {
     const existing = await this.getVendorByUserId(userId);
+    const { pickupLat, pickupLng } = dto;
     if (existing) {
+      // A profile edit only moves the pickup point when it carries a real
+      // one (see DEFAULT_PICKUP for why the fallback point is ignored). The
+      // delivery radius is set at signup and afterwards only by admin: app
+      // builds up to 1.0.2 resend the 5 km default on every profile edit,
+      // which would undo an admin's change.
+      const movePickup =
+        pickupLat !== undefined && pickupLng !== undefined && !isDefaultPickup(pickupLat, pickupLng);
       const [updated] = await this.db
         .update(vendors)
         .set({
@@ -87,13 +174,20 @@ export class CatalogService {
           ...(dto.bankAccount !== undefined ? { bankAccount: dto.bankAccount } : {}),
           ...(dto.bankIfsc !== undefined ? { bankIfsc: dto.bankIfsc } : {}),
           ...(dto.upiId !== undefined ? { upiId: dto.upiId } : {}),
-          pickupLat: dto.pickupLat,
-          pickupLng: dto.pickupLng,
-          ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+          ...(movePickup ? { pickupLat, pickupLng } : {}),
+          ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+          ...(dto.businessType !== undefined ? { businessType: dto.businessType } : {}),
         })
         .where(eq(vendors.id, existing.id))
         .returning();
+
+      if (dto.imageUrl) {
+        await this.db.update(restaurants).set({ imageUrl: dto.imageUrl }).where(eq(restaurants.vendorId, existing.id));
+      }
       return updated;
+    }
+    if (pickupLat === undefined || pickupLng === undefined) {
+      throw new BadRequestException('Store location (pickupLat and pickupLng) is required');
     }
     const [created] = await this.db
       .insert(vendors)
@@ -108,11 +202,17 @@ export class CatalogService {
         bankAccount: dto.bankAccount ?? null,
         bankIfsc: dto.bankIfsc ?? null,
         upiId: dto.upiId ?? null,
-        pickupLat: dto.pickupLat,
-        pickupLng: dto.pickupLng,
+        pickupLat,
+        pickupLng,
         ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+        imageUrl: dto.imageUrl ?? null,
+        businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
       })
       .returning();
+
+    if (dto.imageUrl) {
+      await this.db.update(restaurants).set({ imageUrl: dto.imageUrl }).where(eq(restaurants.vendorId, created.id));
+    }
     return created;
   }
 
@@ -121,12 +221,42 @@ export class CatalogService {
   // the weekly schedule together, since that screen saves both at once.
   async updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto) {
     const vendor = await this.requireVendor(userId);
+    const updateData: { isOpen: boolean; businessHours?: any } = { isOpen: dto.isOpen };
+    if (dto.schedule !== undefined) {
+      updateData.businessHours = dto.schedule;
+    }
     const [updated] = await this.db
       .update(vendors)
-      .set({ isOpen: dto.isOpen, businessHours: dto.schedule ?? null })
+      .set(updateData)
       .where(eq(vendors.id, vendor.id))
       .returning();
-    return updated;
+
+    // Keep restaurants table in sync if this vendor operates a restaurant
+    await this.db
+      .update(restaurants)
+      .set({ isOpen: dto.isOpen })
+      .where(eq(restaurants.vendorId, vendor.id));
+
+    return {
+      ...updated,
+      isOpenNow: isVendorOpenNow(updated),
+    };
+  }
+
+  // The pickup point every nearest-vendor match measures from (customer
+  // browse radius, grocery allocation, delivery-partner matching). The vendor
+  // app sends the phone's GPS fix, taken at the shop.
+  async updateVendorLocation(userId: string, dto: UpdateVendorLocationDto) {
+    const vendor = await this.requireVendor(userId);
+    if (dto.pickupLat === 0 && dto.pickupLng === 0) {
+      throw new BadRequestException('Could not read a valid location. Please try again.');
+    }
+    const [updated] = await this.db
+      .update(vendors)
+      .set({ pickupLat: dto.pickupLat, pickupLng: dto.pickupLng })
+      .where(eq(vendors.id, vendor.id))
+      .returning();
+    return { ...updated, isOpenNow: isVendorOpenNow(updated) };
   }
 
   async deleteVendorAccount(userId: string) {
@@ -188,19 +318,22 @@ export class CatalogService {
       );
     }
 
-    // 2. Mark vendor and restaurant as closed
+    // 2. Delete KYC documents belonging to this vendor user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, userId));
+
+    // 3. Mark vendor and restaurant as closed
     await this.db.update(vendors).set({ isOpen: false }).where(eq(vendors.id, vendor.id));
     if (restaurant) {
       await this.db.update(restaurants).set({ isOpen: false }).where(eq(restaurants.id, restaurant.id));
     }
 
-    // 3. Mark user suspended and scrub identifiers
+    // 4. Mark user suspended and scrub identifiers
     await this.db
       .update(users)
-      .set({ status: 'suspended', phone: null, email: null })
+      .set({ status: 'suspended', phone: null, email: null, name: null })
       .where(eq(users.id, userId));
 
-    // 4. Revoke auth tokens
+    // 5. Revoke auth tokens
     await this.db
       .update(authTokens)
       .set({ revokedAt: new Date() })
@@ -230,18 +363,33 @@ export class CatalogService {
     return this.db.select().from(categories);
   }
 
-  async listCategoriesTree() {
+  // What customers browse by: Laoji's categories, plus vendors' own
+  // categories that aren't a copy of a Laoji one (a copy's products are
+  // shown under the Laoji category instead, see laojiCategoryId).
+  async listCustomerCategories() {
     const all = await this.listCategoriesFlat();
-    const allProducts = await this.db.select().from(products);
+    return all.filter((c) => c.ownerVendorId === null || c.templateCategoryId === null);
+  }
+
+  // Laoji's categories only — the templates admin manages. Vendors' own
+  // store categories stay out of it; `productCount` counts Laoji products.
+  async listCategoriesTree() {
+    const all = (await this.listCategoriesFlat()).filter((c) => c.ownerVendorId === null);
+    const laojiProducts = await this.db
+      .select({ categoryId: products.categoryId })
+      .from(products)
+      .where(isNull(products.ownerVendorId));
     const countByCategory = new Map<string, number>();
-    for (const p of allProducts) {
+    for (const p of laojiProducts) {
       countByCategory.set(p.categoryId, (countByCategory.get(p.categoryId) ?? 0) + 1);
     }
+    const byId = new Map(all.map((c) => [c.id, c]));
     const roots = all.filter((c) => !c.parentId);
     return roots.map((root) => ({
       id: root.id,
       name: root.name,
       imageUrl: root.imageUrl,
+      businessType: categoryBusinessType(root, byId),
       subcategories: all
         .filter((c) => c.parentId === root.id)
         .map((sub) => ({
@@ -249,6 +397,7 @@ export class CatalogService {
           name: sub.name,
           imageUrl: sub.imageUrl,
           parentId: sub.parentId,
+          businessType: categoryBusinessType(sub, byId),
           productCount: countByCategory.get(sub.id) ?? 0,
         })),
     }));
@@ -277,12 +426,15 @@ export class CatalogService {
       .where(eq(categories.id, id))
       .limit(1);
     if (!cat) throw new NotFoundException('Category not found');
+    if (cat.ownerVendorId !== null) {
+      throw new ForbiddenException(`"${cat.name}" is a store's own category; that store manages it.`);
+    }
 
-    // 1. Check if the category directly contains products
+    // 1. Check if the category directly contains Laoji products
     const [directProduct] = await this.db
       .select({ id: products.id, name: products.name })
       .from(products)
-      .where(eq(products.categoryId, id))
+      .where(and(eq(products.categoryId, id), isNull(products.ownerVendorId)))
       .limit(1);
 
     if (directProduct) {
@@ -291,18 +443,18 @@ export class CatalogService {
       );
     }
 
-    // 2. Check for subcategories and whether any subcategory contains products
+    // 2. Check for subcategories and whether any subcategory contains Laoji products
     const subcats = await this.db
       .select()
       .from(categories)
-      .where(eq(categories.parentId, id));
+      .where(and(eq(categories.parentId, id), isNull(categories.ownerVendorId)));
 
     if (subcats.length > 0) {
       const subcatIds = subcats.map((s) => s.id);
       const [subProduct] = await this.db
         .select({ id: products.id, name: products.name })
         .from(products)
-        .where(inArray(products.categoryId, subcatIds))
+        .where(and(inArray(products.categoryId, subcatIds), isNull(products.ownerVendorId)))
         .limit(1);
 
       if (subProduct) {
@@ -313,6 +465,9 @@ export class CatalogService {
     }
 
     const allCatIds = [id, ...subcats.map((s) => s.id)];
+
+    // Stores keep their products and categories: the category is only a template to them.
+    await this.detachStoresFromCategories([cat, ...subcats]);
 
     // 3. Clean up any product suggestions referencing this category or its subcategories
     await this.db
@@ -331,13 +486,63 @@ export class CatalogService {
     return { success: true, message: `Category "${cat.name}" deleted successfully.` };
   }
 
-  // ---------- Admin + Vendor: master product catalog ----------
+  // Before Laoji categories are deleted: a store's own products filed right
+  // under one move to the store's own category of that name (its existing
+  // copy, or a new one), and the stores' categories under them lose that
+  // parent. Stores' copies simply stop pointing at the template (FK set null).
+  private async detachStoresFromCategories(deleted: Category[]) {
+    const deletedIds = deleted.map((c) => c.id);
+    const stranded = await this.db
+      .selectDistinct({ vendorId: products.ownerVendorId, categoryId: products.categoryId })
+      .from(products)
+      .where(and(inArray(products.categoryId, deletedIds), sql`${products.ownerVendorId} is not null`));
+    if (stranded.length > 0) {
+      const { byId } = await this.categoryIndex();
+      for (const { vendorId, categoryId } of stranded) {
+        const template = deleted.find((c) => c.id === categoryId)!;
+        let [copy] = await this.db
+          .select()
+          .from(categories)
+          .where(and(eq(categories.ownerVendorId, vendorId!), eq(categories.templateCategoryId, categoryId)))
+          .limit(1);
+        if (!copy) {
+          [copy] = await this.db
+            .insert(categories)
+            .values({
+              name: template.name,
+              imageUrl: template.imageUrl,
+              parentId: template.parentId && !deletedIds.includes(template.parentId) ? template.parentId : null,
+              businessType: categoryBusinessType(template, byId),
+              ownerVendorId: vendorId,
+            })
+            .returning();
+        }
+        await this.db
+          .update(products)
+          .set({ categoryId: copy.id })
+          .where(and(eq(products.ownerVendorId, vendorId!), eq(products.categoryId, categoryId)));
+      }
+    }
+    await this.db
+      .update(categories)
+      .set({ parentId: null })
+      .where(and(inArray(categories.parentId, deletedIds), sql`${categories.ownerVendorId} is not null`));
+  }
 
+  // ---------- Admin + Vendor: Laoji's product catalog (the templates) ----------
+
+  // Laoji's live products. Vendors' own products are theirs, not templates.
   listProducts(categoryId?: string) {
     return this.db
       .select()
       .from(products)
-      .where(categoryId ? eq(products.categoryId, categoryId) : undefined);
+      .where(
+        and(
+          eq(products.status, 'active'),
+          isNull(products.ownerVendorId),
+          categoryId ? eq(products.categoryId, categoryId) : undefined,
+        ),
+      );
   }
 
   async getProduct(id: string) {
@@ -346,7 +551,12 @@ export class CatalogService {
     return row;
   }
 
-  async createProduct(dto: CreateProductDto) {
+  async createProduct(
+    dto: CreateProductDto & {
+      attributes?: Record<string, string | number | boolean> | null;
+      ownerVendorId?: string | null;
+    },
+  ) {
     const [row] = await this.db.insert(products).values(dto).returning();
     return row;
   }
@@ -391,59 +601,512 @@ export class CatalogService {
       .set({ productId: null })
       .where(eq(productSuggestions.productId, id));
 
-    // 3. Clean up any vendor product listings for this product
-    await this.db
-      .delete(vendorProducts)
-      .where(eq(vendorProducts.productId, id));
+    // 3. A Laoji product is only a template to the stores that stock it: each
+    // keeps selling it as its own copy. Any other product's listings go.
+    const listings = await this.db.select().from(vendorProducts).where(eq(vendorProducts.productId, id));
+    if (prod.ownerVendorId === null) {
+      for (const listing of listings) {
+        const copies = await this.ownCategoryCopies(listing.vendorId);
+        const copy = await this.copyProductForStore(listing.vendorId, prod, {}, shopCategoryId(prod.categoryId, copies));
+        await this.db.update(vendorProducts).set({ productId: copy.id }).where(eq(vendorProducts.id, listing.id));
+      }
+    } else if (listings.length > 0) {
+      await this.db.delete(vendorProducts).where(eq(vendorProducts.productId, id));
+    }
 
     // 4. Delete the product
     await this.db.delete(products).where(eq(products.id, id));
     return { success: true, message: `Product "${prod.name}" deleted successfully.` };
   }
 
-  // ---------- Vendor: own stock/price/availability ----------
+  // ---------- Vendor: its store's categories ----------
 
-  async listVendorProducts(vendorId: string) {
-    const rows = await this.db
-      .select({ vendorProduct: vendorProducts, product: products })
-      .from(vendorProducts)
-      .innerJoin(products, eq(vendorProducts.productId, products.id))
-      .where(eq(vendorProducts.vendorId, vendorId));
-    return rows.map((r) => ({ ...r.vendorProduct, product: r.product }));
+  // Every category once, with lookups. The table is small (single-city MVP),
+  // same "fetch rows, compute in JS" style as the rest of this service.
+  private async categoryIndex() {
+    const all = await this.listCategoriesFlat();
+    return { all, byId: new Map(all.map((c) => [c.id, c])) };
   }
 
-  async upsertVendorProduct(vendorId: string, dto: UpsertVendorProductDto) {
-    const [existing] = await this.db
-      .select()
-      .from(vendorProducts)
-      .where(and(eq(vendorProducts.vendorId, vendorId), eq(vendorProducts.productId, dto.productId)))
-      .limit(1);
+  // The vendor's own copies of Laoji categories, keyed by the Laoji category.
+  private async ownCategoryCopies(vendorId: string) {
+    const own = await this.db.select().from(categories).where(eq(categories.ownerVendorId, vendorId));
+    return ownCopiesByTemplate(own, vendorId);
+  }
 
+  // How one vendor sees the category tree.
+  private async vendorCategories(vendor: VendorRef) {
+    const { all, byId } = await this.categoryIndex();
+    const copies = ownCopiesByTemplate(all, vendor.id);
+    return {
+      all,
+      byId,
+      copies,
+      // Where a product filed under `categoryId` shows in this store.
+      shopKey: (categoryId: string) => shopCategoryId(categoryId, copies),
+      // A Laoji category offered to this store's business type.
+      isTemplateFor: (c: Category) =>
+        c.ownerVendorId === null && isCategoryVisibleTo(categoryBusinessType(c, byId), vendor.businessType),
+      // A category the vendor may file its own products under (one of its
+      // own or any of Laoji's), as the store's category for it.
+      usable: (categoryId: string) => {
+        const c = byId.get(categoryId);
+        if (!c || (c.ownerVendorId !== null && c.ownerVendorId !== vendor.id)) {
+          throw new NotFoundException('Category not found');
+        }
+        return shopCategoryId(c.id, copies);
+      },
+    };
+  }
+
+  // The vendor's store categories and the Laoji categories it can add:
+  //  - its own categories (`isOwn`), always in its store;
+  //  - Laoji categories it stocks products in but has no copy of (`inShop`:
+  //    the store shows them under Laoji's name until it renames one);
+  //  - the rest of Laoji's leaf categories for its business type, as
+  //    templates (`inShop` false).
+  // A Laoji category the store has its own copy of is left out, since its
+  // products show under the copy. `productCount` counts the store's listings.
+  async listVendorCategories(vendor: VendorRef) {
+    const [scope, listed] = await Promise.all([
+      this.vendorCategories(vendor),
+      this.db
+        .select({ categoryId: products.categoryId })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .where(eq(vendorProducts.vendorId, vendor.id)),
+    ]);
+    const counts = new Map<string, number>();
+    for (const { categoryId } of listed) {
+      const key = scope.shopKey(categoryId);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const parentIds = new Set(scope.all.map((c) => c.parentId));
+    const view = (c: Category, isOwn: boolean) => {
+      const productCount = counts.get(c.id) ?? 0;
+      return { ...c, isOwn, inShop: isOwn || productCount > 0, productCount };
+    };
+    const own = scope.all.filter((c) => c.ownerVendorId === vendor.id).map((c) => view(c, true));
+    const laoji = scope.all
+      .filter(
+        (c) =>
+          c.ownerVendorId === null &&
+          !scope.copies.has(c.id) &&
+          (counts.has(c.id) || (scope.isTemplateFor(c) && !parentIds.has(c.id))),
+      )
+      .map((c) => view(c, false));
+    return [...own, ...laoji].sort((a, b) => Number(b.inShop) - Number(a.inShop) || a.name.localeCompare(b.name));
+  }
+
+  // The Laoji root a business type's store categories are filed under, so
+  // the tree stays root → subcategory like Laoji's (created on first use).
+  private async businessTypeRoot(businessType: string) {
+    const rootName = BUSINESS_TYPE_ROOT_CATEGORY[businessType];
+    if (!rootName) {
+      throw new BadRequestException('Restaurants manage menu categories from the menu screen');
+    }
+    let [root] = await this.db
+      .select()
+      .from(categories)
+      .where(
+        and(
+          isNull(categories.parentId),
+          isNull(categories.ownerVendorId),
+          eq(categories.businessType, businessType),
+          ilike(categories.name, rootName),
+        ),
+      )
+      .limit(1);
+    if (!root) {
+      [root] = await this.db.insert(categories).values({ name: rootName, businessType }).returning();
+    }
+    return root;
+  }
+
+  // A category of the vendor's own store: its copy of a Laoji category
+  // (`templateCategoryId`, or a new name matching one of Laoji's categories
+  // for its business type, so customers still find the products under
+  // Laoji's), or one of its own. A name the store already has returns that
+  // category instead of a duplicate.
+  async createVendorCategory(vendor: VendorRef, dto: { name?: string; templateCategoryId?: string }) {
+    if (!BUSINESS_TYPE_ROOT_CATEGORY[vendor.businessType]) {
+      throw new BadRequestException('Restaurants manage menu categories from the menu screen');
+    }
+    const scope = await this.vendorCategories(vendor);
+    let template: Category | undefined;
+    if (dto.templateCategoryId) {
+      template = scope.byId.get(dto.templateCategoryId);
+      if (!template || template.ownerVendorId !== null) throw new NotFoundException('Category not found');
+      const copy = scope.copies.get(template.id);
+      if (copy) return copy;
+    }
+    const name = (dto.name ?? template?.name ?? '').trim();
+    if (!name) throw new BadRequestException('Category name is required');
+
+    const existing = scope.all.find((c) => c.ownerVendorId === vendor.id && sameName(c.name, name));
     if (existing) {
-      const [updated] = await this.db
-        .update(vendorProducts)
-        .set({
-          price: dto.price,
-          stockQty: dto.stockQty,
-          isAvailable: dto.isAvailable ?? existing.isAvailable,
-          updatedAt: new Date(),
-        })
-        .where(eq(vendorProducts.id, existing.id))
+      if (!template || existing.templateCategoryId === template.id) return existing;
+      if (existing.templateCategoryId) {
+        throw new ConflictException(`Your store already has a category named "${name}"`);
+      }
+      // The store's own category of that name becomes its copy of Laoji's.
+      const [linked] = await this.db
+        .update(categories)
+        .set({ templateCategoryId: template.id })
+        .where(eq(categories.id, existing.id))
         .returning();
-      return updated;
+      await this.moveOwnProducts(vendor.id, template.id, linked.id);
+      return linked;
     }
 
+    if (!template) {
+      const parentIds = new Set(scope.all.map((c) => c.parentId));
+      template = scope.all.find(
+        (c) => scope.isTemplateFor(c) && !parentIds.has(c.id) && !scope.copies.has(c.id) && sameName(c.name, name),
+      );
+    }
+    const [created] = await this.db
+      .insert(categories)
+      .values(
+        template
+          ? {
+              name,
+              parentId: template.parentId,
+              imageUrl: template.imageUrl,
+              businessType: categoryBusinessType(template, scope.byId),
+              ownerVendorId: vendor.id,
+              templateCategoryId: template.id,
+            }
+          : {
+              name,
+              parentId: (await this.businessTypeRoot(vendor.businessType)).id,
+              businessType: vendor.businessType,
+              ownerVendorId: vendor.id,
+            },
+      )
+      .returning();
+    // The store's own products filed under Laoji's category now sit in its copy.
+    if (template) await this.moveOwnProducts(vendor.id, template.id, created.id);
+    return created;
+  }
+
+  private moveOwnProducts(vendorId: string, fromCategoryId: string, toCategoryId: string) {
+    return this.db
+      .update(products)
+      .set({ categoryId: toCategoryId })
+      .where(and(eq(products.ownerVendorId, vendorId), eq(products.categoryId, fromCategoryId)));
+  }
+
+  // Renames a category in the vendor's store only. Renaming one of Laoji's
+  // gives the store its own copy under the new name; Laoji's keeps its name.
+  async renameVendorCategory(vendor: VendorRef, id: string, name: string) {
+    const scope = await this.vendorCategories(vendor);
+    const category = scope.byId.get(id);
+    if (!category || (category.ownerVendorId !== null && category.ownerVendorId !== vendor.id)) {
+      throw new NotFoundException('Category not found');
+    }
+    const trimmed = name.trim();
+    if (!trimmed) throw new BadRequestException('Category name is required');
+    const target = category.ownerVendorId === null ? scope.copies.get(category.id) : category;
+    if (!target) return this.createVendorCategory(vendor, { templateCategoryId: category.id, name: trimmed });
+
+    const clash = scope.all.find(
+      (c) => c.ownerVendorId === vendor.id && c.id !== target.id && sameName(c.name, trimmed),
+    );
+    if (clash) throw new ConflictException(`Your store already has a category named "${trimmed}"`);
+    const [updated] = await this.db
+      .update(categories)
+      .set({ name: trimmed })
+      .where(eq(categories.id, target.id))
+      .returning();
+    return updated;
+  }
+
+  // Removes one of the vendor's own categories once none of its store's
+  // products is in it. A store can't delete Laoji's categories.
+  async deleteVendorCategory(vendor: VendorRef, id: string) {
+    const scope = await this.vendorCategories(vendor);
+    const category = scope.byId.get(id);
+    if (!category || (category.ownerVendorId !== null && category.ownerVendorId !== vendor.id)) {
+      throw new NotFoundException('Category not found');
+    }
+    if (category.ownerVendorId === null) {
+      throw new ForbiddenException(
+        `"${category.name}" is a Laoji category, so it can't be deleted. You can rename it for your store.`,
+      );
+    }
+    const listed = await this.db
+      .select({ categoryId: products.categoryId })
+      .from(vendorProducts)
+      .innerJoin(products, eq(vendorProducts.productId, products.id))
+      .where(eq(vendorProducts.vendorId, vendor.id));
+    const count = listed.filter((l) => scope.shopKey(l.categoryId) === category.id).length;
+    if (count > 0) {
+      throw new ConflictException(
+        `"${category.name}" still has ${count} ${count === 1 ? 'product' : 'products'}. Move ${count === 1 ? 'it' : 'them'} to another category or remove ${count === 1 ? 'it' : 'them'} from your store first.`,
+      );
+    }
+    // Anything left in it is the store's own products kept only for past
+    // orders; they move to the Laoji category it came from, or the root.
+    const fallback =
+      category.templateCategoryId ?? category.parentId ?? (await this.businessTypeRoot(vendor.businessType)).id;
+    await this.db.update(products).set({ categoryId: fallback }).where(eq(products.categoryId, category.id));
+    await this.db.delete(categories).where(eq(categories.id, category.id));
+    return { success: true, message: `Category "${category.name}" deleted.` };
+  }
+
+  // ---------- Vendor: products in its store ----------
+
+  // Laoji's products as a vendor picks from them (templates): live ones in
+  // its business type's categories, so a clothing store isn't shown
+  // groceries. `categoryId` may be one of the store's own copies of a Laoji
+  // category. `listingId` is the store's listing when it already stocks the
+  // product (or its own copy of it), so the app opens that instead of adding
+  // it twice.
+  async listVendorCatalogProducts(vendor: VendorRef, categoryId?: string) {
+    const scope = await this.vendorCategories(vendor);
+    const filterCategory = categoryId ? scope.byId.get(categoryId) : undefined;
+    const filterId = filterCategory?.ownerVendorId === vendor.id ? filterCategory.templateCategoryId : categoryId;
+    // One of the store's own categories that isn't a Laoji copy: nothing of Laoji's is in it.
+    if (categoryId && !filterId) return [];
+
+    const [rows, listings] = await Promise.all([
+      this.listProducts(filterId ?? undefined),
+      this.db
+        .select({
+          id: vendorProducts.id,
+          productId: vendorProducts.productId,
+          templateProductId: products.templateProductId,
+        })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .where(eq(vendorProducts.vendorId, vendor.id)),
+    ]);
+    const listingIdByProduct = new Map<string, string>();
+    for (const l of listings) {
+      listingIdByProduct.set(l.productId, l.id);
+      if (l.templateProductId) listingIdByProduct.set(l.templateProductId, l.id);
+    }
+    return rows
+      .filter((p) => {
+        const category = scope.byId.get(p.categoryId);
+        return category !== undefined && scope.isTemplateFor(category);
+      })
+      .map((p) => ({
+        ...p,
+        categoryName: scope.byId.get(p.categoryId)?.name ?? null,
+        listingId: listingIdByProduct.get(p.id) ?? null,
+      }));
+  }
+
+  // The vendor's listings, each with its product as the store shows it:
+  // `product.categoryId` is the store's category for it (its own copy of the
+  // Laoji category when it has one). `isOwnProduct` marks the store's own
+  // products; the others are Laoji's, shared with every store that stocks
+  // them until this one changes their details.
+  async listVendorProducts(vendorId: string) {
+    const [rows, copies] = await Promise.all([
+      this.db
+        .select({ vendorProduct: vendorProducts, product: products })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .where(eq(vendorProducts.vendorId, vendorId)),
+      this.ownCategoryCopies(vendorId),
+    ]);
+    return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies));
+  }
+
+  private listingView(vendorId: string, listing: Listing, product: Product, copies: Map<string, { id: string }>) {
+    return {
+      ...listing,
+      product: { ...product, categoryId: shopCategoryId(product.categoryId, copies) },
+      isOwnProduct: product.ownerVendorId === vendorId,
+    };
+  }
+
+  private async listingResponse(vendorId: string, listing: Listing, product: Product) {
+    return this.listingView(vendorId, listing, product, await this.ownCategoryCopies(vendorId));
+  }
+
+  // What a vendor may start stocking: a live Laoji product in its business
+  // type's categories, or a product of its own.
+  private async assertListableBy(vendor: VendorRef, product: Product) {
+    if (product.ownerVendorId === vendor.id) return;
+    if (product.ownerVendorId !== null) throw new ForbiddenException('This product belongs to another store');
+    if (product.status !== 'active') {
+      throw new BadRequestException(`"${product.name}" is no longer available in the catalog`);
+    }
+    const { byId } = await this.categoryIndex();
+    const category = byId.get(product.categoryId);
+    if (!category || !isCategoryVisibleTo(categoryBusinessType(category, byId), vendor.businessType)) {
+      throw new BadRequestException(`"${product.name}" is not in your store type's catalog`);
+    }
+  }
+
+  // The vendor's listing of a product: of the product itself, or of the
+  // store's own copy of it when it is one of Laoji's.
+  private async findListingOf(vendorId: string, product: Product) {
+    const [row] = await this.db
+      .select({ listing: vendorProducts })
+      .from(vendorProducts)
+      .innerJoin(products, eq(vendorProducts.productId, products.id))
+      .where(
+        and(
+          eq(vendorProducts.vendorId, vendorId),
+          or(
+            eq(vendorProducts.productId, product.id),
+            and(eq(products.templateProductId, product.id), eq(products.ownerVendorId, vendorId)),
+          ),
+        ),
+      )
+      .limit(1);
+    return row?.listing;
+  }
+
+  // The product a listing should point at once the vendor's details are
+  // applied. The store's own product is updated in place. A Laoji product
+  // stays shared with every store that stocks it while the vendor keeps its
+  // details; once the vendor changes any, the store gets its own copy with
+  // the changes and Laoji's product stays as it was.
+  private async productForListing(vendor: VendorRef, product: Product, input: VendorProductDetailsDto) {
+    if (product.ownerVendorId !== null && product.ownerVendorId !== vendor.id) {
+      throw new ForbiddenException('This product belongs to another store');
+    }
+    const scope = await this.vendorCategories(vendor);
+    const details: ProductDetailInput = {
+      ...input,
+      categoryId: input.categoryId !== undefined ? scope.usable(input.categoryId) : undefined,
+      attributes:
+        input.attributes !== undefined && vendor.businessType !== 'restaurant'
+          ? // Only what was filled in is checked: a Laoji product wasn't made with the form.
+            readProductAttributes(
+              productFormFor(vendor.businessType),
+              { name: product.name, unit: product.unit, attributes: input.attributes },
+              { requireAll: false },
+            )
+          : undefined,
+    };
+    const currentShopCategory = scope.shopKey(product.categoryId);
+    const changes = productDetailChanges(product, details, (id) => id === currentShopCategory);
+    if (Object.keys(changes).length === 0) return product;
+    if (product.ownerVendorId === vendor.id) {
+      const [updated] = await this.db.update(products).set(changes).where(eq(products.id, product.id)).returning();
+      return updated;
+    }
+    return this.copyProductForStore(vendor.id, product, changes, currentShopCategory);
+  }
+
+  // A store's own copy of a Laoji product, with its changes; the copy keeps
+  // a link to the product it came from.
+  private async copyProductForStore(
+    vendorId: string,
+    template: Product,
+    changes: Partial<typeof products.$inferInsert>,
+    categoryId: string,
+  ) {
+    const [copy] = await this.db
+      .insert(products)
+      .values({
+        categoryId,
+        brand: template.brand,
+        name: template.name,
+        description: template.description,
+        unit: template.unit,
+        size: template.size,
+        mrp: template.mrp,
+        imageUrl: template.imageUrl,
+        attributes: template.attributes,
+        status: template.status,
+        ...changes,
+        ownerVendorId: vendorId,
+        templateProductId: template.id,
+      })
+      .returning();
+    return copy;
+  }
+
+  // A restock date only means something while a listing can't be sold; once
+  // it has stock and is available again, the date is dropped.
+  private normalizeRestockEta(listing: { stockQty: number; isAvailable: boolean; restockEta: string | null }) {
+    return listing.stockQty > 0 && listing.isAvailable ? null : listing.restockEta;
+  }
+
+  private assertRestockEtaNotPast(restockEta: string | null | undefined) {
+    if (restockEta && restockEta < istDateString()) {
+      throw new BadRequestException('Restock date cannot be in the past');
+    }
+  }
+
+  // Adds a product to the vendor's store with its own price and stock — a
+  // Laoji product, with any details the vendor changed going to its own copy
+  // (see productForListing), or one of its own — or updates the listing the
+  // store already has for it.
+  async upsertVendorProduct(vendor: VendorRef, dto: UpsertVendorProductDto) {
+    const product = await this.getProduct(dto.productId);
+    const existing = await this.findListingOf(vendor.id, product);
+    if (existing) return this.updateVendorProduct(vendor, existing.id, dto);
+
+    this.assertRestockEtaNotPast(dto.restockEta);
+    await this.assertListableBy(vendor, product);
+    const listed = await this.productForListing(vendor, product, dto);
+    const isAvailable = dto.isAvailable ?? true;
     const [created] = await this.db
       .insert(vendorProducts)
       .values({
-        vendorId,
-        productId: dto.productId,
+        vendorId: vendor.id,
+        productId: listed.id,
         price: dto.price,
         stockQty: dto.stockQty,
-        isAvailable: dto.isAvailable ?? true,
+        isAvailable,
+        offerTag: dto.offerTag || null,
+        lowStockThreshold: dto.lowStockThreshold,
+        restockEta: this.normalizeRestockEta({ stockQty: dto.stockQty, isAvailable, restockEta: dto.restockEta ?? null }),
+        lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
       })
       .returning();
-    return created;
+    return this.listingResponse(vendor.id, created, listed);
+  }
+
+  // A product the vendor creates from scratch for its own store.
+  async createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto) {
+    this.assertRestockEtaNotPast(dto.restockEta);
+    const scope = await this.vendorCategories(vendor);
+    const categoryId = scope.usable(dto.categoryId);
+    const attributes =
+      dto.attributes === undefined
+        ? null
+        : normalizeAttributes(
+            readProductAttributes(productFormFor(vendor.businessType), { ...dto, attributes: dto.attributes }),
+          );
+    const product = await this.createProduct({
+      categoryId,
+      name: dto.name.trim(),
+      brand: dto.brand?.trim() || undefined,
+      unit: dto.unit.trim(),
+      size: dto.size?.trim() || undefined,
+      mrp: dto.mrp,
+      imageUrl: dto.imageUrl || undefined,
+      description: dto.description?.trim() || undefined,
+      attributes,
+      ownerVendorId: vendor.id,
+    });
+
+    const isAvailable = dto.isAvailable ?? true;
+    const [listing] = await this.db
+      .insert(vendorProducts)
+      .values({
+        vendorId: vendor.id,
+        productId: product.id,
+        price: dto.price,
+        stockQty: dto.stockQty,
+        isAvailable,
+        offerTag: dto.offerTag || null,
+        lowStockThreshold: dto.lowStockThreshold,
+        restockEta: this.normalizeRestockEta({ stockQty: dto.stockQty, isAvailable, restockEta: dto.restockEta ?? null }),
+        lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
+      })
+      .returning();
+    return this.listingResponse(vendor.id, listing, product);
   }
 
   private async requireOwnVendorProduct(vendorId: string, id: string) {
@@ -453,19 +1116,129 @@ export class CatalogService {
     return row;
   }
 
-  async updateVendorProduct(vendorId: string, id: string, dto: UpdateVendorProductDto) {
+  // Listing terms (price, stock, availability, restock date, offer) and, when
+  // sent, product details: on the store's own product they change it, on a
+  // Laoji product they move the listing to the store's own copy (see
+  // productForListing). App builds up to 1.0.2 resend every detail on each
+  // edit; details sent back unchanged never make a copy.
+  async updateVendorProduct(vendor: VendorRef, id: string, dto: UpdateVendorProductDto) {
+    const existing = await this.requireOwnVendorProduct(vendor.id, id);
+    this.assertRestockEtaNotPast(dto.restockEta);
+    const product = await this.productForListing(vendor, await this.getProduct(existing.productId), dto);
+
+    const stockQty = dto.stockQty ?? existing.stockQty;
+    const isAvailable = dto.isAvailable ?? existing.isAvailable;
+    const restockEta = dto.restockEta !== undefined ? dto.restockEta : existing.restockEta;
+    const [updated] = await this.db
+      .update(vendorProducts)
+      .set({
+        ...(product.id !== existing.productId ? { productId: product.id } : {}),
+        ...(dto.price !== undefined ? { price: dto.price } : {}),
+        stockQty,
+        isAvailable,
+        ...(dto.offerTag !== undefined ? { offerTag: dto.offerTag || null } : {}),
+        ...(dto.lowStockThreshold !== undefined ? { lowStockThreshold: dto.lowStockThreshold } : {}),
+        restockEta: this.normalizeRestockEta({ stockQty, isAvailable, restockEta }),
+        ...(stockQty > existing.stockQty ? { lastRestockedAt: new Date() } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(vendorProducts.id, id))
+      .returning();
+
+    return this.listingResponse(vendor.id, updated, product);
+  }
+
+  // Adds received units on top of current stock (a SQL increment, so it
+  // can't lose a concurrent edit) and puts the listing back on sale.
+  async restockVendorProduct(vendorId: string, id: string, qty: number) {
     await this.requireOwnVendorProduct(vendorId, id);
     const [updated] = await this.db
       .update(vendorProducts)
-      .set({ ...dto, updatedAt: new Date() })
+      .set({
+        stockQty: sql`${vendorProducts.stockQty} + ${qty}`,
+        isAvailable: true,
+        restockEta: null,
+        lastRestockedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(vendorProducts.id, id))
       .returning();
-    return updated;
+    const product = await this.getProduct(updated.productId);
+    return this.listingResponse(vendorId, updated, product);
   }
 
+  // Takes the listing off the vendor's store. A product of the store's own
+  // (made from scratch or copied from Laoji's) goes with it once no order
+  // refers to it; a Laoji product stays, since other stores stock it and
+  // this one can add it back later.
   async deleteVendorProduct(vendorId: string, id: string) {
-    await this.requireOwnVendorProduct(vendorId, id);
+    const row = await this.requireOwnVendorProduct(vendorId, id);
     await this.db.delete(vendorProducts).where(eq(vendorProducts.id, id));
+
+    const product = await this.getProduct(row.productId);
+    if (product.ownerVendorId === vendorId) {
+      const [orderItem] = await this.db
+        .select({ id: groceryOrderItems.id })
+        .from(groceryOrderItems)
+        .where(eq(groceryOrderItems.productId, product.id))
+        .limit(1);
+      if (!orderItem) await this.db.delete(products).where(eq(products.id, product.id));
+    }
+    return { success: true };
+  }
+
+  async createVendorCustomProduct(vendor: VendorRef, dto: CreateVendorCustomProductDto) {
+    const scope = await this.vendorCategories(vendor);
+    const stockQty = dto.stockQty ?? 0;
+    const [product] = await this.db
+      .insert(products)
+      .values({
+        categoryId: scope.usable(dto.categoryId),
+        brand: dto.brand || null,
+        name: dto.name,
+        description: dto.description || null,
+        unit: dto.unit,
+        size: dto.size || null,
+        mrp: dto.mrp ?? null,
+        imageUrl: dto.imageUrl || null,
+        status: 'active',
+        ownerVendorId: vendor.id,
+      })
+      .returning();
+
+    const [listing] = await this.db
+      .insert(vendorProducts)
+      .values({
+        vendorId: vendor.id,
+        productId: product.id,
+        price: dto.price,
+        stockQty,
+        isAvailable: dto.isAvailable ?? true,
+        lastRestockedAt: stockQty > 0 ? new Date() : null,
+      })
+      .returning();
+
+    return this.listingResponse(vendor.id, listing, product);
+  }
+
+  private async requireListingOfProduct(vendorId: string, productId: string) {
+    const [listing] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.vendorId, vendorId), eq(vendorProducts.productId, productId)))
+      .limit(1);
+    if (!listing) throw new NotFoundException('Product listing not found');
+    return listing;
+  }
+
+  async updateVendorCustomProduct(vendor: VendorRef, productId: string, dto: UpdateVendorCustomProductDto) {
+    const listing = await this.requireListingOfProduct(vendor.id, productId);
+    return this.updateVendorProduct(vendor, listing.id, dto);
+  }
+
+  async deleteVendorCustomProduct(vendorId: string, productId: string) {
+    const listing = await this.requireListingOfProduct(vendorId, productId);
+    return this.deleteVendorProduct(vendorId, listing.id);
   }
 
   // ---------- Public: customer browse (grocery) ----------
@@ -479,7 +1252,7 @@ export class CatalogService {
   private async vendorsInRadius(lat: number, lng: number) {
     const allVendors = await this.db.select().from(vendors);
     return allVendors.filter(
-      (v) => isVendorOpenNow(v) && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
+      (v) => (v.showInApp ?? true) && isVendorOpenNow(v) && haversineKm(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm,
     );
   }
 
@@ -487,6 +1260,28 @@ export class CatalogService {
     const inRadius = await this.vendorsInRadius(lat, lng);
     const vendorIds = inRadius.map((v) => v.id);
     if (vendorIds.length === 0) return [];
+
+    const { all, byId } = await this.categoryIndex();
+    let categoryIds: string[] | undefined = undefined;
+    if (categoryId) {
+      const catIdSet = new Set<string>([categoryId]);
+      const addChildren = (pId: string) => {
+        for (const c of all) {
+          if (c.parentId === pId && !catIdSet.has(c.id)) {
+            catIdSet.add(c.id);
+            addChildren(c.id);
+          }
+        }
+      };
+      addChildren(categoryId);
+      // A Laoji category also holds what stores filed under their own copies of it.
+      for (const c of all) {
+        if (c.ownerVendorId !== null && c.templateCategoryId && catIdSet.has(c.templateCategoryId)) {
+          catIdSet.add(c.id);
+        }
+      }
+      categoryIds = Array.from(catIdSet);
+    }
 
     const rows = await this.db
       .select({ vendorProduct: vendorProducts, product: products })
@@ -497,15 +1292,23 @@ export class CatalogService {
           inArray(vendorProducts.vendorId, vendorIds),
           eq(vendorProducts.isAvailable, true),
           eq(products.status, 'active'),
-          categoryId ? eq(products.categoryId, categoryId) : undefined,
+          categoryIds ? inArray(products.categoryId, categoryIds) : undefined,
         ),
       );
 
-    return this.aggregateByProduct(rows);
+    return this.aggregateByProduct(rows, byId);
+  }
+
+  // The category a product counts under for customers and revenue rules: a
+  // store's copy of a Laoji category counts as that Laoji category.
+  async customerCategoryId(categoryId: string) {
+    const { byId } = await this.categoryIndex();
+    return laojiCategoryId(categoryId, byId);
   }
 
   async publicGetProduct(id: string, lat: number, lng: number) {
     const product = await this.getProduct(id);
+    const { byId } = await this.categoryIndex();
     const inRadius = await this.vendorsInRadius(lat, lng);
     const vendorIds = inRadius.map((v) => v.id);
 
@@ -524,52 +1327,145 @@ export class CatalogService {
               ),
             );
 
-    const [aggregated] = this.aggregateByProduct(rows);
+    const [aggregated] = this.aggregateByProduct(rows, byId);
     return {
       ...product,
+      categoryId: laojiCategoryId(product.categoryId, byId),
       price: aggregated?.price ?? null,
-      inStock: !!aggregated,
+      inStock: aggregated?.inStock ?? false,
+      restockEta: aggregated?.restockEta ?? null,
     };
   }
 
-  private aggregateByProduct(rows: { vendorProduct: typeof vendorProducts.$inferSelect; product: typeof products.$inferSelect }[]) {
-    const byProduct = new Map<string, { product: typeof products.$inferSelect; price: number; inStock: boolean }>();
+  // One entry per product across every in-radius vendor listing it. The price
+  // is the cheapest vendor that has it in stock (the cheapest overall if none
+  // do); when none do, `restockEta` is the soonest date one expects it back.
+  // `categoryId` is the one customers browse by (see laojiCategoryId).
+  private aggregateByProduct(
+    rows: { vendorProduct: typeof vendorProducts.$inferSelect; product: typeof products.$inferSelect }[],
+    categoriesById: Map<string, Category>,
+  ) {
+    const today = istDateString();
+    const byProduct = new Map<
+      string,
+      { product: typeof products.$inferSelect; price: number; inStock: boolean; restockEta: string | null }
+    >();
     for (const { vendorProduct, product } of rows) {
       const inStock = vendorProduct.stockQty > 0;
-      const existing = byProduct.get(product.id);
-      if (!existing || (inStock && vendorProduct.price < existing.price)) {
-        byProduct.set(product.id, { product, price: vendorProduct.price, inStock: inStock || existing?.inStock === true });
-      } else if (inStock) {
-        existing.inStock = true;
+      const eta = !inStock && vendorProduct.restockEta && vendorProduct.restockEta >= today ? vendorProduct.restockEta : null;
+      const current = byProduct.get(product.id);
+      if (!current) {
+        byProduct.set(product.id, { product, price: vendorProduct.price, inStock, restockEta: eta });
+        continue;
       }
+      if (inStock ? !current.inStock || vendorProduct.price < current.price : !current.inStock && vendorProduct.price < current.price) {
+        current.price = vendorProduct.price;
+      }
+      current.inStock ||= inStock;
+      if (eta && (!current.restockEta || eta < current.restockEta)) current.restockEta = eta;
     }
-    return [...byProduct.values()].map(({ product, price, inStock }) => ({ ...product, price, inStock }));
+    return [...byProduct.values()].map(({ product, price, inStock, restockEta }) => ({
+      ...product,
+      categoryId: laojiCategoryId(product.categoryId, categoriesById),
+      price,
+      inStock,
+      restockEta: inStock ? null : restockEta,
+    }));
   }
 
   // ---------- Public: customer browse (restaurants + menu) ----------
 
+  // Restaurants whose delivery radius covers (lat, lng), open ones first and
+  // nearest first within each group.
   async publicListRestaurants(lat: number, lng: number) {
-    const inRadius = await this.vendorsInRadius(lat, lng);
-    const vendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+    const allVendors = await this.db.select().from(vendors);
+    const distanceKm = new Map(allVendors.map((v) => [v.id, haversineKm(lat, lng, v.pickupLat, v.pickupLng)]));
+    const nearbyVendors = allVendors.filter(
+      (v) => (v.showInApp ?? true) && v.isOpen && distanceKm.get(v.id)! <= v.radiusKm,
+    );
+    const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
+    const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
     if (vendorIds.length === 0) return [];
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(restaurants)
       .where(and(inArray(restaurants.vendorId, vendorIds), eq(restaurants.isOpen, true)));
+
+    const restIds = rows.map((r) => r.id);
+    const ratingsMap = new Map<string, { count: number; avg: number }>();
+    if (restIds.length > 0) {
+      const aggRows = await this.db
+        .select({
+          restaurantId: foodOrderRatings.restaurantId,
+          count: sql<number>`count(*)::int`,
+          avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+        })
+        .from(foodOrderRatings)
+        .where(inArray(foodOrderRatings.restaurantId, restIds))
+        .groupBy(foodOrderRatings.restaurantId);
+
+      for (const agg of aggRows) {
+        ratingsMap.set(agg.restaurantId, {
+          count: Number(agg.count),
+          avg: Math.round(Number(agg.avg) * 10) / 10,
+        });
+      }
+    }
+
+    return rows
+      .map((r) => {
+        const v = vendorMap.get(r.vendorId);
+        const openNow = r.isOpen && (v ? isVendorOpenNow(v) : false);
+        const agg = ratingsMap.get(r.id);
+        const dynamicRating = agg && agg.count > 0 ? agg.avg : (r.ratingAvg > 0 ? Math.round(r.ratingAvg * 10) / 10 : 4.8);
+        const dynamicCount = agg ? agg.count : 0;
+        return {
+          ...r,
+          mealTimings: mealTimingsView(r.mealTimings),
+          imageUrl: r.imageUrl || v?.imageUrl || null,
+          ratingAvg: dynamicRating,
+          ratingCount: dynamicCount,
+          isOpen: openNow,
+          displayOrder: v?.displayOrder ?? 0,
+          distanceKm: roundKm(distanceKm.get(r.vendorId)!),
+        };
+      })
+      .sort((a, b) => {
+        const orderA = vendorMap.get(a.vendorId)?.displayOrder ?? 9999;
+        const orderB = vendorMap.get(b.vendorId)?.displayOrder ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return Number(b.isOpen) - Number(a.isOpen) || a.distanceKm - b.distanceKm;
+      });
   }
 
-  async publicGetRestaurant(id: string) {
+  // `near` is the customer's location, when the client sends one — adds how
+  // far away the restaurant is and whether it delivers there.
+  async publicGetRestaurant(id: string, near?: { lat: number; lng: number }) {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, id)).limit(1);
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
-    // Detail page is shown even when closed (so the customer sees *why*
-    // ordering is blocked) — unlike the list/browse endpoints, which drop
-    // closed vendors entirely. `restaurant.isOpen` is a manually-toggled
-    // column that can go stale against the real weekly schedule, so this
-    // recomputes the true current status rather than trusting it.
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+    if (!vendor || vendor.showInApp === false) {
+      throw new NotFoundException('Store is currently not available');
+    }
     const openNow = restaurant.isOpen && (vendor ? isVendorOpenNow(vendor) : false);
+    const distanceKm = near && vendor ? haversineKm(near.lat, near.lng, vendor.pickupLat, vendor.pickupLng) : null;
+    const timings = effectiveMealTimings(restaurant.mealTimings);
+    const now = new Date();
+
+    const [ratingsAgg] = await this.db
+      .select({
+        count: sql<number>`count(*)::int`,
+        avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
+      })
+      .from(foodOrderRatings)
+      .where(eq(foodOrderRatings.restaurantId, id));
+
+    const dynamicRating = ratingsAgg && Number(ratingsAgg.count) > 0
+      ? Math.round(Number(ratingsAgg.avg) * 10) / 10
+      : (restaurant.ratingAvg > 0 ? Math.round(restaurant.ratingAvg * 10) / 10 : 4.8);
+    const dynamicCount = ratingsAgg ? Number(ratingsAgg.count) : 0;
 
     const cats = await this.db
       .select()
@@ -596,22 +1492,93 @@ export class CatalogService {
       ? await this.db.select().from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, itemIds))
       : [];
 
+    if (cats.length === 0 && vendor) {
+      const vProds = await this.db
+        .select({
+          vp: vendorProducts,
+          p: products,
+          c: categories,
+        })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .innerJoin(categories, eq(products.categoryId, categories.id))
+        .where(
+          and(
+            eq(vendorProducts.vendorId, vendor.id),
+            eq(vendorProducts.isAvailable, true),
+            eq(products.status, 'active'),
+          ),
+        );
+
+      if (vProds.length > 0) {
+        const catMap = new Map<string, { id: string; name: string; items: any[] }>();
+        for (const row of vProds) {
+          const cId = row.c.id;
+          if (!catMap.has(cId)) {
+            catMap.set(cId, {
+              id: cId,
+              name: row.c.name,
+              items: [],
+            });
+          }
+          catMap.get(cId)!.items.push({
+            id: row.p.id,
+            menuCategoryId: cId,
+            name: row.p.name,
+            description: row.p.description,
+            price: row.vp.price,
+            imageUrl: row.p.imageUrl,
+            isVeg: true,
+            isAvailable: row.vp.isAvailable,
+            addons: [],
+            variants: [],
+          });
+        }
+        return {
+          ...restaurant,
+          imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
+          ratingAvg: dynamicRating,
+          ratingCount: dynamicCount,
+          isOpen: openNow,
+          menuCategories: Array.from(catMap.values()),
+        };
+      }
+    }
+
     return {
       ...restaurant,
+      mealTimings: mealTimingsView(restaurant.mealTimings),
+      imageUrl: restaurant.imageUrl || vendor?.imageUrl || null,
+      ratingAvg: dynamicRating,
+      ratingCount: dynamicCount,
       isOpen: openNow,
+      ...(distanceKm !== null && vendor
+        ? { distanceKm: roundKm(distanceKm), deliversToYou: distanceKm <= vendor.radiusKm }
+        : {}),
       menuCategories: cats.map((cat) => ({
         ...cat,
         items: items
           .filter((i) => i.menuCategoryId === cat.id)
-          .map((item) => ({
-            ...item,
-            addons: addons.filter((a) => a.menuItemId === item.id),
-            variants: variants.filter((v) => v.menuItemId === item.id),
-          })),
+          .map((item) => {
+            // `isAvailable` here means "orderable right now": the restaurant's
+            // own switch and the item's meal slot. `servedNow` tells a client
+            // which of the two is keeping it off.
+            const servedNow = isServedNow(item.mealSlots, timings, now);
+            return {
+              ...item,
+              mealSlots: item.mealSlots ?? [],
+              servedNow,
+              isAvailable: item.isAvailable && servedNow,
+              addons: addons.filter((a) => a.menuItemId === item.id),
+              variants: variants.filter((v) => v.menuItemId === item.id),
+            };
+          }),
       })),
     };
   }
 
+  // Only what can be ordered at (lat, lng): vendors whose delivery radius
+  // covers it and that are open now, and dishes in their meal slot now.
   async publicSearch(lat: number, lng: number, query: string) {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -619,61 +1586,36 @@ export class CatalogService {
     }
 
     const inRadius = await this.vendorsInRadius(lat, lng);
-    const groceryVendorIds = inRadius.filter((v) => v.type === 'grocery').map((v) => v.id);
+    const distanceKm = new Map(inRadius.map((v) => [v.id, haversineKm(lat, lng, v.pickupLat, v.pickupLng)]));
+    // A 'both' vendor sells products as well as running a restaurant.
+    const productVendorIds = inRadius.filter((v) => v.type !== 'restaurant').map((v) => v.id);
     const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
 
     // 1. Matched products
-    let productsList: any[] = [];
-    if (groceryVendorIds.length > 0) {
+    let productsList: ReturnType<CatalogService['aggregateByProduct']> = [];
+    if (productVendorIds.length > 0) {
       const pRows = await this.db
         .select({ vendorProduct: vendorProducts, product: products })
         .from(vendorProducts)
         .innerJoin(products, eq(vendorProducts.productId, products.id))
         .where(
           and(
-            inArray(vendorProducts.vendorId, groceryVendorIds),
+            inArray(vendorProducts.vendorId, productVendorIds),
             eq(vendorProducts.isAvailable, true),
             eq(products.status, 'active'),
             ilike(products.name, `%${trimmed}%`),
           ),
         );
-      productsList = this.aggregateByProduct(pRows);
+      productsList = this.aggregateByProduct(pRows, (await this.categoryIndex()).byId);
     }
 
-    // Direct active catalog products fallback so search always succeeds even if vendor radius is unmatched
-    if (productsList.length === 0) {
-      const fallbackProducts = await this.db
-        .select()
-        .from(products)
-        .where(
-          and(
-            eq(products.status, 'active'),
-            or(
-              ilike(products.name, `%${trimmed}%`),
-              ilike(products.description, `%${trimmed}%`),
-              ilike(products.unit, `%${trimmed}%`),
-            ),
-          ),
-        )
-        .limit(30);
-
-      productsList = fallbackProducts.map((p) => ({
-        id: p.id,
-        categoryId: p.categoryId,
-        name: p.name,
-        unit: p.unit,
-        imageUrl: p.imageUrl,
-        description: p.description,
-        mrp: p.mrp,
-        price: p.mrp ?? 0,
-        inStock: true,
-      }));
-    }
-
-    // 2. Matched restaurants
-    let matchedRestaurants: any[] = [];
+    // 2. Matched restaurants, nearest first
+    let matchedRestaurants: (Omit<typeof restaurants.$inferSelect, 'mealTimings'> & {
+      mealTimings: ReturnType<typeof mealTimingsView>;
+      distanceKm: number;
+    })[] = [];
     if (restaurantVendorIds.length > 0) {
-      matchedRestaurants = await this.db
+      const rows = await this.db
         .select()
         .from(restaurants)
         .where(
@@ -686,19 +1628,13 @@ export class CatalogService {
             ),
           ),
         );
-    }
-
-    if (matchedRestaurants.length === 0) {
-      matchedRestaurants = await this.db
-        .select()
-        .from(restaurants)
-        .where(
-          or(
-            ilike(restaurants.name, `%${trimmed}%`),
-            ilike(restaurants.cuisineTags, `%${trimmed}%`),
-          ),
-        )
-        .limit(15);
+      matchedRestaurants = rows
+        .map((r) => ({
+          ...r,
+          mealTimings: mealTimingsView(r.mealTimings),
+          distanceKm: roundKm(distanceKm.get(r.vendorId)!),
+        }))
+        .sort((a, b) => a.distanceKm - b.distanceKm);
     }
 
     // 3. Matched dishes (menu items from active restaurants)
@@ -723,6 +1659,8 @@ export class CatalogService {
         if (catIds.length > 0) {
           const restMap = new Map(activeRestaurants.map((r) => [r.id, r]));
           const catMap = new Map(catRows.map((c) => [c.id, c.restaurantId]));
+          const timingsByRestaurant = new Map(activeRestaurants.map((r) => [r.id, effectiveMealTimings(r.mealTimings)]));
+          const now = new Date();
 
           const itemRows = await this.db
             .select()
@@ -735,54 +1673,28 @@ export class CatalogService {
               ),
             );
 
-          dishesList = itemRows.map((item) => {
-            const rId = catMap.get(item.menuCategoryId)!;
-            const rest = restMap.get(rId);
-            return {
-              id: item.id,
-              restaurantId: rId,
-              restaurantName: rest?.name ?? 'Restaurant',
-              name: item.name,
-              description: item.description,
-              price: item.price,
-              imageUrl: item.imageUrl,
-              isVeg: item.isVeg,
-              isAvailable: item.isAvailable,
-            };
-          });
+          dishesList = itemRows
+            .filter((item) =>
+              isServedNow(item.mealSlots, timingsByRestaurant.get(catMap.get(item.menuCategoryId)!)!, now),
+            )
+            .map((item) => {
+              const rId = catMap.get(item.menuCategoryId)!;
+              const rest = restMap.get(rId);
+              return {
+                id: item.id,
+                restaurantId: rId,
+                restaurantName: rest?.name ?? 'Restaurant',
+                name: item.name,
+                description: item.description,
+                price: item.price,
+                imageUrl: item.imageUrl,
+                isVeg: item.isVeg,
+                isAvailable: item.isAvailable,
+                mealSlots: item.mealSlots ?? [],
+              };
+            });
         }
       }
-    }
-
-    if (dishesList.length === 0) {
-      const menuRows = await this.db
-        .select({
-          item: menuItems,
-          cat: menuCategories,
-          rest: restaurants,
-        })
-        .from(menuItems)
-        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
-        .innerJoin(restaurants, eq(menuCategories.restaurantId, restaurants.id))
-        .where(
-          or(
-            ilike(menuItems.name, `%${trimmed}%`),
-            ilike(menuItems.description, `%${trimmed}%`),
-          ),
-        )
-        .limit(20);
-
-      dishesList = menuRows.map(({ item, rest }) => ({
-        id: item.id,
-        restaurantId: rest.id,
-        restaurantName: rest.name,
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        isVeg: item.isVeg,
-        isAvailable: item.isAvailable,
-      }));
     }
 
     return {
@@ -800,9 +1712,6 @@ export class CatalogService {
 
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
     if (!vendor) throw new NotFoundException('Vendor not found');
-    if (vendor.type === 'grocery') {
-      throw new ConflictException('Vendor is not registered as a restaurant');
-    }
 
     const [created] = await this.db.insert(restaurants).values({ vendorId, name: vendor.businessName }).returning();
     return created;
@@ -833,6 +1742,22 @@ export class CatalogService {
       .where(eq(restaurants.id, restaurant.id))
       .returning();
     return updated;
+  }
+
+  async getMealTimings(vendorId: string) {
+    const restaurant = await this.getOrCreateRestaurant(vendorId);
+    return mealTimingsView(restaurant.mealTimings);
+  }
+
+  async updateMealTimings(vendorId: string, dto: UpdateMealTimingsDto) {
+    validateMealTimings(dto.timings);
+    const restaurant = await this.getOrCreateRestaurant(vendorId);
+    const [updated] = await this.db
+      .update(restaurants)
+      .set({ mealTimings: dto.timings.map(({ slot, start, end }) => ({ slot, start, end })) })
+      .where(eq(restaurants.id, restaurant.id))
+      .returning();
+    return mealTimingsView(updated.mealTimings);
   }
 
   async listMenuCategories(vendorId: string) {
@@ -907,6 +1832,7 @@ export class CatalogService {
         price: dto.price,
         imageUrl: dto.imageUrl,
         isVeg: dto.isVeg ?? true,
+        mealSlots: normalizeMealSlots(dto.mealSlots),
       })
       .returning();
 
@@ -926,8 +1852,14 @@ export class CatalogService {
 
   async updateMenuItem(vendorId: string, id: string, dto: UpdateMenuItemDto) {
     await this.requireOwnMenuItem(vendorId, id);
-    const { addons, variants, ...fields } = dto;
-    const [updated] = await this.db.update(menuItems).set(fields).where(eq(menuItems.id, id)).returning();
+    const { addons, variants, mealSlots, ...fields } = dto;
+    const updateData = {
+      ...fields,
+      ...(fields.imageUrl !== undefined ? { imageUrl: fields.imageUrl || null } : {}),
+      ...(fields.description !== undefined ? { description: fields.description || null } : {}),
+      ...(mealSlots !== undefined ? { mealSlots: normalizeMealSlots(mealSlots) } : {}),
+    };
+    const [updated] = await this.db.update(menuItems).set(updateData).where(eq(menuItems.id, id)).returning();
     const finalAddons =
       addons !== undefined
         ? await this.replaceAddons(id, addons)
@@ -971,15 +1903,28 @@ export class CatalogService {
 
   // ---------- Vendor + Admin: product suggestions ----------
 
-  async createProductSuggestion(vendorId: string, dto: CreateProductSuggestionDto) {
+  // A product the vendor asks Laoji to add to its catalog, filed under one of
+  // Laoji's categories (the store's copy of one counts as that one).
+  async createProductSuggestion(vendor: VendorRef, dto: CreateProductSuggestionDto) {
+    const { byId } = await this.categoryIndex();
+    const category = byId.get(dto.categoryId);
+    if (!category || (category.ownerVendorId !== null && category.ownerVendorId !== vendor.id)) {
+      throw new NotFoundException('Category not found');
+    }
+    const categoryId = laojiCategoryId(category.id, byId);
+    if (byId.get(categoryId)?.ownerVendorId !== null) {
+      throw new BadRequestException(
+        `"${category.name}" is your store's own category. Pick one of Laoji's categories, or suggest "${category.name}" as a new category first.`,
+      );
+    }
     const [row] = await this.db
       .insert(productSuggestions)
       .values({
-        vendorId,
-        name: dto.name,
-        categoryId: dto.categoryId,
-        unit: dto.unit,
-        size: dto.size,
+        vendorId: vendor.id,
+        name: dto.name.trim(),
+        categoryId,
+        unit: dto.unit.trim(),
+        size: dto.size?.trim() || undefined,
         imageUrl: dto.imageUrl,
       })
       .returning();
@@ -1071,6 +2016,153 @@ export class CatalogService {
     return updated;
   }
 
+  // ---------- Vendor + Admin: category suggestions ----------
+
+  // A category the vendor asks Laoji to add to its list for the vendor's
+  // business type. Meanwhile the vendor can make it a category of its own.
+  async createCategorySuggestion(vendor: VendorRef, dto: CreateCategorySuggestionDto) {
+    if (!BUSINESS_TYPE_ROOT_CATEGORY[vendor.businessType]) {
+      throw new BadRequestException('Restaurants manage menu categories from the menu screen');
+    }
+    const name = dto.name.trim();
+    if (name.length < 2) throw new BadRequestException('Category name is required');
+    const scope = await this.vendorCategories(vendor);
+    const parentIds = new Set(scope.all.map((c) => c.parentId));
+    const offered = scope.all.find((c) => scope.isTemplateFor(c) && !parentIds.has(c.id) && sameName(c.name, name));
+    if (offered) {
+      throw new ConflictException(
+        `Laoji already has a "${offered.name}" category. Add it to your store from Laoji's categories.`,
+      );
+    }
+    const [pending] = await this.db
+      .select({ id: categorySuggestions.id })
+      .from(categorySuggestions)
+      .where(
+        and(
+          eq(categorySuggestions.vendorId, vendor.id),
+          eq(categorySuggestions.status, 'pending'),
+          sql`lower(${categorySuggestions.name}) = lower(${name})`,
+        ),
+      )
+      .limit(1);
+    if (pending) throw new ConflictException(`You have already suggested "${name}". Laoji will review it soon.`);
+
+    const [row] = await this.db
+      .insert(categorySuggestions)
+      .values({ vendorId: vendor.id, name, businessType: vendor.businessType, note: dto.note?.trim() || null })
+      .returning();
+    return row;
+  }
+
+  listMyCategorySuggestions(vendorId: string) {
+    return this.db
+      .select()
+      .from(categorySuggestions)
+      .where(eq(categorySuggestions.vendorId, vendorId))
+      .orderBy(desc(categorySuggestions.createdAt));
+  }
+
+  async listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected') {
+    const rows = await this.db
+      .select({ suggestion: categorySuggestions, vendor: vendors })
+      .from(categorySuggestions)
+      .innerJoin(vendors, eq(categorySuggestions.vendorId, vendors.id))
+      .where(status ? eq(categorySuggestions.status, status) : undefined)
+      .orderBy(desc(categorySuggestions.createdAt));
+    return rows.map(({ suggestion, vendor }) => ({ ...suggestion, vendorName: vendor.businessName }));
+  }
+
+  private async requirePendingCategorySuggestion(id: string) {
+    const [row] = await this.db.select().from(categorySuggestions).where(eq(categorySuggestions.id, id)).limit(1);
+    if (!row) throw new NotFoundException('Suggestion not found');
+    if (row.status !== 'pending') throw new ConflictException('Suggestion has already been reviewed');
+    return row;
+  }
+
+  // Approving adds the category to Laoji's list: under the suggesting store
+  // type's root unless admin picks another parent, or as the Laoji category
+  // of that name if there already is one. The suggesting store's own
+  // category of that name becomes its copy of it, so customers find the
+  // store's products there.
+  async approveCategorySuggestion(adminUserId: string, id: string, dto: ApproveCategorySuggestionDto) {
+    const suggestion = await this.requirePendingCategorySuggestion(id);
+    const name = dto.name?.trim() || suggestion.name;
+    let parentId: string;
+    if (dto.parentId) {
+      const [parent] = await this.db.select().from(categories).where(eq(categories.id, dto.parentId)).limit(1);
+      if (!parent || parent.ownerVendorId !== null) throw new NotFoundException('Parent category not found');
+      parentId = parent.id;
+    } else {
+      parentId = (await this.businessTypeRoot(suggestion.businessType)).id;
+    }
+    const [existing] = await this.db
+      .select()
+      .from(categories)
+      .where(
+        and(
+          isNull(categories.ownerVendorId),
+          eq(categories.parentId, parentId),
+          sql`lower(${categories.name}) = lower(${name})`,
+        ),
+      )
+      .limit(1);
+    const category = existing ?? (await this.createCategory({ name, parentId }));
+
+    const [updated] = await this.db
+      .update(categorySuggestions)
+      .set({ status: 'approved', categoryId: category.id, reviewedBy: adminUserId, reviewedAt: new Date() })
+      .where(eq(categorySuggestions.id, id))
+      .returning();
+
+    const copies = await this.ownCategoryCopies(suggestion.vendorId);
+    if (!copies.has(category.id)) {
+      const [own] = await this.db
+        .select()
+        .from(categories)
+        .where(
+          and(
+            eq(categories.ownerVendorId, suggestion.vendorId),
+            isNull(categories.templateCategoryId),
+            sql`lower(${categories.name}) = lower(${suggestion.name})`,
+          ),
+        )
+        .limit(1);
+      if (own) {
+        await this.db.update(categories).set({ templateCategoryId: category.id }).where(eq(categories.id, own.id));
+        await this.moveOwnProducts(suggestion.vendorId, category.id, own.id);
+      }
+    }
+
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, suggestion.vendorId)).limit(1);
+    if (vendor) {
+      this.notifications.notifyPush(
+        vendor.userId,
+        'category_suggestion_approved',
+        categorySuggestionApprovedVendorPush(category.name),
+      );
+    }
+    return { ...updated, category };
+  }
+
+  async rejectCategorySuggestion(adminUserId: string, id: string, reason: string) {
+    const suggestion = await this.requirePendingCategorySuggestion(id);
+    const [updated] = await this.db
+      .update(categorySuggestions)
+      .set({ status: 'rejected', rejectionReason: reason, reviewedBy: adminUserId, reviewedAt: new Date() })
+      .where(eq(categorySuggestions.id, id))
+      .returning();
+
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, suggestion.vendorId)).limit(1);
+    if (vendor) {
+      this.notifications.notifyPush(
+        vendor.userId,
+        'category_suggestion_rejected',
+        categorySuggestionRejectedVendorPush(suggestion.name),
+      );
+    }
+    return updated;
+  }
+
   // ---------- Admin Vendor Management (CRUD & Welcome Email) ----------
 
   async listVendorsAdmin() {
@@ -1081,7 +2173,7 @@ export class CatalogService {
       })
       .from(vendors)
       .innerJoin(users, eq(vendors.userId, users.id))
-      .orderBy(desc(vendors.createdAt));
+      .orderBy(asc(vendors.displayOrder), asc(vendors.createdAt));
 
     return rows.map(({ vendor, user }) => ({
       id: vendor.id,
@@ -1092,13 +2184,23 @@ export class CatalogService {
       email: user.email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
+      isOpen: vendor.isOpen,
+      showInApp: vendor.showInApp ?? true,
+      displayOrder: vendor.displayOrder ?? 0,
       deliveryRadiusKm: vendor.radiusKm,
+      pickupLat: vendor.pickupLat,
+      pickupLng: vendor.pickupLng,
+      locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
-      businessHours: vendor.businessHours,
       createdAt: vendor.createdAt,
     }));
   }
@@ -1120,6 +2222,17 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, id)).limit(1);
     const vendorProds = await this.db.select().from(vendorProducts).where(eq(vendorProducts.vendorId, id));
 
+    let productCount = vendorProds.length;
+    if (restaurant) {
+      const [menuCountRes] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(eq(menuCategories.restaurantId, restaurant.id));
+      const restCount = Number(menuCountRes?.count ?? 0);
+      productCount = Math.max(productCount, restCount);
+    }
+
     return {
       id: vendor.id,
       userId: vendor.userId,
@@ -1129,19 +2242,439 @@ export class CatalogService {
       email: user.email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
+      isOpen: vendor.isOpen,
+      showInApp: vendor.showInApp ?? true,
+      displayOrder: vendor.displayOrder ?? 0,
       deliveryRadiusKm: vendor.radiusKm,
+      pickupLat: vendor.pickupLat,
+      pickupLng: vendor.pickupLng,
+      locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
       rating: restaurant?.ratingAvg ?? 4.8,
       ratingCount: 12,
-      productCount: vendorProds.length,
-      businessHours: vendor.businessHours,
+      productCount,
       createdAt: vendor.createdAt,
     };
   }
+
+  async getAdminVendorListings(vendorId: string) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const results: {
+      id: string;
+      itemType: 'grocery' | 'menu_item';
+      productId?: string;
+      name: string;
+      description: string | null;
+      category: string;
+      categoryId?: string | null;
+      price: number;
+      unit: string;
+      available: boolean;
+      imageUrl: string | null;
+      isVeg?: boolean;
+      stockQty?: number;
+    }[] = [];
+
+    // 1. Fetch grocery products
+    const vProds = await this.db
+      .select({
+        id: vendorProducts.id,
+        price: vendorProducts.price,
+        stockQty: vendorProducts.stockQty,
+        isAvailable: vendorProducts.isAvailable,
+        productId: products.id,
+        name: products.name,
+        description: products.description,
+        unit: products.unit,
+        imageUrl: products.imageUrl,
+        categoryId: categories.id,
+        categoryName: categories.name,
+      })
+      .from(vendorProducts)
+      .innerJoin(products, eq(vendorProducts.productId, products.id))
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(vendorProducts.vendorId, vendorId));
+
+    for (const vp of vProds) {
+      results.push({
+        id: vp.id,
+        itemType: 'grocery',
+        productId: vp.productId,
+        name: vp.name,
+        description: vp.description ?? null,
+        category: vp.categoryName,
+        categoryId: vp.categoryId,
+        price: vp.price,
+        unit: vp.unit,
+        available: vp.isAvailable,
+        imageUrl: vp.imageUrl ?? null,
+        stockQty: vp.stockQty,
+      });
+    }
+
+    // 2. Fetch restaurant menu items
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const mItems = await this.db
+        .select({
+          id: menuItems.id,
+          name: menuItems.name,
+          description: menuItems.description,
+          price: menuItems.price,
+          isAvailable: menuItems.isAvailable,
+          imageUrl: menuItems.imageUrl,
+          isVeg: menuItems.isVeg,
+          categoryId: menuCategories.id,
+          categoryName: menuCategories.name,
+        })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(eq(menuCategories.restaurantId, restaurant.id));
+
+      for (const mi of mItems) {
+        results.push({
+          id: mi.id,
+          itemType: 'menu_item',
+          name: mi.name,
+          description: mi.description ?? null,
+          category: mi.categoryName,
+          categoryId: mi.categoryId,
+          price: mi.price,
+          unit: 'portion',
+          available: mi.isAvailable,
+          imageUrl: mi.imageUrl ?? null,
+          isVeg: mi.isVeg,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  async addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const isRestaurantItem =
+      dto.itemType === 'menu_item' || (vendor.businessType === 'restaurant' && dto.itemType !== 'grocery');
+
+    if (isRestaurantItem) {
+      const restaurant = await this.getOrCreateRestaurant(vendorId);
+
+      let targetCatId = dto.categoryId;
+      if (targetCatId) {
+        const [cat] = await this.db
+          .select()
+          .from(menuCategories)
+          .where(and(eq(menuCategories.id, targetCatId), eq(menuCategories.restaurantId, restaurant.id)))
+          .limit(1);
+        if (!cat) targetCatId = undefined;
+      }
+
+      if (!targetCatId) {
+        const [existingCat] = await this.db
+          .select()
+          .from(menuCategories)
+          .where(eq(menuCategories.restaurantId, restaurant.id))
+          .limit(1);
+        if (existingCat) {
+          targetCatId = existingCat.id;
+        } else {
+          const [newCat] = await this.db
+            .insert(menuCategories)
+            .values({
+              restaurantId: restaurant.id,
+              name: 'Main Menu',
+              sortOrder: 0,
+            })
+            .returning();
+          targetCatId = newCat.id;
+        }
+      }
+
+      const [item] = await this.db
+        .insert(menuItems)
+        .values({
+          menuCategoryId: targetCatId,
+          name: dto.name.trim(),
+          description: dto.description?.trim() || null,
+          price: dto.price,
+          imageUrl: dto.imageUrl?.trim() || null,
+          isVeg: dto.isVeg ?? true,
+          isAvailable: dto.isAvailable ?? true,
+        })
+        .returning();
+
+      return {
+        id: item.id,
+        itemType: 'menu_item' as const,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        unit: 'portion',
+        available: item.isAvailable,
+        imageUrl: item.imageUrl,
+        isVeg: item.isVeg,
+        categoryId: targetCatId,
+      };
+    } else {
+      // Grocery item
+      let productId = dto.productId;
+
+      if (productId) {
+        const [existingProd] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+        if (!existingProd) throw new NotFoundException('Specified product not found');
+      } else {
+        let categoryId = dto.categoryId;
+        if (categoryId) {
+          const [cat] = await this.db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
+          if (!cat) categoryId = undefined;
+        }
+        if (!categoryId) {
+          const [firstCat] = await this.db.select().from(categories).limit(1);
+          if (!firstCat) throw new BadRequestException('No categories exist in database');
+          categoryId = firstCat.id;
+        }
+
+        const [createdProd] = await this.db
+          .insert(products)
+          .values({
+            categoryId,
+            name: dto.name.trim(),
+            description: dto.description?.trim() || null,
+            unit: dto.unit?.trim() || '1 pc',
+            imageUrl: dto.imageUrl?.trim() || null,
+            status: 'active',
+            ownerVendorId: vendor.id,
+          })
+          .returning();
+        productId = createdProd.id;
+      }
+
+      // Check if vendor already has a listing for this product
+      const [existingListing] = await this.db
+        .select()
+        .from(vendorProducts)
+        .where(and(eq(vendorProducts.vendorId, vendor.id), eq(vendorProducts.productId, productId)))
+        .limit(1);
+
+      if (existingListing) {
+        const [updated] = await this.db
+          .update(vendorProducts)
+          .set({
+            price: dto.price,
+            stockQty: dto.stockQty ?? existingListing.stockQty,
+            isAvailable: dto.isAvailable ?? true,
+            lastRestockedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(vendorProducts.id, existingListing.id))
+          .returning();
+        const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+        return {
+          id: updated.id,
+          itemType: 'grocery' as const,
+          productId: prod.id,
+          name: prod.name,
+          description: prod.description,
+          price: updated.price,
+          unit: prod.unit,
+          available: updated.isAvailable,
+          imageUrl: prod.imageUrl,
+          categoryId: prod.categoryId,
+          stockQty: updated.stockQty,
+        };
+      }
+
+      const [createdListing] = await this.db
+        .insert(vendorProducts)
+        .values({
+          vendorId: vendor.id,
+          productId,
+          price: dto.price,
+          stockQty: dto.stockQty ?? 100,
+          isAvailable: dto.isAvailable ?? true,
+          lastRestockedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
+      return {
+        id: createdListing.id,
+        itemType: 'grocery' as const,
+        productId: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: createdListing.price,
+        unit: prod.unit,
+        available: createdListing.isAvailable,
+        imageUrl: prod.imageUrl,
+        categoryId: prod.categoryId,
+        stockQty: createdListing.stockQty,
+      };
+    }
+  }
+
+  async updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    // 1. Try finding in vendorProducts (grocery)
+    const [vp] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.id, itemId), eq(vendorProducts.vendorId, vendorId)))
+      .limit(1);
+
+    if (vp) {
+      const vpUpdates: any = { updatedAt: new Date() };
+      if (dto.price !== undefined) vpUpdates.price = dto.price;
+      if (dto.isAvailable !== undefined) vpUpdates.isAvailable = dto.isAvailable;
+      if (dto.stockQty !== undefined) vpUpdates.stockQty = dto.stockQty;
+
+      await this.db.update(vendorProducts).set(vpUpdates).where(eq(vendorProducts.id, vp.id));
+
+      const [prod] = await this.db.select().from(products).where(eq(products.id, vp.productId)).limit(1);
+      if (prod) {
+        if (prod.ownerVendorId === vendorId) {
+          const prodUpdates: any = {};
+          if (dto.name !== undefined) prodUpdates.name = dto.name.trim();
+          if (dto.description !== undefined) prodUpdates.description = dto.description?.trim() || null;
+          if (dto.unit !== undefined) prodUpdates.unit = dto.unit.trim();
+          if (dto.imageUrl !== undefined) prodUpdates.imageUrl = dto.imageUrl?.trim() || null;
+          if (dto.categoryId !== undefined) prodUpdates.categoryId = dto.categoryId;
+
+          if (Object.keys(prodUpdates).length > 0) {
+            await this.db.update(products).set(prodUpdates).where(eq(products.id, prod.id));
+          }
+        } else {
+          const hasDetailChanges =
+            (dto.name !== undefined && dto.name.trim() !== prod.name) ||
+            (dto.imageUrl !== undefined && dto.imageUrl?.trim() !== (prod.imageUrl ?? '')) ||
+            (dto.unit !== undefined && dto.unit.trim() !== prod.unit) ||
+            (dto.description !== undefined && dto.description?.trim() !== (prod.description ?? '')) ||
+            (dto.categoryId !== undefined && dto.categoryId !== prod.categoryId);
+
+          if (hasDetailChanges) {
+            const [copy] = await this.db
+              .insert(products)
+              .values({
+                categoryId: dto.categoryId ?? prod.categoryId,
+                brand: prod.brand,
+                name: dto.name?.trim() ?? prod.name,
+                description: dto.description !== undefined ? dto.description?.trim() || null : prod.description,
+                unit: dto.unit?.trim() ?? prod.unit,
+                size: prod.size,
+                mrp: prod.mrp,
+                imageUrl: dto.imageUrl !== undefined ? dto.imageUrl?.trim() || null : prod.imageUrl,
+                attributes: prod.attributes,
+                status: 'active',
+                ownerVendorId: vendorId,
+                templateProductId: prod.id,
+              })
+              .returning();
+            await this.db.update(vendorProducts).set({ productId: copy.id }).where(eq(vendorProducts.id, vp.id));
+          }
+        }
+      }
+
+      return { success: true };
+    }
+
+    // 2. Try finding in menuItems (restaurant)
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const [mi] = await this.db
+        .select({ id: menuItems.id })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
+        .limit(1);
+
+      if (mi) {
+        const miUpdates: any = {};
+        if (dto.name !== undefined) miUpdates.name = dto.name.trim();
+        if (dto.description !== undefined) miUpdates.description = dto.description?.trim() || null;
+        if (dto.price !== undefined) miUpdates.price = dto.price;
+        if (dto.imageUrl !== undefined) miUpdates.imageUrl = dto.imageUrl?.trim() || null;
+        if (dto.isVeg !== undefined) miUpdates.isVeg = dto.isVeg;
+        if (dto.isAvailable !== undefined) miUpdates.isAvailable = dto.isAvailable;
+
+        if (dto.categoryId !== undefined) {
+          const [validCat] = await this.db
+            .select()
+            .from(menuCategories)
+            .where(and(eq(menuCategories.id, dto.categoryId), eq(menuCategories.restaurantId, restaurant.id)))
+            .limit(1);
+          if (validCat) miUpdates.menuCategoryId = validCat.id;
+        }
+
+        if (Object.keys(miUpdates).length > 0) {
+          await this.db.update(menuItems).set(miUpdates).where(eq(menuItems.id, itemId));
+        }
+
+        return { success: true };
+      }
+    }
+
+    throw new NotFoundException('Item not found in this vendor catalog');
+  }
+
+  async deleteAdminVendorItem(vendorId: string, itemId: string) {
+    // 1. Grocery listing
+    const [vp] = await this.db
+      .select()
+      .from(vendorProducts)
+      .where(and(eq(vendorProducts.id, itemId), eq(vendorProducts.vendorId, vendorId)))
+      .limit(1);
+
+    if (vp) {
+      await this.db.delete(vendorProducts).where(eq(vendorProducts.id, vp.id));
+      const [prod] = await this.db.select().from(products).where(eq(products.id, vp.productId)).limit(1);
+      if (prod && prod.ownerVendorId === vendorId) {
+        const [ordered] = await this.db
+          .select({ id: groceryOrderItems.id })
+          .from(groceryOrderItems)
+          .where(eq(groceryOrderItems.productId, prod.id))
+          .limit(1);
+        if (!ordered) {
+          await this.db.delete(products).where(eq(products.id, prod.id));
+        }
+      }
+      return { success: true };
+    }
+
+    // 2. Restaurant menu item
+    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
+    if (restaurant) {
+      const [mi] = await this.db
+        .select({ id: menuItems.id })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
+        .limit(1);
+
+      if (mi) {
+        await this.db.delete(menuItems).where(eq(menuItems.id, mi.id));
+        return { success: true };
+      }
+    }
+
+    throw new NotFoundException('Item not found');
+  }
+
 
   async createAdminVendor(dto: CreateAdminVendorDto) {
     const phone = dto.phone.trim();
@@ -1163,6 +2696,7 @@ export class CatalogService {
         and(
           email ? or(eq(users.phone, phone), ilike(users.email, email)) : eq(users.phone, phone),
           eq(users.role, 'vendor'),
+          eq(users.status, 'active'),
         ),
       )
       .limit(1);
@@ -1206,11 +2740,18 @@ export class CatalogService {
         ownerName: dto.ownerName.trim(),
         type: dto.type,
         shopAddress: dto.shopAddress?.trim() || null,
-        pickupLat: dto.pickupLat ?? 16.705,
-        pickupLng: dto.pickupLng ?? 74.2433,
+        gstNumber: dto.gstNumber?.trim() || null,
+        aadhaarNumber: dto.aadhaarNumber?.trim() || null,
+        bankAccount: dto.bankAccount?.trim() || null,
+        bankIfsc: dto.bankIfsc?.trim().toUpperCase() || null,
+        upiId: dto.upiId?.trim() || null,
+        pickupLat: dto.pickupLat ?? DEFAULT_PICKUP.lat,
+        pickupLng: dto.pickupLng ?? DEFAULT_PICKUP.lng,
         radiusKm: dto.deliveryRadiusKm ?? 5,
         kycStatus: kycStat,
         isOpen: true,
+        showInApp: dto.showInApp ?? true,
+        displayOrder: dto.displayOrder ?? 0,
       })
       .returning();
 
@@ -1250,16 +2791,42 @@ export class CatalogService {
       email,
       type: vendor.type,
       shopAddress: vendor.shopAddress,
+      gstNumber: vendor.gstNumber,
+      aadhaarNumber: vendor.aadhaarNumber,
+      bankAccount: vendor.bankAccount,
+      bankIfsc: vendor.bankIfsc,
+      upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
       activity: vendor.isOpen ? 'active' : 'inactive',
       deliveryRadiusKm: vendor.radiusKm,
+      pickupLat: vendor.pickupLat,
+      pickupLng: vendor.pickupLng,
+      locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
       tempPassword,
-      businessHours: vendor.businessHours,
       createdAt: vendor.createdAt,
     };
+  }
+
+  async reorderVendors(dto: ReorderVendorsDto) {
+    if (dto.orders && Array.isArray(dto.orders)) {
+      for (const item of dto.orders) {
+        await this.db
+          .update(vendors)
+          .set({ displayOrder: item.displayOrder })
+          .where(eq(vendors.id, item.id));
+      }
+    } else if (dto.vendorIds && Array.isArray(dto.vendorIds)) {
+      for (let i = 0; i < dto.vendorIds.length; i++) {
+        await this.db
+          .update(vendors)
+          .set({ displayOrder: i + 1 })
+          .where(eq(vendors.id, dto.vendorIds[i]));
+      }
+    }
+    return this.listVendorsAdmin();
   }
 
   async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {
@@ -1272,29 +2839,136 @@ export class CatalogService {
     if (dto.type !== undefined) updateFields.type = dto.type;
     if (dto.shopAddress !== undefined) updateFields.shopAddress = dto.shopAddress;
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
+    if (dto.pickupLat !== undefined && dto.pickupLng !== undefined) {
+      updateFields.pickupLat = dto.pickupLat;
+      updateFields.pickupLng = dto.pickupLng;
+    }
     if (dto.kycStatus !== undefined && dto.kycStatus !== 'unverified') updateFields.kycStatus = dto.kycStatus;
-    if (dto.activity !== undefined) updateFields.isOpen = dto.activity === 'active';
+    if (dto.activity !== undefined) {
+      const active = dto.activity === 'active';
+      updateFields.isOpen = active;
+      updateFields.showInApp = active;
+    }
+    if (dto.showInApp !== undefined) {
+      updateFields.showInApp = dto.showInApp;
+      updateFields.isOpen = dto.showInApp;
+    }
+    if (dto.isOpen !== undefined) {
+      updateFields.isOpen = dto.isOpen;
+      if (!dto.isOpen) {
+        updateFields.showInApp = false;
+      }
+    }
+    if (dto.displayOrder !== undefined) updateFields.displayOrder = dto.displayOrder;
+    if (dto.gstNumber !== undefined) updateFields.gstNumber = dto.gstNumber ? dto.gstNumber.trim() : null;
+    if (dto.aadhaarNumber !== undefined) updateFields.aadhaarNumber = dto.aadhaarNumber ? dto.aadhaarNumber.trim() : null;
+    if (dto.bankAccount !== undefined) updateFields.bankAccount = dto.bankAccount ? dto.bankAccount.trim() : null;
+    if (dto.bankIfsc !== undefined) updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
+    if (dto.upiId !== undefined) updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
 
-    const [updated] = await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id)).returning();
-
-    if (dto.phone || dto.email) {
-      await this.db
-        .update(users)
-        .set({
-          phone: dto.phone || undefined,
-          email: dto.email || undefined,
-        })
-        .where(eq(users.id, v.userId));
+    if (Object.keys(updateFields).length > 0) {
+      await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id));
+      if (updateFields.isOpen !== undefined || updateFields.showInApp !== undefined) {
+        const restOpen = (updateFields.showInApp ?? v.showInApp ?? true) && (updateFields.isOpen ?? v.isOpen ?? true);
+        await this.db.update(restaurants).set({ isOpen: restOpen }).where(eq(restaurants.vendorId, id));
+      }
     }
 
-    return updated;
+    if (dto.phone !== undefined || dto.email !== undefined) {
+      const userUpdates: any = {};
+      if (dto.phone !== undefined && dto.phone.trim()) userUpdates.phone = dto.phone.trim();
+      if (dto.email !== undefined) userUpdates.email = dto.email.trim() ? dto.email.trim().toLowerCase() : null;
+      if (Object.keys(userUpdates).length > 0) {
+        await this.db.update(users).set(userUpdates).where(eq(users.id, v.userId));
+      }
+    }
+
+    return this.getAdminVendor(id);
   }
 
   async deleteAdminVendor(id: string) {
     const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
     if (!v) throw new NotFoundException('Vendor not found');
 
-    await this.db.delete(vendors).where(eq(vendors.id, id));
+    // 1. Verify no active orders in progress
+    const activeGrocery = await this.db
+      .select({ id: groceryOrders.id })
+      .from(groceryOrders)
+      .where(
+        and(
+          eq(groceryOrders.vendorId, v.id),
+          inArray(groceryOrders.status, [
+            'placed',
+            'vendor_accepted',
+            'preparing',
+            'ready',
+            'handed_over',
+            'delivery_assigned',
+            'picked_up',
+            'out_for_delivery',
+          ]),
+        ),
+      )
+      .limit(1);
+
+    const [restaurant] = await this.db
+      .select()
+      .from(restaurants)
+      .where(eq(restaurants.vendorId, v.id))
+      .limit(1);
+
+    let activeFood: { id: string }[] = [];
+    if (restaurant) {
+      activeFood = await this.db
+        .select({ id: foodOrders.id })
+        .from(foodOrders)
+        .where(
+          and(
+            eq(foodOrders.restaurantId, restaurant.id),
+            inArray(foodOrders.status, [
+              'placed',
+              'vendor_accepted',
+              'preparing',
+              'ready',
+              'handed_over',
+              'delivery_assigned',
+              'picked_up',
+              'out_for_delivery',
+            ]),
+          ),
+        )
+        .limit(1);
+    }
+
+    if (activeGrocery.length > 0 || activeFood.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete vendor while active orders are in progress. Please complete or cancel remaining orders first.',
+      );
+    }
+
+    // 2. Delete KYC documents belonging to this vendor user
+    await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, v.userId));
+
+    // 3. Revoke auth tokens
+    await this.db
+      .update(authTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(authTokens.userId, v.userId));
+
+    // 4. Try hard deleting the user (cascades to vendors, restaurants, products, etc.) or scrub if FK constraint from completed orders prevents
+    try {
+      await this.db.delete(users).where(eq(users.id, v.userId));
+    } catch {
+      await this.db.update(vendors).set({ isOpen: false }).where(eq(vendors.id, id));
+      if (restaurant) {
+        await this.db.update(restaurants).set({ isOpen: false }).where(eq(restaurants.id, restaurant.id));
+      }
+      await this.db
+        .update(users)
+        .set({ status: 'suspended', phone: null, email: null, name: null })
+        .where(eq(users.id, v.userId));
+    }
+
     return { success: true, message: `Vendor ${id} deleted successfully.` };
   }
 }

@@ -3,7 +3,9 @@ import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
-import { CreateAdminVendorDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
+import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
@@ -11,11 +13,13 @@ export declare class AdminCatalogController {
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string;
         subcategories: {
             id: string;
             name: string;
             imageUrl: string | null;
             parentId: string | null;
+            businessType: string;
             productCount: number;
         }[];
     }[]>;
@@ -23,13 +27,19 @@ export declare class AdminCatalogController {
         id: string;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
         parentId: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     updateCategory(id: string, dto: UpdateCategoryDto): Promise<{
         id: string;
         parentId: string | null;
         name: string;
         imageUrl: string | null;
+        businessType: string | null;
+        ownerVendorId: string | null;
+        templateCategoryId: string | null;
     }>;
     deleteCategory(id: string): Promise<{
         success: boolean;
@@ -197,6 +207,25 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -210,6 +239,40 @@ export declare class AdminCatalogController {
             isAutoincrement: false;
             hasRuntimeDefault: false;
             enumValues: ["active", "inactive"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
             baseColumn: never;
             identity: undefined;
             generated: undefined;
@@ -241,7 +304,10 @@ export declare class AdminCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -405,6 +471,25 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        attributes: import("drizzle-orm/pg-core").PgColumn<{
+            name: "attributes";
+            tableName: "products";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: Record<string, string | number | boolean>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, string | number | boolean>;
+        }>;
         status: import("drizzle-orm/pg-core").PgColumn<{
             name: "status";
             tableName: "products";
@@ -418,6 +503,40 @@ export declare class AdminCatalogController {
             isAutoincrement: false;
             hasRuntimeDefault: false;
             enumValues: ["active", "inactive"];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        ownerVendorId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "owner_vendor_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        templateProductId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "template_product_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
             baseColumn: never;
             identity: undefined;
             generated: undefined;
@@ -446,12 +565,15 @@ export declare class AdminCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
+        ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        attributes: Record<string, string | number | boolean> | null;
+        templateProductId: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -463,7 +585,10 @@ export declare class AdminCatalogController {
         size: string | null;
         mrp: number | null;
         imageUrl: string | null;
+        attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
+        ownerVendorId: string | null;
+        templateProductId: string | null;
         createdAt: Date;
     }>;
     deleteProduct(id: string): Promise<{
@@ -479,9 +604,20 @@ export declare class AdminCatalogController {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -496,9 +632,20 @@ export declare class AdminCatalogController {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
@@ -507,6 +654,21 @@ export declare class AdminCatalogController {
         productCount: number;
         createdAt: Date;
     }>;
+    getVendorListings(id: string): Promise<{
+        id: string;
+        itemType: "grocery" | "menu_item";
+        productId?: string;
+        name: string;
+        description: string | null;
+        category: string;
+        categoryId?: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        isVeg?: boolean;
+        stockQty?: number;
+    }[]>;
     createVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
         userId: string;
@@ -516,20 +678,30 @@ export declare class AdminCatalogController {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
         tempPassword: string;
         createdAt: Date;
     }>;
-    updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+    reorderVendors(dto: ReorderVendorsDto): Promise<{
         id: string;
         userId: string;
         businessName: string;
         ownerName: string;
+        phone: string | null;
+        email: string | null;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
@@ -538,21 +710,92 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
+        isOpen: boolean;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
         pickupLat: number;
         pickupLng: number;
-        radiusKm: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        createdAt: Date;
+    }[]>;
+    updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+        id: string;
+        userId: string;
+        businessName: string;
+        ownerName: string;
+        phone: string | null;
+        email: string | null;
+        type: "grocery" | "restaurant" | "both";
+        shopAddress: string | null;
+        gstNumber: string | null;
+        aadhaarNumber: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
+        activity: string;
         isOpen: boolean;
-        businessHours: {
-            day: number;
-            isOpen: boolean;
-            openTime: string;
-            closeTime: string;
-        }[] | null;
+        showInApp: boolean;
+        displayOrder: number;
+        deliveryRadiusKm: number;
+        pickupLat: number;
+        pickupLng: number;
+        locationIsDefault: boolean;
+        commissionPct: number;
+        cashbackPct: number;
+        discountPct: number;
+        rating: number;
+        ratingCount: number;
+        productCount: number;
         createdAt: Date;
     }>;
     deleteVendor(id: string): Promise<{
         success: boolean;
         message: string;
+    }>;
+    getVendorMenuCategories(id: string): Promise<{
+        id: string;
+        restaurantId: string;
+        name: string;
+        sortOrder: number;
+    }[]>;
+    addVendorItem(id: string, dto: CreateAdminVendorItemDto): Promise<{
+        id: string;
+        itemType: "menu_item";
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        isVeg: boolean;
+        categoryId: string;
+        productId?: undefined;
+        stockQty?: undefined;
+    } | {
+        id: string;
+        itemType: "grocery";
+        productId: string;
+        name: string;
+        description: string | null;
+        price: number;
+        unit: string;
+        available: boolean;
+        imageUrl: string | null;
+        categoryId: string;
+        stockQty: number;
+        isVeg?: undefined;
+    }>;
+    updateVendorItem(id: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
+        success: boolean;
+    }>;
+    deleteVendorItem(id: string, itemId: string): Promise<{
+        success: boolean;
     }>;
     listRestaurants(): Promise<{
         id: string;
@@ -587,12 +830,15 @@ export declare class AdminCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
+            attributes: Record<string, string | number | boolean> | null;
+            templateProductId: string | null;
         };
         id: string;
         vendorId: string;
@@ -619,6 +865,55 @@ export declare class AdminCatalogController {
         status: "pending" | "rejected" | "approved";
         rejectionReason: string | null;
         productId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
+    listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
+        vendorName: string;
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    approveCategorySuggestion(user: JwtAccessPayload, id: string, dto: ApproveCategorySuggestionDto): Promise<{
+        category: {
+            id: string;
+            parentId: string | null;
+            name: string;
+            imageUrl: string | null;
+            businessType: string | null;
+            ownerVendorId: string | null;
+            templateCategoryId: string | null;
+        };
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        createdAt: Date;
+    }>;
+    rejectCategorySuggestion(user: JwtAccessPayload, id: string, dto: RejectProductSuggestionDto): Promise<{
+        id: string;
+        vendorId: string;
+        name: string;
+        businessType: string;
+        note: string | null;
+        status: "pending" | "rejected" | "approved";
+        rejectionReason: string | null;
+        categoryId: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
         createdAt: Date;

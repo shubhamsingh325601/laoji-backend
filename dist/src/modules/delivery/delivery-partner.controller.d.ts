@@ -11,6 +11,8 @@ export declare class DeliveryPartnerController {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -29,6 +31,8 @@ export declare class DeliveryPartnerController {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -47,6 +51,8 @@ export declare class DeliveryPartnerController {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;
@@ -65,6 +71,8 @@ export declare class DeliveryPartnerController {
         phone: string | null;
         kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
+        vehicleNumber: string | null;
+        vehicleModel: string | null;
         vehicleLabel: string | null;
         isOnline: boolean;
         currentLat: number | null;

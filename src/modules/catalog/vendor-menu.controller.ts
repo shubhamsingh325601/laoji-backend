@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -7,6 +7,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { CatalogService } from './catalog.service';
 import { UpdateRestaurantDto } from './dto/restaurant.dto';
 import { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
+import { UpdateMealTimingsDto } from './dto/meal-timings.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('vendor')
@@ -24,6 +25,19 @@ export class VendorMenuController {
   async updateRestaurant(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdateRestaurantDto) {
     const vendor = await this.catalog.requireVendor(user.sub);
     return this.catalog.updateRestaurant(vendor.id, dto);
+  }
+
+  // Breakfast/lunch/dinner windows the restaurant's menu items are tagged against.
+  @Get('restaurant/meal-timings')
+  async mealTimings(@CurrentUser() user: JwtAccessPayload) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.getMealTimings(vendor.id);
+  }
+
+  @Put('restaurant/meal-timings')
+  async updateMealTimings(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdateMealTimingsDto) {
+    const vendor = await this.catalog.requireVendor(user.sub);
+    return this.catalog.updateMealTimings(vendor.id, dto);
   }
 
   @Get('menu/categories')

@@ -36,4 +36,15 @@ export class CreateFoodOrderDto {
   @IsString()
   @MaxLength(500)
   instructions?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  couponCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  idempotencyKey?: string;
 }
+

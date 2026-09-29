@@ -25,7 +25,11 @@ const notification_module_1 = require("./modules/notification/notification.modul
 const revenue_module_1 = require("./modules/revenue/revenue.module");
 const order_module_1 = require("./modules/order/order.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const area_manager_module_1 = require("./modules/area-manager/area-manager.module");
+const coupon_module_1 = require("./modules/coupon/coupon.module");
+const banner_module_1 = require("./modules/banner/banner.module");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
+const response_cache_module_1 = require("./common/cache/response-cache.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -34,6 +38,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_module_1.AppConfigModule,
             database_module_1.DatabaseModule,
+            response_cache_module_1.ResponseCacheModule,
             throttler_1.ThrottlerModule.forRoot({
                 throttlers: [
                     { name: 'default', ttl: 60_000, limit: 100 },
@@ -63,6 +68,9 @@ exports.AppModule = AppModule = __decorate([
             revenue_module_1.RevenueModule,
             order_module_1.OrderModule,
             dashboard_module_1.DashboardModule,
+            area_manager_module_1.AreaManagerModule,
+            coupon_module_1.CouponModule,
+            banner_module_1.BannerModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: throttler_guard_1.AppThrottlerGuard },

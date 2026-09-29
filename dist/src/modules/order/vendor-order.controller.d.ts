@@ -9,11 +9,14 @@ export declare class VendorOrderController {
         attemptId: string;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -34,11 +37,14 @@ export declare class VendorOrderController {
     groceryActive(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -59,11 +65,14 @@ export declare class VendorOrderController {
     groceryHistory(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -106,13 +115,22 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -147,13 +165,22 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -191,13 +218,22 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -232,13 +268,22 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -251,11 +296,14 @@ export declare class VendorOrderController {
     foodIncoming(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -277,11 +325,14 @@ export declare class VendorOrderController {
     foodActive(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -303,11 +354,14 @@ export declare class VendorOrderController {
     foodHistory(user: JwtAccessPayload): Promise<({
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -352,6 +406,12 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -363,11 +423,14 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -403,6 +466,12 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -414,11 +483,14 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -454,6 +526,12 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -465,11 +543,14 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -505,6 +586,12 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -516,11 +603,14 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;
@@ -556,6 +646,12 @@ export declare class VendorOrderController {
             area: string;
             city: string;
         };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
         myRating: {
             id: string;
             foodOrderId: string;
@@ -567,11 +663,14 @@ export declare class VendorOrderController {
         };
         id: string;
         customerId: string;
+        idempotencyKey: string | null;
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
         platformCommission: number;
         commissionPct: number;
+        couponCode: string | null;
+        discount: number;
         total: number;
         paymentStatus: string;
         instructions: string | null;

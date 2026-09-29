@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpsertVendorProfileDto = void 0;
+exports.UpdateVendorLocationDto = exports.UpsertVendorProfileDto = void 0;
 const class_validator_1 = require("class-validator");
 const VENDOR_TYPES = ['grocery', 'restaurant', 'both'];
 class UpsertVendorProfileDto {
@@ -25,6 +25,8 @@ class UpsertVendorProfileDto {
     bankAccount;
     bankIfsc;
     upiId;
+    imageUrl;
+    businessType;
 }
 exports.UpsertVendorProfileDto = UpsertVendorProfileDto;
 __decorate([
@@ -47,12 +49,14 @@ __decorate([
     __metadata("design:type", String)
 ], UpsertVendorProfileDto.prototype, "shopAddress", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(-90),
     (0, class_validator_1.Max)(90),
     __metadata("design:type", Number)
 ], UpsertVendorProfileDto.prototype, "pickupLat", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(-180),
     (0, class_validator_1.Max)(180),
@@ -62,7 +66,6 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0.5),
-    (0, class_validator_1.Max)(50),
     __metadata("design:type", Number)
 ], UpsertVendorProfileDto.prototype, "radiusKm", void 0);
 __decorate([
@@ -90,4 +93,31 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpsertVendorProfileDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpsertVendorProfileDto.prototype, "businessType", void 0);
+class UpdateVendorLocationDto {
+    pickupLat;
+    pickupLng;
+}
+exports.UpdateVendorLocationDto = UpdateVendorLocationDto;
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-90),
+    (0, class_validator_1.Max)(90),
+    __metadata("design:type", Number)
+], UpdateVendorLocationDto.prototype, "pickupLat", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-180),
+    (0, class_validator_1.Max)(180),
+    __metadata("design:type", Number)
+], UpdateVendorLocationDto.prototype, "pickupLng", void 0);
 //# sourceMappingURL=vendor-profile.dto.js.map

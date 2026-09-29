@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateAdminVendorDto = exports.CreateAdminVendorDto = void 0;
+exports.ReorderVendorsDto = exports.ReorderVendorItemDto = exports.UpdateAdminVendorDto = exports.CreateAdminVendorDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateAdminVendorDto {
@@ -24,6 +24,13 @@ class CreateAdminVendorDto {
     deliveryRadiusKm;
     commissionPct;
     kycStatus;
+    gstNumber;
+    aadhaarNumber;
+    bankAccount;
+    bankIfsc;
+    upiId;
+    showInApp;
+    displayOrder;
 }
 exports.CreateAdminVendorDto = CreateAdminVendorDto;
 __decorate([
@@ -83,6 +90,41 @@ __decorate([
     (0, class_validator_1.IsIn)(['unverified', 'pending', 'verified', 'rejected']),
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "kycStatus", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "gstNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "aadhaarNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "bankIfsc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateAdminVendorDto.prototype, "showInApp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateAdminVendorDto.prototype, "displayOrder", void 0);
 class UpdateAdminVendorDto {
     businessName;
     ownerName;
@@ -90,6 +132,8 @@ class UpdateAdminVendorDto {
     email;
     type;
     shopAddress;
+    pickupLat;
+    pickupLng;
     deliveryRadiusKm;
     commissionPct;
     cashbackPct;
@@ -98,6 +142,14 @@ class UpdateAdminVendorDto {
     maxDiscountCap;
     kycStatus;
     activity;
+    isOpen;
+    gstNumber;
+    aadhaarNumber;
+    bankAccount;
+    bankIfsc;
+    upiId;
+    showInApp;
+    displayOrder;
 }
 exports.UpdateAdminVendorDto = UpdateAdminVendorDto;
 __decorate([
@@ -132,6 +184,20 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "shopAddress", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-90),
+    (0, class_validator_1.Max)(90),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "pickupLat", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(-180),
+    (0, class_validator_1.Max)(180),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "pickupLng", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
@@ -172,4 +238,70 @@ __decorate([
     (0, class_validator_1.IsIn)(['active', 'inactive']),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "activity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateAdminVendorDto.prototype, "isOpen", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "gstNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "aadhaarNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "bankIfsc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "upiId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateAdminVendorDto.prototype, "showInApp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateAdminVendorDto.prototype, "displayOrder", void 0);
+class ReorderVendorItemDto {
+    id;
+    displayOrder;
+}
+exports.ReorderVendorItemDto = ReorderVendorItemDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ReorderVendorItemDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ReorderVendorItemDto.prototype, "displayOrder", void 0);
+class ReorderVendorsDto {
+    orders;
+    vendorIds;
+}
+exports.ReorderVendorsDto = ReorderVendorsDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ReorderVendorsDto.prototype, "orders", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ReorderVendorsDto.prototype, "vendorIds", void 0);
 //# sourceMappingURL=admin-vendor.dto.js.map

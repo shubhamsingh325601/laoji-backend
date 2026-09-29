@@ -18,20 +18,23 @@ export class UpsertVendorProfileDto {
   @IsString()
   shopAddress?: string;
 
+  // Required when the profile is first created; on later edits, omitting
+  // them keeps the stored pickup point (PATCH /vendors/me/location moves it).
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  pickupLat: number;
+  pickupLat?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  pickupLng: number;
+  pickupLng?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0.5)
-  @Max(50)
   radiusKm?: number;
 
   @IsOptional()
@@ -53,4 +56,24 @@ export class UpsertVendorProfileDto {
   @IsOptional()
   @IsString()
   upiId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
+}
+
+export class UpdateVendorLocationDto {
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  pickupLat: number;
+
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  pickupLng: number;
 }

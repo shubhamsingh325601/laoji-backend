@@ -25,8 +25,25 @@ let NotificationController = class NotificationController {
     constructor(notifications) {
         this.notifications = notifications;
     }
+    getMyNotifications(user, limit) {
+        const parsedLimit = limit ? Math.min(100, Math.max(1, parseInt(limit, 10) || 50)) : 50;
+        return this.notifications.listForUser(user.sub, parsedLimit);
+    }
+    async deleteNotification(user, id) {
+        await this.notifications.deleteForUser(user.sub, id);
+        return { ok: true };
+    }
+    async clearAllNotifications(user) {
+        await this.notifications.clearAllForUser(user.sub);
+        return { ok: true };
+    }
     registerDeviceToken(user, dto) {
         return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform);
+    }
+    async unregisterDeviceToken(user, queryToken, body) {
+        const fcmToken = queryToken || body?.fcmToken;
+        await this.notifications.unregisterDeviceToken(user.sub, fcmToken);
+        return { ok: true };
     }
     async contactSupport(user, dto) {
         await this.notifications.sendSupportMessage(user.sub, user.role, dto.subject, dto.message);
@@ -35,6 +52,29 @@ let NotificationController = class NotificationController {
 };
 exports.NotificationController = NotificationController;
 __decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], NotificationController.prototype, "getMyNotifications", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "deleteNotification", null);
+__decorate([
+    (0, common_1.Delete)(),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "clearAllNotifications", null);
+__decorate([
     (0, common_1.Post)('device-token'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
@@ -42,6 +82,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, register_device_token_dto_1.RegisterDeviceTokenDto]),
     __metadata("design:returntype", void 0)
 ], NotificationController.prototype, "registerDeviceToken", null);
+__decorate([
+    (0, common_1.Delete)('device-token'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('fcmToken')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "unregisterDeviceToken", null);
 __decorate([
     (0, throttler_1.Throttle)({ supportContact: { limit: 5, ttl: 60_000 } }),
     (0, common_1.Post)('support'),

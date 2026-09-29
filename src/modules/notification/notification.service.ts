@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { deviceTokens, notificationLog, users } from '../../../drizzle/schema';
@@ -28,6 +28,12 @@ export class NotificationService {
   ) {}
 
   async registerDeviceToken(userId: string, fcmToken: string, platform: Platform) {
+    // A device push token belongs to one physical device installation.
+    // Disassociate this token from any other accounts so previous accounts on this device don't receive pushes.
+    await this.db
+      .delete(deviceTokens)
+      .where(and(eq(deviceTokens.fcmToken, fcmToken), ne(deviceTokens.userId, userId)));
+
     const [existing] = await this.db
       .select()
       .from(deviceTokens)
@@ -46,8 +52,27 @@ export class NotificationService {
     return created;
   }
 
+  async unregisterDeviceToken(userId: string, fcmToken?: string) {
+    if (fcmToken) {
+      await this.db
+        .delete(deviceTokens)
+        .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.fcmToken, fcmToken)));
+    } else {
+      await this.db
+        .delete(deviceTokens)
+        .where(eq(deviceTokens.userId, userId));
+    }
+  }
+
   notifyPush(userId: string, template: string, message: PushMessage): void {
-    this.jobQueue.schedule(`notify-push:${randomUUID()}`, 0, () => this.dispatchPush(userId, template, message));
+    const payloadWithRecipient: PushMessage = {
+      ...message,
+      data: {
+        ...(message.data || {}),
+        recipientUserId: userId,
+      },
+    };
+    this.jobQueue.schedule(`notify-push:${randomUUID()}`, 0, () => this.dispatchPush(userId, template, payloadWithRecipient));
   }
 
   notifyEmail(userId: string, template: string, message: EmailMessage): void {
@@ -120,6 +145,11 @@ export class NotificationService {
     }
   }
 
+  // Direct email sending for alerts, area managers, etc.
+  async sendDirectEmail(to: string, message: EmailMessage) {
+    return this.email.send(to, message);
+  }
+
   // Welcome emails with corporate signature for invited users
   async sendWelcomeCustomerEmail(user: { id: string; name?: string; email?: string; phone?: string }) {
     if (!user.email) return;
@@ -174,6 +204,8 @@ export class NotificationService {
     email?: string;
     title: string;
     message: string;
+    imageUrl?: string;
+    link?: string;
   }) {
     let targetUsers: { id: string; email?: string | null; phone?: string | null }[] = [];
 
@@ -211,7 +243,13 @@ export class NotificationService {
         this.notifyPush(u.id, 'admin_broadcast', {
           title: dto.title,
           body: dto.message,
-          data: { type: 'admin_broadcast', target: dto.target },
+          imageUrl: dto.imageUrl,
+          data: {
+            type: 'admin_broadcast',
+            target: dto.target,
+            ...(dto.link ? { link: dto.link } : {}),
+            ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
+          },
         });
       }
 
@@ -262,4 +300,41 @@ export class NotificationService {
       };
     });
   }
+
+  async listForUser(userId: string, limit = 50) {
+    const rows = await this.db
+      .select()
+      .from(notificationLog)
+      .where(eq(notificationLog.userId, userId))
+      .orderBy(desc(notificationLog.createdAt))
+      .limit(limit);
+
+    return rows.map((r) => {
+      const payload = (r.payloadJson || {}) as any;
+      return {
+        id: r.id,
+        channel: r.channel,
+        template: r.template,
+        title: payload.title || (r.template === 'order_placed' ? 'New Order' : 'Notification'),
+        body: payload.body || payload.message || payload.text || '',
+        data: payload.data || {},
+        imageUrl: payload.imageUrl || null,
+        status: r.status,
+        createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString(),
+      };
+    });
+  }
+
+  async deleteForUser(userId: string, id: string) {
+    await this.db
+      .delete(notificationLog)
+      .where(and(eq(notificationLog.id, id), eq(notificationLog.userId, userId)));
+  }
+
+  async clearAllForUser(userId: string) {
+    await this.db
+      .delete(notificationLog)
+      .where(eq(notificationLog.userId, userId));
+  }
 }
+

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min, ValidateIf } from 'class-validator';
 
 export class CreateAdminVendorDto {
   @IsString()
@@ -47,6 +47,34 @@ export class CreateAdminVendorDto {
   @IsOptional()
   @IsIn(['unverified', 'pending', 'verified', 'rejected'])
   kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccount?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  displayOrder?: number;
 }
 
 export class UpdateAdminVendorDto {
@@ -75,6 +103,19 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsString()
   shopAddress?: string;
+
+  // Pickup point correction; applied only when both are sent.
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  pickupLng?: number;
 
   @IsOptional()
   @IsNumber()
@@ -107,4 +148,52 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   activity?: 'active' | 'inactive';
+
+  @IsOptional()
+  @IsBoolean()
+  isOpen?: boolean;
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccount?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  displayOrder?: number;
+}
+
+export class ReorderVendorItemDto {
+  @IsString()
+  id: string;
+
+  @IsNumber()
+  displayOrder: number;
+}
+
+export class ReorderVendorsDto {
+  @IsOptional()
+  orders?: ReorderVendorItemDto[];
+
+  @IsOptional()
+  vendorIds?: string[];
 }

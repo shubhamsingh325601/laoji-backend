@@ -22,7 +22,9 @@ const catalog_service_1 = require("./catalog.service");
 const category_dto_1 = require("./dto/category.dto");
 const product_dto_1 = require("./dto/product.dto");
 const product_suggestion_dto_1 = require("./dto/product-suggestion.dto");
+const category_suggestion_dto_1 = require("./dto/category-suggestion.dto");
 const admin_vendor_dto_1 = require("./dto/admin-vendor.dto");
+const admin_vendor_item_dto_1 = require("./dto/admin-vendor-item.dto");
 let AdminCatalogController = class AdminCatalogController {
     catalog;
     constructor(catalog) {
@@ -58,14 +60,32 @@ let AdminCatalogController = class AdminCatalogController {
     getVendor(id) {
         return this.catalog.getAdminVendor(id);
     }
+    getVendorListings(id) {
+        return this.catalog.getAdminVendorListings(id);
+    }
     createVendor(dto) {
         return this.catalog.createAdminVendor(dto);
+    }
+    reorderVendors(dto) {
+        return this.catalog.reorderVendors(dto);
     }
     updateVendor(id, dto) {
         return this.catalog.updateAdminVendor(id, dto);
     }
     deleteVendor(id) {
         return this.catalog.deleteAdminVendor(id);
+    }
+    getVendorMenuCategories(id) {
+        return this.catalog.listMenuCategories(id);
+    }
+    addVendorItem(id, dto) {
+        return this.catalog.addAdminVendorItem(id, dto);
+    }
+    updateVendorItem(id, itemId, dto) {
+        return this.catalog.updateAdminVendorItem(id, itemId, dto);
+    }
+    deleteVendorItem(id, itemId) {
+        return this.catalog.deleteAdminVendorItem(id, itemId);
     }
     listRestaurants() {
         return this.catalog.listRestaurantsBasic();
@@ -81,6 +101,15 @@ let AdminCatalogController = class AdminCatalogController {
     }
     rejectProductSuggestion(user, id, dto) {
         return this.catalog.rejectProductSuggestion(user.sub, id, dto.reason);
+    }
+    listCategorySuggestions(status) {
+        return this.catalog.listCategorySuggestions(status);
+    }
+    approveCategorySuggestion(user, id, dto) {
+        return this.catalog.approveCategorySuggestion(user.sub, id, dto);
+    }
+    rejectCategorySuggestion(user, id, dto) {
+        return this.catalog.rejectCategorySuggestion(user.sub, id, dto.reason);
     }
 };
 exports.AdminCatalogController = AdminCatalogController;
@@ -154,12 +183,26 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "getVendor", null);
 __decorate([
+    (0, common_1.Get)('vendors/:id/listings'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "getVendorListings", null);
+__decorate([
     (0, common_1.Post)('vendors'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [admin_vendor_dto_1.CreateAdminVendorDto]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "createVendor", null);
+__decorate([
+    (0, common_1.Put)('vendors/reorder'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [admin_vendor_dto_1.ReorderVendorsDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "reorderVendors", null);
 __decorate([
     (0, common_1.Patch)('vendors/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -175,6 +218,38 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "deleteVendor", null);
+__decorate([
+    (0, common_1.Get)('vendors/:id/menu-categories'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "getVendorMenuCategories", null);
+__decorate([
+    (0, common_1.Post)('vendors/:id/items'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_vendor_item_dto_1.CreateAdminVendorItemDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "addVendorItem", null);
+__decorate([
+    (0, common_1.Patch)('vendors/:id/items/:itemId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_vendor_item_dto_1.UpdateAdminVendorItemDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "updateVendorItem", null);
+__decorate([
+    (0, common_1.Delete)('vendors/:id/items/:itemId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "deleteVendorItem", null);
 __decorate([
     (0, common_1.Get)('restaurants'),
     __metadata("design:type", Function),
@@ -211,6 +286,31 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, product_suggestion_dto_1.RejectProductSuggestionDto]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "rejectProductSuggestion", null);
+__decorate([
+    (0, common_1.Get)('category-suggestions'),
+    __param(0, (0, common_1.Query)('status')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "listCategorySuggestions", null);
+__decorate([
+    (0, common_1.Post)('category-suggestions/:id/approve'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, category_suggestion_dto_1.ApproveCategorySuggestionDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "approveCategorySuggestion", null);
+__decorate([
+    (0, common_1.Post)('category-suggestions/:id/reject'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, product_suggestion_dto_1.RejectProductSuggestionDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "rejectCategorySuggestion", null);
 exports.AdminCatalogController = AdminCatalogController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),

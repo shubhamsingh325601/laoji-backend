@@ -37,4 +37,12 @@ export class SendAdminNotificationDto {
   @IsString()
   @Length(1, 4000)
   message: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  link?: string;
 }

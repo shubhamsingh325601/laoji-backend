@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -32,11 +32,13 @@ import { CatalogService } from '../catalog/catalog.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
-import { orderPlacedCustomerPush, orderPlacedVendorPush } from '../notification/templates/push/order-placed';
+import { orderPlacedVendorPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
-import { RevenueConfigService } from '../revenue/revenue-config.service';
-import { isVendorOpenNow } from '../catalog/catalog.types';
+import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
+import { CouponService } from '../coupon/coupon.service';
+import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
+import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -53,7 +55,14 @@ export class OrderService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly revenueConfig: RevenueConfigService,
-  ) {}
+    private readonly coupons: CouponService,
+  ) {
+    this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
+      this.handlePaymentSatisfied(type, orderId).catch((err) => {
+        console.error('[OrderService] handlePaymentSatisfied error:', err);
+      });
+    });
+  }
 
   private orderCode(orderId: string): string {
     return orderId.slice(0, 8).toUpperCase();
@@ -61,7 +70,9 @@ export class OrderService {
 
   // ---------- Customer: checkout ----------
 
-  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+  // Everything a grocery checkout charges, worked out once for both the quote
+  // and the real order so the app never shows a price the order won't use.
+  private async priceGroceryCart(customerId: string, dto: CreateGroceryOrderDto) {
     const [address] = await this.db
       .select()
       .from(addresses)
@@ -89,55 +100,183 @@ export class OrderService {
     // there's no single "the" category to resolve against otherwise;
     // flagged in CLAUDE.md, not silently assumed correct for every cart.
     const [firstProduct] = await this.db.select().from(products).where(eq(products.id, dto.items[0].productId)).limit(1);
-    const revenue = await this.revenueConfig.resolve(candidate.vendorId, firstProduct?.categoryId ?? null);
-    const deliveryFee = revenue.deliveryFeeFlat;
-    const commissionPct = revenue.commissionPct;
-    const total = subtotal + deliveryFee;
-
-    const [order] = await this.db
-      .insert(groceryOrders)
-      .values({
-        customerId,
-        status: 'placed',
-        subtotal,
-        deliveryFee,
-        platformCommission: subtotal * commissionPct,
-        commissionPct,
-        total,
-        instructions: dto.instructions ?? null,
-        vendorId: candidate.vendorId,
-        deliveryAddressId: dto.deliveryAddressId,
-      })
-      .returning();
-
-    await this.db.insert(groceryOrderItems).values(
-      dto.items.map((line) => ({
-        groceryOrderId: order.id,
-        productId: line.productId,
-        qty: line.qty,
-        unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
-      })),
-    );
-
-    await this.db.insert(orderStatusHistory).values({
-      groceryOrderId: order.id,
-      status: 'placed',
-      actorRole: 'customer',
-      changedBy: customerId,
-    });
-
-    await this.allocation.createAttempt(order.id, candidate.vendorId, 1);
-
-    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
-    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, candidate.vendorId)).limit(1);
-    if (vendorRow) {
-      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
-    }
-
-    return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+    // Rules are set on Laoji categories; a store's own copy of one counts as it.
+    const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
+    const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
+    const distanceKm = candidate.distance ?? 1;
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    return { candidate, revenue, ...pricing };
   }
 
-  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+  // Delivery fee, minimum order and voucher on top of an item subtotal.
+  // couponCode: a code applies that voucher; undefined (field left out) lets
+  // an eligible welcome voucher apply itself; '' means "no voucher".
+  private async priceTotals(
+    customerId: string,
+    subtotal: number,
+    distanceKm: number,
+    revenue: ResolvedRevenueConfig,
+    couponCode: string | undefined,
+  ) {
+    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    const ctx = { subtotal, deliveryFee, userId: customerId };
+    let code = couponCode?.trim().toUpperCase() ?? '';
+    let autoApplied = false;
+    let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
+    if (couponCode === undefined && subtotal >= revenue.minOrderValue) {
+      const auto = await this.coupons.findAutoApply(ctx);
+      if (auto) {
+        code = auto.code;
+        coupon = auto.evaluation;
+        autoApplied = true;
+      }
+    }
+    const discount = coupon?.valid ? coupon.discount : 0;
+    return {
+      subtotal,
+      distanceKm: roundKm(distanceKm),
+      deliveryFee,
+      discount,
+      total: Math.max(0, subtotal + deliveryFee - discount),
+      minOrderValue: revenue.minOrderValue,
+      freeDeliveryThreshold: revenue.freeDeliveryThreshold,
+      coupon: coupon
+        ? { code, valid: coupon.valid, message: coupon.message, autoApplied, details: coupon.coupon ?? null }
+        : null,
+    };
+  }
+
+  private toQuote(p: Awaited<ReturnType<OrderService['priceTotals']>>) {
+    // A free-delivery voucher already zeroes the fee, so "add ₹X more for
+    // free delivery" would be misleading.
+    const deliveryAlreadyFree =
+      p.deliveryFee <= 0 || (!!p.coupon?.valid && p.coupon.details?.discountType === 'free_delivery');
+    return {
+      ...p,
+      belowMinimum: p.subtotal < p.minOrderValue,
+      amountToMinimum: Math.max(0, p.minOrderValue - p.subtotal),
+      amountToFreeDelivery: deliveryAlreadyFree ? 0 : Math.max(0, p.freeDeliveryThreshold - p.subtotal),
+    };
+  }
+
+  // Checkout refuses what the quote would have flagged.
+  private assertOrderable(p: Awaited<ReturnType<OrderService['priceTotals']>>) {
+    if (p.subtotal < p.minOrderValue) {
+      throw new BadRequestException(
+        `Minimum order is ₹${p.minOrderValue} — add ₹${p.minOrderValue - p.subtotal} more to place this order`,
+      );
+    }
+    if (p.coupon && !p.coupon.valid) {
+      throw new BadRequestException(p.coupon.message);
+    }
+  }
+
+  async quoteGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+    const { candidate: _candidate, revenue: _revenue, ...pricing } = await this.priceGroceryCart(customerId, dto);
+    return this.toQuote(pricing);
+  }
+
+  async quoteFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+    const { pricing } = await this.priceFoodCart(customerId, dto);
+    return this.toQuote(pricing);
+  }
+
+  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+    const idempotencyKey = dto.idempotencyKey?.trim() || null;
+    if (idempotencyKey) {
+      const [existing] = await this.db
+        .select()
+        .from(groceryOrders)
+        .where(and(eq(groceryOrders.customerId, customerId), eq(groceryOrders.idempotencyKey, idempotencyKey)))
+        .limit(1);
+      if (existing) {
+        return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+      }
+    } else {
+      const fiveSecondsAgo = new Date(Date.now() - 5000);
+      const [recentPlaced] = await this.db
+        .select()
+        .from(groceryOrders)
+        .where(
+          and(
+            eq(groceryOrders.customerId, customerId),
+            eq(groceryOrders.deliveryAddressId, dto.deliveryAddressId),
+            eq(groceryOrders.status, 'placed'),
+            gte(groceryOrders.createdAt, fiveSecondsAgo),
+          ),
+        )
+        .orderBy(desc(groceryOrders.createdAt))
+        .limit(1);
+      if (recentPlaced) {
+        return this.getGroceryOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+      }
+    }
+
+    const priced = await this.priceGroceryCart(customerId, dto);
+    this.assertOrderable(priced);
+    const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
+    const commissionPct = revenue.commissionPct;
+
+    try {
+      const [order] = await this.db
+        .insert(groceryOrders)
+        .values({
+          customerId,
+          idempotencyKey,
+          status: 'placed',
+          subtotal,
+          deliveryFee,
+          platformCommission: subtotal * commissionPct,
+          commissionPct,
+          couponCode: discount > 0 ? priced.coupon!.code : null,
+          discount,
+          total,
+          instructions: dto.instructions ?? null,
+          vendorId: candidate.vendorId,
+          deliveryAddressId: dto.deliveryAddressId,
+        })
+        .returning();
+
+      await this.db.insert(groceryOrderItems).values(
+        dto.items.map((line) => ({
+          groceryOrderId: order.id,
+          productId: line.productId,
+          qty: line.qty,
+          unitPrice: candidate.unitPrices.get(line.productId) ?? 0,
+        })),
+      );
+
+      await this.db.insert(orderStatusHistory).values({
+        groceryOrderId: order.id,
+        status: 'placed',
+        actorRole: 'customer',
+        changedBy: customerId,
+      });
+
+      // Customer and vendor notifications are deferred until payment is satisfied
+      // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
+      return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
+    } catch (err: any) {
+      if (
+        idempotencyKey &&
+        (err?.code === '23505' ||
+          err?.message?.includes('grocery_orders_customer_idempotency_idx') ||
+          err?.message?.includes('idempotency'))
+      ) {
+        const [existing] = await this.db
+          .select()
+          .from(groceryOrders)
+          .where(and(eq(groceryOrders.customerId, customerId), eq(groceryOrders.idempotencyKey, idempotencyKey)))
+          .limit(1);
+        if (existing) {
+          return this.getGroceryOrder(existing.id, { userId: customerId, role: 'customer' });
+        }
+      }
+      throw err;
+    }
+  }
+
+  private async priceFoodCart(customerId: string, dto: CreateFoodOrderDto) {
     const [address] = await this.db
       .select()
       .from(addresses)
@@ -153,7 +292,15 @@ export class OrderService {
     // whether checkout is allowed, not just the stored column.
     const [restaurantVendor] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
     if (!restaurant.isOpen || !restaurantVendor || !isVendorOpenNow(restaurantVendor)) {
-      throw new BadRequestException('Restaurant not available');
+      throw new BadRequestException('This restaurant is currently closed and not accepting new orders');
+    }
+    // Same radius rule as customer browse and grocery allocation: only a
+    // restaurant whose delivery radius covers the address can take the order.
+    const distanceKm = haversineKm(address.lat, address.lng, restaurantVendor.pickupLat, restaurantVendor.pickupLng);
+    if (distanceKm > restaurantVendor.radiusKm) {
+      throw new BadRequestException(
+        `This restaurant doesn't deliver to your address (${roundKm(distanceKm)} km away, delivers within ${restaurantVendor.radiusKm} km)`,
+      );
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
@@ -176,6 +323,20 @@ export class OrderService {
       throw new BadRequestException(
         `Menu item "${foreignItem.name}" does not belong to this restaurant — an order can only contain items from one restaurant`,
       );
+    }
+    // Every item has to be orderable now: switched on by the restaurant, and
+    // inside one of its meal slots if it's tagged with any.
+    const timings = effectiveMealTimings(restaurant.mealTimings);
+    const now = new Date();
+    for (const item of items) {
+      if (!item.isAvailable) {
+        throw new BadRequestException(`"${item.name}" is currently unavailable`);
+      }
+      if (!isServedNow(item.mealSlots, timings, now)) {
+        throw new BadRequestException(
+          `"${item.name}" is only served during ${describeMealSlots(item.mealSlots ?? [], timings)}`,
+        );
+      }
     }
 
     const itemById = new Map(items.map((i) => [i.id, i]));
@@ -213,55 +374,117 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const deliveryFee = revenue.deliveryFeeFlat;
-    const commissionPct = revenue.commissionPct;
-    const total = subtotal + deliveryFee;
-    const [order] = await this.db
-      .insert(foodOrders)
-      .values({
-        customerId,
-        status: 'placed',
-        subtotal,
-        deliveryFee,
-        platformCommission: subtotal * commissionPct,
-        commissionPct,
-        total,
-        instructions: dto.instructions ?? null,
-        restaurantId: dto.restaurantId,
-        deliveryAddressId: dto.deliveryAddressId,
-      })
-      .returning();
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    return { revenue, orderItemRows, pricing };
+  }
 
-    await this.db.insert(foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
-
-    await this.db.insert(orderStatusHistory).values({
-      foodOrderId: order.id,
-      status: 'placed',
-      actorRole: 'customer',
-      changedBy: customerId,
-    });
-
-    this.notifications.notifyPush(customerId, 'order_placed', orderPlacedCustomerPush(this.orderCode(order.id), total));
-    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
-    if (vendorRow) {
-      this.notifications.notifyPush(vendorRow.userId, 'order_placed', orderPlacedVendorPush(this.orderCode(order.id), dto.items.length));
+  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+    const idempotencyKey = dto.idempotencyKey?.trim() || null;
+    if (idempotencyKey) {
+      const [existing] = await this.db
+        .select()
+        .from(foodOrders)
+        .where(and(eq(foodOrders.customerId, customerId), eq(foodOrders.idempotencyKey, idempotencyKey)))
+        .limit(1);
+      if (existing) {
+        return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+      }
+    } else {
+      const fiveSecondsAgo = new Date(Date.now() - 5000);
+      const [recentPlaced] = await this.db
+        .select()
+        .from(foodOrders)
+        .where(
+          and(
+            eq(foodOrders.customerId, customerId),
+            eq(foodOrders.restaurantId, dto.restaurantId),
+            eq(foodOrders.deliveryAddressId, dto.deliveryAddressId),
+            eq(foodOrders.status, 'placed'),
+            gte(foodOrders.createdAt, fiveSecondsAgo),
+          ),
+        )
+        .orderBy(desc(foodOrders.createdAt))
+        .limit(1);
+      if (recentPlaced) {
+        return this.getFoodOrder(recentPlaced.id, { userId: customerId, role: 'customer' });
+      }
     }
 
-    return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+    const { revenue, orderItemRows, pricing } = await this.priceFoodCart(customerId, dto);
+    this.assertOrderable(pricing);
+    const { subtotal, deliveryFee, discount, total } = pricing;
+    const commissionPct = revenue.commissionPct;
+
+    try {
+      const [order] = await this.db
+        .insert(foodOrders)
+        .values({
+          customerId,
+          idempotencyKey,
+          status: 'placed',
+          subtotal,
+          deliveryFee,
+          platformCommission: subtotal * commissionPct,
+          commissionPct,
+          couponCode: discount > 0 ? pricing.coupon!.code : null,
+          discount,
+          total,
+          instructions: dto.instructions ?? null,
+          restaurantId: dto.restaurantId,
+          deliveryAddressId: dto.deliveryAddressId,
+        })
+        .returning();
+
+      await this.db.insert(foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
+
+      await this.db.insert(orderStatusHistory).values({
+        foodOrderId: order.id,
+        status: 'placed',
+        actorRole: 'customer',
+        changedBy: customerId,
+      });
+
+      // Customer and vendor notifications are deferred until payment is satisfied
+      // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
+      return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
+    } catch (err: any) {
+      if (
+        idempotencyKey &&
+        (err?.code === '23505' ||
+          err?.message?.includes('food_orders_customer_idempotency_idx') ||
+          err?.message?.includes('idempotency'))
+      ) {
+        const [existing] = await this.db
+          .select()
+          .from(foodOrders)
+          .where(and(eq(foodOrders.customerId, customerId), eq(foodOrders.idempotencyKey, idempotencyKey)))
+          .limit(1);
+        if (existing) {
+          return this.getFoodOrder(existing.id, { userId: customerId, role: 'customer' });
+        }
+      }
+      throw err;
+    }
   }
 
   // ---------- Customer: read own orders ----------
 
   async listMyGroceryOrders(customerId: string) {
-    return this.db
+    const orders = await this.db
       .select()
       .from(groceryOrders)
       .where(eq(groceryOrders.customerId, customerId))
       .orderBy(desc(groceryOrders.createdAt));
+    return this.attachGroceryItems(orders);
   }
 
   async listMyFoodOrders(customerId: string) {
-    return this.db.select().from(foodOrders).where(eq(foodOrders.customerId, customerId)).orderBy(desc(foodOrders.createdAt));
+    const orders = await this.db
+      .select()
+      .from(foodOrders)
+      .where(eq(foodOrders.customerId, customerId))
+      .orderBy(desc(foodOrders.createdAt));
+    return this.attachFoodItems(orders);
   }
 
   async getGroceryOrder(id: string, requester: { userId: string; role: string }) {
@@ -276,7 +499,8 @@ export class OrderService {
       .where(eq(orderStatusHistory.groceryOrderId, id))
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
-    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer }, requester);
+    const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
+    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner }, requester);
   }
 
   async getFoodOrder(id: string, requester: { userId: string; role: string }) {
@@ -292,9 +516,10 @@ export class OrderService {
       .where(eq(orderStatusHistory.foodOrderId, id))
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
+    const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
     const [rating] = await this.db.select().from(foodOrderRatings).where(eq(foodOrderRatings.foodOrderId, id)).limit(1);
     return this.withOtpVisibility(
-      { ...order, items, history: await this.enrichHistory(history), customer, myRating: rating ?? null },
+      { ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner, myRating: rating ?? null },
       requester,
     );
   }
@@ -367,15 +592,24 @@ export class OrderService {
     });
   }
 
-  // No customer "name" field exists anywhere yet (accounts are phone+OTP
-  // only, no profile/name capture in any phase so far) — phone stands in
-  // for it. Addresses only store one formattedAddress string, not
-  // line1/area/city, so those are left blank rather than guessed at.
+  private async getDeliveryPartnerSummary(deliveryPartnerId: string | null) {
+    if (!deliveryPartnerId) return null;
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, deliveryPartnerId)).limit(1);
+    if (!partner) return null;
+    const [user] = await this.db.select().from(users).where(eq(users.id, partner.userId)).limit(1);
+    return {
+      id: partner.id,
+      name: user?.name || user?.phone || 'Delivery Partner',
+      phone: user?.phone || '',
+      vehicleType: partner.vehicleType || 'Bike',
+    };
+  }
+
   private async customerSummary(customerId: string, deliveryAddressId: string) {
     const [user] = await this.db.select().from(users).where(eq(users.id, customerId)).limit(1);
     const [address] = await this.db.select().from(addresses).where(eq(addresses.id, deliveryAddressId)).limit(1);
     return {
-      name: user?.phone ?? 'Customer',
+      name: user?.name || user?.phone || 'Customer',
       phone: user?.phone ?? '',
       line1: address?.formattedAddress ?? '',
       area: '',
@@ -410,13 +644,62 @@ export class OrderService {
     return orders.map((o) => ({ ...o, items: items.filter((i) => i.foodOrderId === o.id) }));
   }
 
+  async handlePaymentSatisfied(type: 'grocery' | 'food', orderId: string) {
+    if (type === 'grocery') {
+      const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, orderId)).limit(1);
+      if (!order || !order.vendorId) return;
+
+      // Idempotency check: don't create multiple attempts for the same order
+      const [existingAttempt] = await this.db
+        .select()
+        .from(allocationAttempts)
+        .where(eq(allocationAttempts.groceryOrderId, orderId))
+        .limit(1);
+
+      if (!existingAttempt) {
+        await this.allocation.createAttempt(order.id, order.vendorId, 1);
+        const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, order.vendorId)).limit(1);
+        if (vendorRow && vendorRow.userId !== order.customerId) {
+          const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, order.id));
+          this.notifications.notifyPush(
+            vendorRow.userId,
+            'order_placed',
+            orderPlacedVendorPush(this.orderCode(order.id), items.length, order.id, 'grocery'),
+          );
+        }
+      }
+    } else {
+      const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
+      if (!order || !order.restaurantId) return;
+
+      const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
+      if (restaurant && restaurant.vendorId) {
+        const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, restaurant.vendorId)).limit(1);
+        if (vendorRow && vendorRow.userId !== order.customerId) {
+          const items = await this.db.select().from(foodOrderItems).where(eq(foodOrderItems.foodOrderId, order.id));
+          this.notifications.notifyPush(
+            vendorRow.userId,
+            'order_placed',
+            orderPlacedVendorPush(this.orderCode(order.id), items.length, order.id, 'food'),
+          );
+        }
+      }
+    }
+  }
+
   async listVendorIncomingGroceryOrders(userId: string) {
     const vendor = await this.catalog.requireVendor(userId);
     const rows = await this.db
       .select({ attempt: allocationAttempts, order: groceryOrders })
       .from(allocationAttempts)
       .innerJoin(groceryOrders, eq(allocationAttempts.groceryOrderId, groceryOrders.id))
-      .where(and(eq(allocationAttempts.vendorId, vendor.id), eq(allocationAttempts.outcome, 'pending')));
+      .where(
+        and(
+          eq(allocationAttempts.vendorId, vendor.id),
+          eq(allocationAttempts.outcome, 'pending'),
+          inArray(groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
+        ),
+      );
     const orders = rows.map((r) => ({ ...r.order, slaDeadline: r.attempt.slaDeadline, attemptId: r.attempt.id }));
     return this.attachGroceryItems(orders);
   }
@@ -503,7 +786,11 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
-    this.notifications.notifyPush(updated.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      updated.customerId,
+      'order_confirmed',
+      orderConfirmedCustomerPush(this.orderCode(orderId), orderId, 'grocery'),
+    );
     return this.getGroceryOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -558,8 +845,8 @@ export class OrderService {
       changedBy: userId,
     });
 
-    // Vendor's last manual action — hand off to Delivery for partner matching.
-    if (dto.status === 'handed_over') {
+    // Auto-match delivery partner as soon as order is preparing, ready, or handed over
+    if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
       await this.delivery.triggerAssignment('grocery', orderId);
     }
 
@@ -596,7 +883,13 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(foodOrders)
-      .where(and(eq(foodOrders.restaurantId, restaurant.id), eq(foodOrders.status, 'placed')))
+      .where(
+        and(
+          eq(foodOrders.restaurantId, restaurant.id),
+          eq(foodOrders.status, 'placed'),
+          inArray(foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
+        ),
+      )
       .orderBy(desc(foodOrders.createdAt));
     return this.attachFoodItems(orders);
   }
@@ -643,7 +936,11 @@ export class OrderService {
       actorRole: 'vendor',
       changedBy: userId,
     });
-    this.notifications.notifyPush(order.customerId, 'order_confirmed', orderConfirmedCustomerPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      order.customerId,
+      'order_confirmed',
+      orderConfirmedCustomerPush(this.orderCode(orderId), orderId, 'food'),
+    );
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -672,8 +969,12 @@ export class OrderService {
     // even though the vendor caused it themselves (rejecting is the only
     // real 'cancelled' trigger this row can attach to) — harmless, just a
     // same-action confirmation rather than a true third-party alert.
-    this.notifications.notifyPush(order.customerId, 'order_cancelled', orderCancelledCustomerPush(this.orderCode(orderId)));
-    this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId)));
+    this.notifications.notifyPush(
+      order.customerId,
+      'order_cancelled',
+      orderCancelledCustomerPush(this.orderCode(orderId), orderId, 'food'),
+    );
+    this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId), orderId));
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -690,7 +991,8 @@ export class OrderService {
       changedBy: userId,
     });
 
-    if (dto.status === 'handed_over') {
+    // Auto-match delivery partner as soon as order is preparing, ready, or handed over
+    if (dto.status === 'ready' || dto.status === 'handed_over' || dto.status === 'preparing') {
       await this.delivery.triggerAssignment('food', orderId);
     }
 
@@ -797,12 +1099,12 @@ export class OrderService {
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, updated);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
     if (updated.deliveryPartnerId) {
       const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
-      if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode));
+      if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode, orderId));
     }
 
     return type === 'grocery'
@@ -833,9 +1135,9 @@ export class OrderService {
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
     const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode));
+    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorUserId = await this.vendorUserIdForOrder(type, updated);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode));
+    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })

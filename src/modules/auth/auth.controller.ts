@@ -8,6 +8,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerLoginDto, CustomerRegisterDto } from './dto/customer-auth.dto';
+import { PartnerLoginDto, PartnerRegisterDto } from './dto/partner-auth.dto';
 import { ForgotPasswordRequestDto, ForgotPasswordResetDto } from './dto/forgot-password.dto';
 import { CreatePasswordDto } from './dto/create-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -45,6 +46,30 @@ export class AuthController {
   @Post('customer/register')
   customerRegister(@Body() dto: CustomerRegisterDto) {
     return this.auth.customerRegister(dto);
+  }
+
+  @Throttle({ partnerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('partner/login')
+  partnerLogin(@Body() dto: PartnerLoginDto) {
+    return this.auth.partnerLogin(dto.phone, dto.password, dto.deviceId);
+  }
+
+  @Throttle({ partnerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('delivery-partner/login')
+  deliveryPartnerLogin(@Body() dto: PartnerLoginDto) {
+    return this.auth.partnerLogin(dto.phone, dto.password, dto.deviceId);
+  }
+
+  @Throttle({ partnerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('partner/register')
+  partnerRegister(@Body() dto: PartnerRegisterDto) {
+    return this.auth.partnerRegister(dto);
+  }
+
+  @Throttle({ partnerLogin: { limit: 10, ttl: 60_000 } })
+  @Post('delivery-partner/register')
+  deliveryPartnerRegister(@Body() dto: PartnerRegisterDto) {
+    return this.auth.partnerRegister(dto);
   }
 
   @Throttle({ adminLogin: { limit: 10, ttl: 60_000 } })

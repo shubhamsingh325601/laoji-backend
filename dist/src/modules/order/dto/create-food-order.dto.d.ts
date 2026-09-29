@@ -9,4 +9,6 @@ export declare class CreateFoodOrderDto {
     items: FoodOrderLineDto[];
     deliveryAddressId: string;
     instructions?: string;
+    couponCode?: string;
+    idempotencyKey?: string;
 }

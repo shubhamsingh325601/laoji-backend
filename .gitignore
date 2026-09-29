@@ -19,6 +19,8 @@ scripts/*.js.map
 # env
 .env
 .env.local
+firebase-service-account.json
+*firebase*.json
 
 # logs
 *.log

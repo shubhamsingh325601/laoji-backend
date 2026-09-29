@@ -1,9 +1,19 @@
-import { IsBoolean, IsNumber, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 
 export class UpsertDeliveryPartnerDto {
   @IsString()
   @Length(1, 30)
   vehicleType: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  vehicleNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  vehicleModel?: string;
 }
 
 export class SetOnlineDto {

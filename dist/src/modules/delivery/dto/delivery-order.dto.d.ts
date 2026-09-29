@@ -5,3 +5,6 @@ export declare class AdvanceDeliveryStatusDto {
 export declare class VerifyDeliveryDto {
     otp: string;
 }
+export declare class ReportNotHandedOverDto {
+    reason?: string;
+}

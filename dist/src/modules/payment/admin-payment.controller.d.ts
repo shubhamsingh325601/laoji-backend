@@ -6,7 +6,7 @@ export declare class AdminPaymentController {
     constructor(payments: PaymentService);
     listPending(): Promise<{
         id: string;
-        type: "grocery" | "food";
+        type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
         provider: "upi_deeplink" | "cod" | "razorpay";
@@ -31,7 +31,7 @@ export declare class AdminPaymentController {
     }>;
     listRefunds(): Promise<{
         id: string;
-        type: "grocery" | "food";
+        type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
         provider: "upi_deeplink" | "cod" | "razorpay";
