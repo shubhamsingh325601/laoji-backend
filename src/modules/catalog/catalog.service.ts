@@ -1098,6 +1098,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
+      businessHours: vendor.businessHours,
       createdAt: vendor.createdAt,
     }));
   }
@@ -1137,6 +1138,7 @@ export class CatalogService {
       rating: restaurant?.ratingAvg ?? 4.8,
       ratingCount: 12,
       productCount: vendorProds.length,
+      businessHours: vendor.businessHours,
       createdAt: vendor.createdAt,
     };
   }
@@ -1255,6 +1257,7 @@ export class CatalogService {
       cashbackPct: 5,
       discountPct: 0,
       tempPassword,
+      businessHours: vendor.businessHours,
       createdAt: vendor.createdAt,
     };
   }
