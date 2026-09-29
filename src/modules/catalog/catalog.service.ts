@@ -1358,11 +1358,11 @@ export class CatalogService {
         byProduct.set(product.id, { product, price: vendorProduct.price, inStock, restockEta: eta });
         continue;
       }
-      if (inStock ? !current.inStock || vendorProduct.price < current.price : !current.inStock && vendorProduct.price < current.price) {
-        current.price = vendorProduct.price;
-      }
+      // Don't aggregate/compare prices - keep the first vendor's exact price
+      // Only update stock availability and restock ETA from additional vendors
       current.inStock ||= inStock;
       if (eta && (!current.restockEta || eta < current.restockEta)) current.restockEta = eta;
+      // Price remains as the first vendor's exact price (not aggregated/cheapest-selected)
     }
     return [...byProduct.values()].map(({ product, price, inStock, restockEta }) => ({
       ...product,
