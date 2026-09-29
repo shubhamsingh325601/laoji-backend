@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
   foodOrders,
