@@ -7,6 +7,7 @@ import { DatabaseModule } from './config/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { AllocationModule } from './modules/allocation/allocation.module';
@@ -64,6 +65,7 @@ import { ResponseCacheModule } from './common/cache/response-cache.module';
     HealthModule,
     AuthModule,
     UserModule,
+    CustomersModule,
     UploadsModule,
     CatalogModule,
     AllocationModule,

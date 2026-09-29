@@ -713,16 +713,7 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(groceryOrders)
-      .where(
-        and(
-          eq(groceryOrders.vendorId, vendor.id),
-          or(
-            eq(groceryOrders.status, 'delivered'),
-            eq(groceryOrders.status, 'failed'),
-            eq(groceryOrders.status, 'cancelled'),
-          ),
-        ),
-      )
+      .where(eq(groceryOrders.vendorId, vendor.id))
       .orderBy(desc(groceryOrders.createdAt))
       .limit(100);
     return this.attachGroceryItems(orders);
@@ -734,16 +725,7 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(foodOrders)
-      .where(
-        and(
-          eq(foodOrders.restaurantId, restaurant.id),
-          or(
-            eq(foodOrders.status, 'delivered'),
-            eq(foodOrders.status, 'failed'),
-            eq(foodOrders.status, 'cancelled'),
-          ),
-        ),
-      )
+      .where(eq(foodOrders.restaurantId, restaurant.id))
       .orderBy(desc(foodOrders.createdAt))
       .limit(100);
     return this.attachFoodItems(orders);
