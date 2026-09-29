@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, ne, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, ne, or, sum } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users } from '../../../drizzle/schema';
@@ -67,6 +67,20 @@ export class UserService {
     const groceryList = await this.db.select().from(groceryOrders).where(eq(groceryOrders.customerId, id)).limit(10);
     const foodList = await this.db.select().from(foodOrders).where(eq(foodOrders.customerId, id)).limit(10);
 
+    // orderCount/totalSpend must cover every order, not just the 10 fetched
+    // above for recentOrders — otherwise both undercount past a customer's
+    // first 10 orders of either type.
+    const [[groceryAgg], [foodAgg]] = await Promise.all([
+      this.db
+        .select({ count: count(groceryOrders.id), total: sum(groceryOrders.total) })
+        .from(groceryOrders)
+        .where(eq(groceryOrders.customerId, id)),
+      this.db
+        .select({ count: count(foodOrders.id), total: sum(foodOrders.total) })
+        .from(foodOrders)
+        .where(eq(foodOrders.customerId, id)),
+    ]);
+
     return {
       id: u.id,
       phone: u.phone,
@@ -76,7 +90,8 @@ export class UserService {
       name: u.name || `Customer +91 ${u.phone}`,
       supportNotes: u.supportNotes ?? '',
       addresses: userAddresses,
-      orderCount: groceryList.length + foodList.length,
+      orderCount: Number(groceryAgg?.count ?? 0) + Number(foodAgg?.count ?? 0),
+      totalSpend: (Number(groceryAgg?.total) || 0) + (Number(foodAgg?.total) || 0),
       recentOrders: [...groceryList, ...foodList].slice(0, 10),
       createdAt: u.createdAt,
     };
