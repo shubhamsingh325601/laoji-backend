@@ -43,8 +43,31 @@ export class UserService {
       }
     }
 
+    // Order stats only apply to customers; the admin Customers list
+    // (GET /admin/users?role=customer) reads totalOrders/totalSpend off
+    // this response and had nothing to read them from at all before.
+    const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
+    const groceryStats = customerIds.length
+      ? await this.db
+          .select({ customerId: groceryOrders.customerId, count: count(groceryOrders.id), total: sum(groceryOrders.total) })
+          .from(groceryOrders)
+          .where(inArray(groceryOrders.customerId, customerIds))
+          .groupBy(groceryOrders.customerId)
+      : [];
+    const foodStats = customerIds.length
+      ? await this.db
+          .select({ customerId: foodOrders.customerId, count: count(foodOrders.id), total: sum(foodOrders.total) })
+          .from(foodOrders)
+          .where(inArray(foodOrders.customerId, customerIds))
+          .groupBy(foodOrders.customerId)
+      : [];
+    const groceryStatsById = new Map(groceryStats.map((s) => [s.customerId, s]));
+    const foodStatsById = new Map(foodStats.map((s) => [s.customerId, s]));
+
     return filtered.map((u) => {
       const addr = addrMap.get(u.id);
+      const g = groceryStatsById.get(u.id);
+      const f = foodStatsById.get(u.id);
       return {
         id: u.id,
         phone: u.phone,
@@ -55,6 +78,8 @@ export class UserService {
         supportNotes: u.supportNotes ?? '',
         address: addr?.formattedAddress ?? 'Rural Area / Locality',
         createdAt: u.createdAt,
+        totalOrders: Number(g?.count ?? 0) + Number(f?.count ?? 0),
+        totalSpend: (Number(g?.total) || 0) + (Number(f?.total) || 0),
       };
     });
   }
