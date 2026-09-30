@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { coupons, foodOrders, groceryOrders } from '../../../drizzle/schema';
@@ -29,6 +29,7 @@ function toPublicCoupon(c: CouponRow) {
     description: c.description,
     isFirstOrderOnly: c.isFirstOrderOnly,
     firstNOrders: firstNOrdersOf(c),
+    vendorId: c.vendorId,
   };
 }
 
@@ -46,11 +47,15 @@ export class CouponService {
   }
 
   async listActive(vendorId?: string) {
-    const query = this.db.select().from(coupons).where(eq(coupons.isActive, true));
-    if (vendorId) {
-      query.where(eq(coupons.vendorId, vendorId));
-    }
-    const rows = await query.orderBy(desc(coupons.createdAt));
+    const condition = vendorId
+      ? and(eq(coupons.isActive, true), or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)))
+      : eq(coupons.isActive, true);
+
+    const rows = await this.db
+      .select()
+      .from(coupons)
+      .where(condition)
+      .orderBy(desc(coupons.createdAt));
     return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
   }
 
@@ -77,6 +82,7 @@ export class CouponService {
         isFirstOrderOnly: dto.isFirstOrderOnly ?? false,
         firstNOrders: dto.firstNOrders ?? null,
         isActive: dto.isActive ?? true,
+        vendorId: dto.vendorId ?? null,
       })
       .returning();
 
@@ -99,6 +105,7 @@ export class CouponService {
     if (dto.isFirstOrderOnly !== undefined) updates.isFirstOrderOnly = dto.isFirstOrderOnly;
     if (dto.firstNOrders !== undefined) updates.firstNOrders = dto.firstNOrders;
     if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+    if (dto.vendorId !== undefined) updates.vendorId = dto.vendorId;
 
     const [updated] = await this.db
       .update(coupons)
@@ -147,11 +154,15 @@ export class CouponService {
       return { valid: false, message: 'Please enter a coupon code', discount: 0 };
     }
 
-    const vendorCondition = ctx.vendorId
-      ? and(eq(coupons.vendorId, ctx.vendorId), eq(coupons.isActive, true))
-      : eq(coupons.isActive, true);
-    const [coupon] = await this.db.select().from(coupons).where(eq(coupons.code, cleanCode)).where(vendorCondition);
+    const [coupon] = await this.db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.code, cleanCode), eq(coupons.isActive, true)));
     if (!coupon) {
+      return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+    }
+
+    if (coupon.vendorId && coupon.vendorId !== ctx.vendorId) {
       return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
     }
 
