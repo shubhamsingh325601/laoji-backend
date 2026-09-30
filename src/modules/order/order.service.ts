@@ -104,7 +104,7 @@ export class OrderService {
     const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
     const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
     const distanceKm = candidate.distance ?? 1;
-    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId);
     return { candidate, revenue, ...pricing };
   }
 
@@ -117,9 +117,10 @@ export class OrderService {
     distanceKm: number,
     revenue: ResolvedRevenueConfig,
     couponCode: string | undefined,
+    vendorId?: string,
   ) {
     const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-    const ctx = { subtotal, deliveryFee, userId: customerId };
+    const ctx = { subtotal, deliveryFee, userId: customerId, vendorId };
     let code = couponCode?.trim().toUpperCase() ?? '';
     let autoApplied = false;
     let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
@@ -374,7 +375,7 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId);
     return { revenue, orderItemRows, pricing };
   }
 

@@ -45,12 +45,12 @@ export class CouponService {
     return this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
   }
 
-  async listActive() {
-    const rows = await this.db
-      .select()
-      .from(coupons)
-      .where(eq(coupons.isActive, true))
-      .orderBy(desc(coupons.createdAt));
+  async listActive(vendorId?: string) {
+    const query = this.db.select().from(coupons).where(eq(coupons.isActive, true));
+    if (vendorId) {
+      query.where(eq(coupons.vendorId, vendorId));
+    }
+    const rows = await query.orderBy(desc(coupons.createdAt));
     return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
   }
 
@@ -141,14 +141,17 @@ export class CouponService {
    * A free-delivery voucher's discount is the order's delivery fee, so it's
    * worth nothing on an order that already ships free.
    */
-  async evaluate(code: string, ctx: { subtotal: number; deliveryFee: number; userId?: string }): Promise<CouponEvaluation> {
+  async evaluate(code: string, ctx: { subtotal: number; deliveryFee: number; userId?: string; vendorId?: string }): Promise<CouponEvaluation> {
     const cleanCode = (code || '').trim().toUpperCase();
     if (!cleanCode) {
       return { valid: false, message: 'Please enter a coupon code', discount: 0 };
     }
 
-    const [coupon] = await this.db.select().from(coupons).where(eq(coupons.code, cleanCode));
-    if (!coupon || !coupon.isActive) {
+    const vendorCondition = ctx.vendorId
+      ? and(eq(coupons.vendorId, ctx.vendorId), eq(coupons.isActive, true))
+      : eq(coupons.isActive, true);
+    const [coupon] = await this.db.select().from(coupons).where(eq(coupons.code, cleanCode)).where(vendorCondition);
+    if (!coupon) {
       return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
     }
 
@@ -205,7 +208,7 @@ export class CouponService {
    * automatically when the checkout names no coupon. This also covers app
    * builds that never send a coupon code.
    */
-  async findAutoApply(ctx: { subtotal: number; deliveryFee: number; userId: string }) {
+  async findAutoApply(ctx: { subtotal: number; deliveryFee: number; userId: string; vendorId?: string }) {
     if (ctx.deliveryFee <= 0) return null;
     const candidates = (
       await this.db
@@ -226,8 +229,8 @@ export class CouponService {
 
   // Kept for app builds that validate before checkout. The delivery fee isn't
   // known here, so a free-delivery voucher reports ₹0 until a quote prices it.
-  async validate(code: string, subtotal: number, userId?: string) {
-    const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId });
+  async validate(code: string, subtotal: number, userId?: string, vendorId?: string) {
+    const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId, vendorId });
     if (res.valid && res.coupon?.discountType === 'free_delivery') {
       return { ...res, discount: 0 };
     }

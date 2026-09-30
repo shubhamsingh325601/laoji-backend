@@ -8,9 +8,10 @@ export class ValidateCouponDto {
   @Min(0)
   subtotal: number;
 
-  // Accepted for older app builds but ignored; the caller is taken from the
-  // verified access token.
+  // If provided, the coupon must be valid for this vendor (global coupons
+  // have vendorId = null and will be rejected if a vendorId is specified
+  // and doesn't match).
   @IsOptional()
-  @IsString()
-  userId?: string;
+  @IsUUID()
+  vendorId?: string;
 }

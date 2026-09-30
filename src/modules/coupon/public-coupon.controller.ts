@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Query, Post, Req, UseInterceptors } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
@@ -16,8 +16,8 @@ export class PublicCouponController {
 
   @UseInterceptors(ResponseCacheInterceptor)
   @Get('active')
-  listActive() {
-    return this.couponService.listActive();
+  listActive(@Query('vendorId') vendorId?: string) {
+    return this.couponService.listActive(vendorId);
   }
 
   // Open to guests. "First N orders" is only checked for a caller with a
@@ -25,7 +25,8 @@ export class PublicCouponController {
   // another customer's eligibility. Order quote/create re-check it anyway.
   @Post('validate')
   async validate(@Body() dto: ValidateCouponDto, @Req() req: Request) {
-    return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req));
+    const vendorId = dto.vendorId; // optional, from app context
+    return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req), vendorId);
   }
 
   private async userIdFrom(req: Request): Promise<string | undefined> {

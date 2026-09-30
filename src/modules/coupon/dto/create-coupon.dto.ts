@@ -38,4 +38,9 @@ export class CreateCouponDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // If set, this coupon only applies to this vendor (null = global coupon)
+  @IsOptional()
+  @IsUUID()
+  vendorId?: string;
 }

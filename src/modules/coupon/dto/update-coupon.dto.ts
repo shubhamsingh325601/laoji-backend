@@ -41,4 +41,9 @@ export class UpdateCouponDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // If set, updates the vendor scope. null clears vendor scope (makes global).
+  @IsOptional()
+  @IsUUID()
+  vendorId?: string | null;
 }

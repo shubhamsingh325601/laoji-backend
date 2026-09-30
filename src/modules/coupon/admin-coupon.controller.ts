@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,6 +15,11 @@ export class AdminCouponController {
   @Get()
   listAll() {
     return this.couponService.listAllForAdmin();
+  }
+
+  @Get('vendor/:vendorId')
+  listByVendor(@Param('vendorId') vendorId: string) {
+    return this.couponService.listActive(vendorId);
   }
 
   @Post()

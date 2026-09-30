@@ -854,6 +854,9 @@ export const coupons = pgTable('coupons', {
   // older way of saying 1 and still works.
   firstNOrders: integer('first_n_orders'),
   isActive: boolean('is_active').notNull().default(true),
+  // vendorId null = global coupon (applies to all vendors)
+  // vendorId set = vendor-specific coupon (only for this vendor)
+  vendorId: uuid('vendor_id').references(() => vendors.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
