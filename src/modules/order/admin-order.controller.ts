@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -13,8 +13,8 @@ export class AdminOrderController {
   constructor(private readonly orders: OrderService) {}
 
   @Get()
-  listAll() {
-    return this.orders.listAllOrdersForAdmin();
+  listAll(@Query('includeUnpaid') includeUnpaid?: string) {
+    return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
   }
 
   @Get(':type/:id')

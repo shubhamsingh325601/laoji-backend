@@ -17,6 +17,9 @@ import {
 
 type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 
+// Abandoned checkouts (payment still pending/failed) are not real orders — keep them out of admin counts and alerts.
+const CONFIRMED_PAYMENT = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
+
 const TERMINAL_STATUSES: OrderStatus[] = ['delivered', 'failed', 'cancelled'];
 
 // Per-status "how long is too long" thresholds (minutes), mirroring the
@@ -109,16 +112,34 @@ export class DashboardService {
     const lastWeekEnd = new Date(todayStart);
 
     const [groceryToday, foodToday, groceryLastWeek, foodLastWeek] = await Promise.all([
-      this.db.select().from(groceryOrders).where(gte(groceryOrders.createdAt, todayStart)),
-      this.db.select().from(foodOrders).where(gte(foodOrders.createdAt, todayStart)),
       this.db
         .select()
         .from(groceryOrders)
-        .where(and(gte(groceryOrders.createdAt, lastWeekStart), lt(groceryOrders.createdAt, lastWeekEnd))),
+        .where(and(gte(groceryOrders.createdAt, todayStart), inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
       this.db
         .select()
         .from(foodOrders)
-        .where(and(gte(foodOrders.createdAt, lastWeekStart), lt(foodOrders.createdAt, lastWeekEnd))),
+        .where(and(gte(foodOrders.createdAt, todayStart), inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
+      this.db
+        .select()
+        .from(groceryOrders)
+        .where(
+          and(
+            gte(groceryOrders.createdAt, lastWeekStart),
+            lt(groceryOrders.createdAt, lastWeekEnd),
+            inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT),
+          ),
+        ),
+      this.db
+        .select()
+        .from(foodOrders)
+        .where(
+          and(
+            gte(foodOrders.createdAt, lastWeekStart),
+            lt(foodOrders.createdAt, lastWeekEnd),
+            inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT),
+          ),
+        ),
     ]);
 
     // GMV = gross value of orders placed today, regardless of outcome — the
@@ -172,7 +193,7 @@ export class DashboardService {
           vendorId: groceryOrders.vendorId,
         })
         .from(groceryOrders)
-        .where(inArray(groceryOrders.status, nonTerminal)),
+        .where(and(inArray(groceryOrders.status, nonTerminal), inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
       this.db
         .select({
           id: foodOrders.id,
@@ -181,7 +202,7 @@ export class DashboardService {
           restaurantId: foodOrders.restaurantId,
         })
         .from(foodOrders)
-        .where(inArray(foodOrders.status, nonTerminal)),
+        .where(and(inArray(foodOrders.status, nonTerminal), inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
     ]);
 
     const groceryIds = groceryOpen.map((o) => o.id);
