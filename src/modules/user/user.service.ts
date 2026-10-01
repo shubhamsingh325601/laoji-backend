@@ -43,7 +43,7 @@ export class UserService {
       }
     }
 
-    // Order stats only apply to customers; the admin Customers list
+    // Order stats count delivered orders only (not cancelled/failed/in-progress). They only apply to customers; the admin Customers list
     // (GET /admin/users?role=customer) reads totalOrders/totalSpend off
     // this response and had nothing to read them from at all before.
     const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
@@ -51,14 +51,14 @@ export class UserService {
       ? await this.db
           .select({ customerId: groceryOrders.customerId, count: count(groceryOrders.id), total: sum(groceryOrders.total) })
           .from(groceryOrders)
-          .where(inArray(groceryOrders.customerId, customerIds))
+          .where(and(inArray(groceryOrders.customerId, customerIds), eq(groceryOrders.status, 'delivered')))
           .groupBy(groceryOrders.customerId)
       : [];
     const foodStats = customerIds.length
       ? await this.db
           .select({ customerId: foodOrders.customerId, count: count(foodOrders.id), total: sum(foodOrders.total) })
           .from(foodOrders)
-          .where(inArray(foodOrders.customerId, customerIds))
+          .where(and(inArray(foodOrders.customerId, customerIds), eq(foodOrders.status, 'delivered')))
           .groupBy(foodOrders.customerId)
       : [];
     const groceryStatsById = new Map(groceryStats.map((s) => [s.customerId, s]));
@@ -99,11 +99,11 @@ export class UserService {
       this.db
         .select({ count: count(groceryOrders.id), total: sum(groceryOrders.total) })
         .from(groceryOrders)
-        .where(eq(groceryOrders.customerId, id)),
+        .where(and(eq(groceryOrders.customerId, id), eq(groceryOrders.status, 'delivered'))),
       this.db
         .select({ count: count(foodOrders.id), total: sum(foodOrders.total) })
         .from(foodOrders)
-        .where(eq(foodOrders.customerId, id)),
+        .where(and(eq(foodOrders.customerId, id), eq(foodOrders.status, 'delivered'))),
     ]);
 
     return {

@@ -6,7 +6,7 @@ import {
   users,
   type orderStatusEnum,
 } from '../../../drizzle/schema';
-import { eq, count, sum, inArray } from 'drizzle-orm';
+import { and, eq, count, sum, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 
 type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
@@ -23,7 +23,7 @@ export class CustomersService {
 
     const userIds = userRows.map((u) => u.id);
 
-    // Aggregate grocery orders per customer
+    // Aggregate delivered grocery orders per customer (cancelled/failed excluded)
     const groceryStats = await this.db
       .select({
         customerId: groceryOrders.customerId,
@@ -31,7 +31,7 @@ export class CustomersService {
         totalGrocerySpend: sum(groceryOrders.total),
       })
       .from(groceryOrders)
-      .where(inArray(groceryOrders.customerId, userIds))
+      .where(and(inArray(groceryOrders.customerId, userIds), eq(groceryOrders.status, 'delivered')))
       .groupBy(groceryOrders.customerId);
 
     // Aggregate food orders per customer
@@ -42,7 +42,7 @@ export class CustomersService {
         totalFoodSpend: sum(foodOrders.total),
       })
       .from(foodOrders)
-      .where(inArray(foodOrders.customerId, userIds))
+      .where(and(inArray(foodOrders.customerId, userIds), eq(foodOrders.status, 'delivered')))
       .groupBy(foodOrders.customerId);
 
     // Build maps for quick lookup

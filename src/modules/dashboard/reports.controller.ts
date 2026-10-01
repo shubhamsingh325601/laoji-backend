@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -22,6 +22,11 @@ export class ReportsController {
   @Get('vendor-performance')
   vendorPerformance() {
     return this.dashboard.getVendorPerformance();
+  }
+
+  @Get('vendors/:id/summary')
+  vendorSummary(@Param('id', ParseUUIDPipe) id: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.dashboard.getVendorSummary(id, from, to);
   }
 
   @Get('cancellations')
