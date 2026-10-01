@@ -43,7 +43,11 @@ import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
 
-const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'] as const;
+// A checkout counts as a real order only once payment is satisfied (online paid, or COD chosen),
+// or it was and has since moved into the refund flow. Vendors and admin only hear about these.
+const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
+
+const STATUS_SEQUENCE =['vendor_accepted', 'preparing', 'ready', 'handed_over'] as const;
 
 @Injectable()
 export class OrderService {
@@ -713,7 +717,7 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(groceryOrders)
-      .where(eq(groceryOrders.vendorId, vendor.id))
+      .where(and(eq(groceryOrders.vendorId, vendor.id), inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
       .orderBy(desc(groceryOrders.createdAt))
       .limit(100);
     return this.attachGroceryItems(orders);
@@ -725,7 +729,7 @@ export class OrderService {
     const orders = await this.db
       .select()
       .from(foodOrders)
-      .where(eq(foodOrders.restaurantId, restaurant.id))
+      .where(and(eq(foodOrders.restaurantId, restaurant.id), inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
       .orderBy(desc(foodOrders.createdAt))
       .limit(100);
     return this.attachFoodItems(orders);
@@ -1018,9 +1022,20 @@ export class OrderService {
 
   // ---------- Admin: unified view ----------
 
-  async listAllOrdersForAdmin() {
-    const grocery = await this.db.select().from(groceryOrders).orderBy(desc(groceryOrders.createdAt));
-    const food = await this.db.select().from(foodOrders).orderBy(desc(foodOrders.createdAt));
+  // Orders whose checkout was never completed (online payment still pending/failed)
+  // are hidden by default — they are abandoned carts, not real orders. Admin can still
+  // see them on the Payments page, or here with includeUnpaid.
+  async listAllOrdersForAdmin(opts: { includeUnpaid?: boolean } = {}) {
+    const grocery = await this.db
+      .select()
+      .from(groceryOrders)
+      .where(opts.includeUnpaid ? undefined : inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+      .orderBy(desc(groceryOrders.createdAt));
+    const food = await this.db
+      .select()
+      .from(foodOrders)
+      .where(opts.includeUnpaid ? undefined : inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+      .orderBy(desc(foodOrders.createdAt));
 
     const customerIds = [...new Set([...grocery.map((o) => o.customerId), ...food.map((o) => o.customerId)])];
     const customerRows = customerIds.length
@@ -1082,7 +1097,9 @@ export class OrderService {
 
     const orderCode = this.orderCode(orderId);
     this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
-    const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+    // Vendor/partner never heard about an order whose payment was never completed, so no cancel notice either.
+    const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
+    const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
     if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
     if (updated.deliveryPartnerId) {
       const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
@@ -1118,7 +1135,8 @@ export class OrderService {
 
     const orderCode = this.orderCode(orderId);
     this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
-    const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+    const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
+    const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
     if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
 
     return type === 'grocery'
