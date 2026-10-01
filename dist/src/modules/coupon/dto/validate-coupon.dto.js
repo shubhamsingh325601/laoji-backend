@@ -14,7 +14,7 @@ const class_validator_1 = require("class-validator");
 class ValidateCouponDto {
     code;
     subtotal;
-    userId;
+    vendorId;
 }
 exports.ValidateCouponDto = ValidateCouponDto;
 __decorate([
@@ -28,7 +28,7 @@ __decorate([
 ], ValidateCouponDto.prototype, "subtotal", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
-], ValidateCouponDto.prototype, "userId", void 0);
+], ValidateCouponDto.prototype, "vendorId", void 0);
 //# sourceMappingURL=validate-coupon.dto.js.map

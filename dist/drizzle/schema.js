@@ -534,6 +534,7 @@ exports.coupons = (0, pg_core_1.pgTable)('coupons', {
     isFirstOrderOnly: (0, pg_core_1.boolean)('is_first_order_only').notNull().default(false),
     firstNOrders: (0, pg_core_1.integer)('first_n_orders'),
     isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    vendorId: (0, pg_core_1.uuid)('vendor_id').references(() => exports.vendors.id),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.banners = (0, pg_core_1.pgTable)('banners', {

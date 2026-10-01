@@ -32,6 +32,9 @@ let ReportsController = class ReportsController {
     vendorPerformance() {
         return this.dashboard.getVendorPerformance();
     }
+    vendorSummary(id, from, to) {
+        return this.dashboard.getVendorSummary(id, from, to);
+    }
     cancellations() {
         return this.dashboard.getCancellations();
     }
@@ -50,6 +53,15 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "vendorPerformance", null);
+__decorate([
+    (0, common_1.Get)('vendors/:id/summary'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Query)('from')),
+    __param(2, (0, common_1.Query)('to')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "vendorSummary", null);
 __decorate([
     (0, common_1.Get)('cancellations'),
     __metadata("design:type", Function),

@@ -14,9 +14,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardService = void 0;
 const common_1 = require("@nestjs/common");
+const common_2 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const CONFIRMED_PAYMENT = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
 const TERMINAL_STATUSES = ['delivered', 'failed', 'cancelled'];
 const STUCK_SLA_MINUTES = {
     placed: 5,
@@ -50,16 +52,22 @@ let DashboardService = class DashboardService {
         lastWeekStart.setDate(lastWeekStart.getDate() - 7);
         const lastWeekEnd = new Date(todayStart);
         const [groceryToday, foodToday, groceryLastWeek, foodLastWeek] = await Promise.all([
-            this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, todayStart)),
-            this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, todayStart)),
             this.db
                 .select()
                 .from(schema_1.groceryOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, lastWeekStart), (0, drizzle_orm_1.lt)(schema_1.groceryOrders.createdAt, lastWeekEnd))),
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, todayStart), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
             this.db
                 .select()
                 .from(schema_1.foodOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, lastWeekStart), (0, drizzle_orm_1.lt)(schema_1.foodOrders.createdAt, lastWeekEnd))),
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, todayStart), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
+            this.db
+                .select()
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, lastWeekStart), (0, drizzle_orm_1.lt)(schema_1.groceryOrders.createdAt, lastWeekEnd), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
+            this.db
+                .select()
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, lastWeekStart), (0, drizzle_orm_1.lt)(schema_1.foodOrders.createdAt, lastWeekEnd), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
         ]);
         const gmvToday = sumTotal(groceryToday) + sumTotal(foodToday);
         const gmvLastWeek = sumTotal(groceryLastWeek) + sumTotal(foodLastWeek);
@@ -75,7 +83,10 @@ let DashboardService = class DashboardService {
         ]);
         const verifiedPartners = allPartners.filter((p) => p.kycStatus === 'verified');
         return {
-            ordersToday: { grocery: groceryToday.length, food: foodToday.length },
+            ordersToday: {
+                grocery: groceryToday.filter((o) => o.status === 'delivered').length,
+                food: foodToday.filter((o) => o.status === 'delivered').length,
+            },
             gmvToday,
             gmvDeltaPct,
             activeVendors: allVendors.filter((v) => v.isOpen).length,
@@ -86,6 +97,95 @@ let DashboardService = class DashboardService {
                 allPartners.filter((p) => p.kycStatus === 'pending').length,
             pendingSuggestions: pendingSuggestionsRows.length,
             pendingCategorySuggestions: pendingCategorySuggestionRows.length,
+        };
+    }
+    async getVendorSummary(vendorId, fromRaw, toRaw) {
+        const from = fromRaw ? new Date(fromRaw) : null;
+        const to = toRaw ? new Date(toRaw) : null;
+        if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime()))) {
+            throw new common_2.BadRequestException('Invalid from/to date');
+        }
+        const [restaurant] = await this.db
+            .select({ id: schema_1.restaurants.id })
+            .from(schema_1.restaurants)
+            .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId))
+            .limit(1);
+        const range = (col) => [
+            ...(from ? [(0, drizzle_orm_1.gte)(col, from)] : []),
+            ...(to ? [(0, drizzle_orm_1.lt)(col, to)] : []),
+        ];
+        const [grocery, food] = await Promise.all([
+            this.db
+                .select()
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendorId), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT), ...range(schema_1.groceryOrders.createdAt))),
+            restaurant
+                ? this.db
+                    .select()
+                    .from(schema_1.foodOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT), ...range(schema_1.foodOrders.createdAt)))
+                : Promise.resolve([]),
+        ]);
+        const delivered = [...grocery, ...food].filter((o) => o.status === 'delivered');
+        const groceryIds = grocery.filter((o) => o.status === 'delivered').map((o) => o.id);
+        const foodIds = food.filter((o) => o.status === 'delivered').map((o) => o.id);
+        const rows = [
+            ...(groceryIds.length
+                ? await this.db.select().from(schema_1.settlements).where((0, drizzle_orm_1.inArray)(schema_1.settlements.groceryOrderId, groceryIds))
+                : []),
+            ...(foodIds.length
+                ? await this.db.select().from(schema_1.settlements).where((0, drizzle_orm_1.inArray)(schema_1.settlements.foodOrderId, foodIds))
+                : []),
+        ];
+        const allIds = [...grocery, ...food].map((o) => o.id);
+        const [attempts, history] = await Promise.all([
+            this.db
+                .select()
+                .from(schema_1.allocationAttempts)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.vendorId, vendorId), ...range(schema_1.allocationAttempts.createdAt))),
+            allIds.length
+                ? this.db
+                    .select()
+                    .from(schema_1.orderStatusHistory)
+                    .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.inArray)(schema_1.orderStatusHistory.groceryOrderId, allIds), (0, drizzle_orm_1.inArray)(schema_1.orderStatusHistory.foodOrderId, allIds)))
+                : Promise.resolve([]),
+        ]);
+        const acceptedAt = new Map();
+        const readyAt = new Map();
+        for (const h of history) {
+            const id = h.groceryOrderId ?? h.foodOrderId;
+            if (!id)
+                continue;
+            if (h.status === 'vendor_accepted')
+                acceptedAt.set(id, h.changedAt);
+            if (h.status === 'ready')
+                readyAt.set(id, h.changedAt);
+        }
+        let accepted = attempts.filter((x) => x.outcome === 'accepted').length;
+        let rejected = attempts.filter((x) => x.outcome === 'rejected' || x.outcome === 'timeout').length;
+        for (const o of food) {
+            if (acceptedAt.has(o.id))
+                accepted += 1;
+            else if (o.status === 'failed')
+                rejected += 1;
+        }
+        const prep = [];
+        for (const id of allIds) {
+            const st = acceptedAt.get(id);
+            const en = readyAt.get(id);
+            if (st && en && en > st)
+                prep.push((en.getTime() - st.getTime()) / 60000);
+        }
+        const sum = (xs) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+        return {
+            acceptanceRate: accepted + rejected > 0 ? Math.round((accepted / (accepted + rejected)) * 1000) / 10 : null,
+            avgPrepMinutes: prep.length ? Math.round((prep.reduce((x, y) => x + y, 0) / prep.length) * 10) / 10 : null,
+            totalOrders: grocery.length + food.length,
+            deliveredOrders: delivered.length,
+            cancelledOrders: [...grocery, ...food].filter((o) => o.status === 'cancelled' || o.status === 'failed').length,
+            grossSales: sum(delivered.map((o) => o.subtotal)),
+            vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
+            platformEarnings: sum(rows.map((r) => r.platformShare)),
         };
     }
     async getAttention() {
@@ -99,7 +199,7 @@ let DashboardService = class DashboardService {
                 vendorId: schema_1.groceryOrders.vendorId,
             })
                 .from(schema_1.groceryOrders)
-                .where((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, nonTerminal)),
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, nonTerminal), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
             this.db
                 .select({
                 id: schema_1.foodOrders.id,
@@ -108,7 +208,7 @@ let DashboardService = class DashboardService {
                 restaurantId: schema_1.foodOrders.restaurantId,
             })
                 .from(schema_1.foodOrders)
-                .where((0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, nonTerminal)),
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, nonTerminal), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
         ]);
         const groceryIds = groceryOpen.map((o) => o.id);
         const foodIds = foodOpen.map((o) => o.id);

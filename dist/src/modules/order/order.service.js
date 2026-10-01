@@ -29,6 +29,7 @@ const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const coupon_service_1 = require("../coupon/coupon.service");
 const catalog_types_1 = require("../catalog/catalog.types");
 const meal_slots_1 = require("../catalog/meal-slots");
+const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
 const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'];
 let OrderService = class OrderService {
     db;
@@ -74,12 +75,12 @@ let OrderService = class OrderService {
         const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
         const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
         const distanceKm = candidate.distance ?? 1;
-        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId);
         return { candidate, revenue, ...pricing };
     }
-    async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode) {
+    async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode, vendorId) {
         const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-        const ctx = { subtotal, deliveryFee, userId: customerId };
+        const ctx = { subtotal, deliveryFee, userId: customerId, vendorId };
         let code = couponCode?.trim().toUpperCase() ?? '';
         let autoApplied = false;
         let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
@@ -280,7 +281,7 @@ let OrderService = class OrderService {
             };
         });
         const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode);
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId);
         return { revenue, orderItemRows, pricing };
     }
     async createFoodOrder(customerId, dto) {
@@ -553,7 +554,7 @@ let OrderService = class OrderService {
         const orders = await this.db
             .select()
             .from(schema_1.groceryOrders)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'failed'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'cancelled'))))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt))
             .limit(100);
         return this.attachGroceryItems(orders);
@@ -564,7 +565,7 @@ let OrderService = class OrderService {
         const orders = await this.db
             .select()
             .from(schema_1.foodOrders)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'failed'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'cancelled'))))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt))
             .limit(100);
         return this.attachFoodItems(orders);
@@ -762,9 +763,17 @@ let OrderService = class OrderService {
             throw new common_1.BadRequestException(`"${requested}" is not the step immediately before "${currentStatus}"`);
         }
     }
-    async listAllOrdersForAdmin() {
-        const grocery = await this.db.select().from(schema_1.groceryOrders).orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
-        const food = await this.db.select().from(schema_1.foodOrders).orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
+    async listAllOrdersForAdmin(opts = {}) {
+        const grocery = await this.db
+            .select()
+            .from(schema_1.groceryOrders)
+            .where(opts.includeUnpaid ? undefined : (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
+        const food = await this.db
+            .select()
+            .from(schema_1.foodOrders)
+            .where(opts.includeUnpaid ? undefined : (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
         const customerIds = [...new Set([...grocery.map((o) => o.customerId), ...food.map((o) => o.customerId)])];
         const customerRows = customerIds.length
             ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.inArray)(schema_1.users.id, customerIds))
@@ -804,7 +813,8 @@ let OrderService = class OrderService {
         await this.payments.markRefundPendingIfPaid(type, orderId);
         const orderCode = this.orderCode(orderId);
         this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
-        const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+        const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
+        const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
         if (vendorUserId)
             this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
         if (updated.deliveryPartnerId) {
@@ -839,7 +849,8 @@ let OrderService = class OrderService {
         await this.payments.markRefundPendingIfPaid(type, orderId);
         const orderCode = this.orderCode(orderId);
         this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
-        const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+        const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
+        const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
         if (vendorUserId)
             this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
         return type === 'grocery'

@@ -48,8 +48,27 @@ let UserService = class UserService {
                 addrMap.set(a.userId, a);
             }
         }
+        const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
+        const groceryStats = customerIds.length
+            ? await this.db
+                .select({ customerId: schema_1.groceryOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered')))
+                .groupBy(schema_1.groceryOrders.customerId)
+            : [];
+        const foodStats = customerIds.length
+            ? await this.db
+                .select({ customerId: schema_1.foodOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.foodOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.foodOrders.total) })
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered')))
+                .groupBy(schema_1.foodOrders.customerId)
+            : [];
+        const groceryStatsById = new Map(groceryStats.map((s) => [s.customerId, s]));
+        const foodStatsById = new Map(foodStats.map((s) => [s.customerId, s]));
         return filtered.map((u) => {
             const addr = addrMap.get(u.id);
+            const g = groceryStatsById.get(u.id);
+            const f = foodStatsById.get(u.id);
             return {
                 id: u.id,
                 phone: u.phone,
@@ -60,6 +79,8 @@ let UserService = class UserService {
                 supportNotes: u.supportNotes ?? '',
                 address: addr?.formattedAddress ?? 'Rural Area / Locality',
                 createdAt: u.createdAt,
+                totalOrders: Number(g?.count ?? 0) + Number(f?.count ?? 0),
+                totalSpend: (Number(g?.total) || 0) + (Number(f?.total) || 0),
             };
         });
     }
@@ -70,6 +91,16 @@ let UserService = class UserService {
         const userAddresses = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.userId, id));
         const groceryList = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id)).limit(10);
         const foodList = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id)).limit(10);
+        const [[groceryAgg], [foodAgg]] = await Promise.all([
+            this.db
+                .select({ count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered'))),
+            this.db
+                .select({ count: (0, drizzle_orm_1.count)(schema_1.foodOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.foodOrders.total) })
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered'))),
+        ]);
         return {
             id: u.id,
             phone: u.phone,
@@ -79,7 +110,8 @@ let UserService = class UserService {
             name: u.name || `Customer +91 ${u.phone}`,
             supportNotes: u.supportNotes ?? '',
             addresses: userAddresses,
-            orderCount: groceryList.length + foodList.length,
+            orderCount: Number(groceryAgg?.count ?? 0) + Number(foodAgg?.count ?? 0),
+            totalSpend: (Number(groceryAgg?.total) || 0) + (Number(foodAgg?.total) || 0),
             recentOrders: [...groceryList, ...foodList].slice(0, 10),
             createdAt: u.createdAt,
         };

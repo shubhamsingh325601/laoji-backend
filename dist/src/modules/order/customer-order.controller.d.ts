@@ -31,6 +31,7 @@ export declare class CustomerOrderController {
                 description: string | null;
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
+                vendorId: string | null;
             } | null;
         } | null;
     }>;
@@ -59,6 +60,7 @@ export declare class CustomerOrderController {
                 description: string | null;
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
+                vendorId: string | null;
             } | null;
         } | null;
     }>;

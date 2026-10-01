@@ -2235,6 +2235,24 @@ export class CatalogService {
       productCount = Math.max(productCount, restCount);
     }
 
+    const kycDocs = await this.db
+      .select({
+        id: kycDocuments.id,
+        userId: kycDocuments.userId,
+        role: kycDocuments.role,
+        docType: kycDocuments.docType,
+        secureUrl: kycDocuments.secureUrl,
+        publicId: kycDocuments.publicId,
+        status: kycDocuments.status,
+        rejectionReason: kycDocuments.rejectionReason,
+        reviewedBy: kycDocuments.reviewedBy,
+        reviewedAt: kycDocuments.reviewedAt,
+        uploadedAt: kycDocuments.uploadedAt,
+      })
+      .from(kycDocuments)
+      .where(eq(kycDocuments.userId, vendor.userId))
+      .orderBy(desc(kycDocuments.uploadedAt));
+
     return {
       id: vendor.id,
       userId: vendor.userId,
@@ -2250,6 +2268,7 @@ export class CatalogService {
       bankIfsc: vendor.bankIfsc,
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
+      kycDocuments: kycDocs,
       activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
       isOpen: vendor.isOpen,
       isOpenNow: isVendorOpenNow(vendor),

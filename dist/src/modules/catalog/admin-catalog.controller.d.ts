@@ -612,6 +612,13 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -638,8 +645,28 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        kycDocuments: {
+            id: string;
+            userId: string;
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            docType: string;
+            secureUrl: string;
+            publicId: string;
+            status: "pending" | "verified" | "rejected";
+            rejectionReason: string | null;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
+            uploadedAt: Date;
+        }[];
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -712,6 +739,13 @@ export declare class AdminCatalogController {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -738,8 +772,28 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        kycDocuments: {
+            id: string;
+            userId: string;
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            docType: string;
+            secureUrl: string;
+            publicId: string;
+            status: "pending" | "verified" | "rejected";
+            rejectionReason: string | null;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
+            uploadedAt: Date;
+        }[];
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;

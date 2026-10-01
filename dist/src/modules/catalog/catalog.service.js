@@ -1018,9 +1018,6 @@ let CatalogService = class CatalogService {
                 byProduct.set(product.id, { product, price: vendorProduct.price, inStock, restockEta: eta });
                 continue;
             }
-            if (inStock ? !current.inStock || vendorProduct.price < current.price : !current.inStock && vendorProduct.price < current.price) {
-                current.price = vendorProduct.price;
-            }
             current.inStock ||= inStock;
             if (eta && (!current.restockEta || eta < current.restockEta))
                 current.restockEta = eta;
@@ -1668,6 +1665,8 @@ let CatalogService = class CatalogService {
             kycStatus: vendor.kycStatus,
             activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
             isOpen: vendor.isOpen,
+            isOpenNow: (0, catalog_types_1.isVendorOpenNow)(vendor),
+            businessHours: vendor.businessHours,
             showInApp: vendor.showInApp ?? true,
             displayOrder: vendor.displayOrder ?? 0,
             deliveryRadiusKm: vendor.radiusKm,
@@ -1705,6 +1704,23 @@ let CatalogService = class CatalogService {
             const restCount = Number(menuCountRes?.count ?? 0);
             productCount = Math.max(productCount, restCount);
         }
+        const kycDocs = await this.db
+            .select({
+            id: schema_1.kycDocuments.id,
+            userId: schema_1.kycDocuments.userId,
+            role: schema_1.kycDocuments.role,
+            docType: schema_1.kycDocuments.docType,
+            secureUrl: schema_1.kycDocuments.secureUrl,
+            publicId: schema_1.kycDocuments.publicId,
+            status: schema_1.kycDocuments.status,
+            rejectionReason: schema_1.kycDocuments.rejectionReason,
+            reviewedBy: schema_1.kycDocuments.reviewedBy,
+            reviewedAt: schema_1.kycDocuments.reviewedAt,
+            uploadedAt: schema_1.kycDocuments.uploadedAt,
+        })
+            .from(schema_1.kycDocuments)
+            .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, vendor.userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
         return {
             id: vendor.id,
             userId: vendor.userId,
@@ -1720,8 +1736,11 @@ let CatalogService = class CatalogService {
             bankIfsc: vendor.bankIfsc,
             upiId: vendor.upiId,
             kycStatus: vendor.kycStatus,
+            kycDocuments: kycDocs,
             activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
             isOpen: vendor.isOpen,
+            isOpenNow: (0, catalog_types_1.isVendorOpenNow)(vendor),
+            businessHours: vendor.businessHours,
             showInApp: vendor.showInApp ?? true,
             displayOrder: vendor.displayOrder ?? 0,
             deliveryRadiusKm: vendor.radiusKm,

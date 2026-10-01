@@ -28,6 +28,9 @@ let AdminCouponController = class AdminCouponController {
     listAll() {
         return this.couponService.listAllForAdmin();
     }
+    listByVendor(vendorId) {
+        return this.couponService.listActive(vendorId);
+    }
     create(dto) {
         return this.couponService.create(dto);
     }
@@ -45,6 +48,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminCouponController.prototype, "listAll", null);
+__decorate([
+    (0, common_1.Get)('vendor/:vendorId'),
+    __param(0, (0, common_1.Param)('vendorId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminCouponController.prototype, "listByVendor", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

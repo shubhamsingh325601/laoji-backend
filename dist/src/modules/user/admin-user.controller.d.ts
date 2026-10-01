@@ -13,6 +13,8 @@ export declare class AdminUserController {
         supportNotes: string;
         address: string;
         createdAt: Date;
+        totalOrders: number;
+        totalSpend: number;
     }[]>;
     getOne(id: string): Promise<{
         id: string;
@@ -32,6 +34,7 @@ export declare class AdminUserController {
             isDefault: boolean;
         }[];
         orderCount: number;
+        totalSpend: number;
         recentOrders: ({
             id: string;
             customerId: string;

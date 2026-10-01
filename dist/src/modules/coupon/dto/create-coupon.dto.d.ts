@@ -8,4 +8,5 @@ export declare class CreateCouponDto {
     isFirstOrderOnly?: boolean;
     firstNOrders?: number | null;
     isActive?: boolean;
+    vendorId?: string;
 }

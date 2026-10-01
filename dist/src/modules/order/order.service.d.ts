@@ -49,6 +49,7 @@ export declare class OrderService {
                 description: string | null;
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
+                vendorId: string | null;
             } | null;
         } | null;
     }>;
@@ -77,6 +78,7 @@ export declare class OrderService {
                 description: string | null;
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
+                vendorId: string | null;
             } | null;
         } | null;
     }>;
@@ -956,7 +958,9 @@ export declare class OrderService {
     }>;
     private assertForwardTransition;
     private assertCorrection;
-    listAllOrdersForAdmin(): Promise<{
+    listAllOrdersForAdmin(opts?: {
+        includeUnpaid?: boolean;
+    }): Promise<{
         grocery: {
             type: "grocery";
             customerName: string;

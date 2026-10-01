@@ -28,11 +28,12 @@ let PublicCouponController = class PublicCouponController {
         this.jwtService = jwtService;
         this.config = config;
     }
-    listActive() {
-        return this.couponService.listActive();
+    listActive(vendorId) {
+        return this.couponService.listActive(vendorId);
     }
     async validate(dto, req) {
-        return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req));
+        const vendorId = dto.vendorId;
+        return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req), vendorId);
     }
     async userIdFrom(req) {
         const header = req.headers.authorization;
@@ -53,8 +54,9 @@ exports.PublicCouponController = PublicCouponController;
 __decorate([
     (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Get)('active'),
+    __param(0, (0, common_1.Query)('vendorId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PublicCouponController.prototype, "listActive", null);
 __decorate([

@@ -21,6 +21,7 @@ class CreateCouponDto {
     isFirstOrderOnly;
     firstNOrders;
     isActive;
+    vendorId;
 }
 exports.CreateCouponDto = CreateCouponDto;
 __decorate([
@@ -69,4 +70,9 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateCouponDto.prototype, "isActive", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateCouponDto.prototype, "vendorId", void 0);
 //# sourceMappingURL=create-coupon.dto.js.map

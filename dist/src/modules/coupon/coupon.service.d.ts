@@ -18,6 +18,7 @@ declare function toPublicCoupon(c: CouponRow): {
     description: string | null;
     isFirstOrderOnly: boolean;
     firstNOrders: number | null;
+    vendorId: string | null;
 };
 export declare class CouponService {
     private readonly db;
@@ -33,9 +34,10 @@ export declare class CouponService {
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
         isActive: boolean;
+        vendorId: string | null;
         createdAt: Date;
     }[]>;
-    listActive(): Promise<{
+    listActive(vendorId?: string): Promise<{
         code: string;
         discountType: string;
         discountValue: number;
@@ -44,12 +46,14 @@ export declare class CouponService {
         description: string | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
+        vendorId: string | null;
         id: string;
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
         createdAt: Date;
         description: string | null;
+        vendorId: string | null;
         minOrderValue: number;
         isActive: boolean;
         code: string;
@@ -70,6 +74,7 @@ export declare class CouponService {
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
         isActive: boolean;
+        vendorId: string | null;
         createdAt: Date;
     }>;
     delete(id: string): Promise<{
@@ -81,15 +86,17 @@ export declare class CouponService {
         subtotal: number;
         deliveryFee: number;
         userId?: string;
+        vendorId?: string;
     }): Promise<CouponEvaluation>;
     findAutoApply(ctx: {
         subtotal: number;
         deliveryFee: number;
         userId: string;
+        vendorId?: string;
     }): Promise<{
         code: string;
         evaluation: CouponEvaluation;
     } | null>;
-    validate(code: string, subtotal: number, userId?: string): Promise<CouponEvaluation>;
+    validate(code: string, subtotal: number, userId?: string, vendorId?: string): Promise<CouponEvaluation>;
 }
 export {};

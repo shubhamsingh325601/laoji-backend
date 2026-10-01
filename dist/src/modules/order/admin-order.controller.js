@@ -24,8 +24,8 @@ let AdminOrderController = class AdminOrderController {
     constructor(orders) {
         this.orders = orders;
     }
-    listAll() {
-        return this.orders.listAllOrdersForAdmin();
+    listAll(includeUnpaid) {
+        return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
     }
     timeline(type, id) {
         return this.orders.getOrderTimelineForAdmin(type, id);
@@ -37,8 +37,9 @@ let AdminOrderController = class AdminOrderController {
 exports.AdminOrderController = AdminOrderController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('includeUnpaid')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "listAll", null);
 __decorate([

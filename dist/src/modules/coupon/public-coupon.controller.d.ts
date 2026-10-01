@@ -8,7 +8,7 @@ export declare class PublicCouponController {
     private readonly jwtService;
     private readonly config;
     constructor(couponService: CouponService, jwtService: JwtService, config: ConfigService);
-    listActive(): Promise<{
+    listActive(vendorId?: string): Promise<{
         code: string;
         discountType: string;
         discountValue: number;
@@ -17,6 +17,7 @@ export declare class PublicCouponController {
         description: string | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
+        vendorId: string | null;
         id: string;
     }[]>;
     validate(dto: ValidateCouponDto, req: Request): Promise<import("./coupon.service").CouponEvaluation>;

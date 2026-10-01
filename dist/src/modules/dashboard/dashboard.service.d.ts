@@ -45,6 +45,16 @@ export declare class DashboardService {
     private readonly db;
     constructor(db: Db);
     getStats(): Promise<DashboardStats>;
+    getVendorSummary(vendorId: string, fromRaw?: string, toRaw?: string): Promise<{
+        acceptanceRate: number | null;
+        avgPrepMinutes: number | null;
+        totalOrders: number;
+        deliveredOrders: number;
+        cancelledOrders: number;
+        grossSales: number;
+        vendorEarnings: number;
+        platformEarnings: number;
+    }>;
     getAttention(): Promise<AttentionItem[]>;
     private pushStuckIfDue;
     private latestStatusChangeMap;

@@ -3,7 +3,7 @@ import { OrderService } from './order.service';
 export declare class AdminOrderController {
     private readonly orders;
     constructor(orders: OrderService);
-    listAll(): Promise<{
+    listAll(includeUnpaid?: string): Promise<{
         grocery: {
             type: "grocery";
             customerName: string;

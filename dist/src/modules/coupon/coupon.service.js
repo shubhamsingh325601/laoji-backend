@@ -28,6 +28,7 @@ function toPublicCoupon(c) {
         description: c.description,
         isFirstOrderOnly: c.isFirstOrderOnly,
         firstNOrders: firstNOrdersOf(c),
+        vendorId: c.vendorId,
     };
 }
 function firstNOrdersOf(c) {
@@ -43,11 +44,14 @@ let CouponService = class CouponService {
     async listAllForAdmin() {
         return this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
     }
-    async listActive() {
+    async listActive(vendorId) {
+        const condition = vendorId
+            ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
+            : (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true);
         const rows = await this.db
             .select()
             .from(schema_1.coupons)
-            .where((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true))
+            .where(condition)
             .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
         return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
     }
@@ -72,6 +76,7 @@ let CouponService = class CouponService {
             isFirstOrderOnly: dto.isFirstOrderOnly ?? false,
             firstNOrders: dto.firstNOrders ?? null,
             isActive: dto.isActive ?? true,
+            vendorId: dto.vendorId ?? null,
         })
             .returning();
         return created;
@@ -100,6 +105,8 @@ let CouponService = class CouponService {
             updates.firstNOrders = dto.firstNOrders;
         if (dto.isActive !== undefined)
             updates.isActive = dto.isActive;
+        if (dto.vendorId !== undefined)
+            updates.vendorId = dto.vendorId;
         const [updated] = await this.db
             .update(schema_1.coupons)
             .set(updates)
@@ -128,8 +135,14 @@ let CouponService = class CouponService {
         if (!cleanCode) {
             return { valid: false, message: 'Please enter a coupon code', discount: 0 };
         }
-        const [coupon] = await this.db.select().from(schema_1.coupons).where((0, drizzle_orm_1.eq)(schema_1.coupons.code, cleanCode));
-        if (!coupon || !coupon.isActive) {
+        const [coupon] = await this.db
+            .select()
+            .from(schema_1.coupons)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.code, cleanCode), (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true)));
+        if (!coupon) {
+            return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+        }
+        if (coupon.vendorId && coupon.vendorId !== ctx.vendorId) {
             return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
         }
         if (ctx.subtotal < coupon.minOrderValue) {
@@ -191,8 +204,8 @@ let CouponService = class CouponService {
         }
         return best;
     }
-    async validate(code, subtotal, userId) {
-        const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId });
+    async validate(code, subtotal, userId, vendorId) {
+        const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId, vendorId });
         if (res.valid && res.coupon?.discountType === 'free_delivery') {
             return { ...res, discount: 0 };
         }

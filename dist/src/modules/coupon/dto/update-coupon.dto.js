@@ -21,6 +21,7 @@ class UpdateCouponDto {
     isFirstOrderOnly;
     firstNOrders;
     isActive;
+    vendorId;
 }
 exports.UpdateCouponDto = UpdateCouponDto;
 __decorate([
@@ -72,4 +73,9 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateCouponDto.prototype, "isActive", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdateCouponDto.prototype, "vendorId", void 0);
 //# sourceMappingURL=update-coupon.dto.js.map

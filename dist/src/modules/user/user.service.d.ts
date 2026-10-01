@@ -15,6 +15,8 @@ export declare class UserService {
         supportNotes: string;
         address: string;
         createdAt: Date;
+        totalOrders: number;
+        totalSpend: number;
     }[]>;
     getUser(id: string): Promise<{
         id: string;
@@ -34,6 +36,7 @@ export declare class UserService {
             isDefault: boolean;
         }[];
         orderCount: number;
+        totalSpend: number;
         recentOrders: ({
             id: string;
             customerId: string;

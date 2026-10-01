@@ -1912,7 +1912,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2154,7 +2154,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2424,7 +2424,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2628,7 +2628,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
@@ -2696,6 +2696,13 @@ export declare class CatalogService {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -2722,8 +2729,28 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        kycDocuments: {
+            id: string;
+            userId: string;
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            docType: string;
+            secureUrl: string;
+            publicId: string;
+            status: "pending" | "verified" | "rejected";
+            rejectionReason: string | null;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
+            uploadedAt: Date;
+        }[];
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -2829,6 +2856,13 @@ export declare class CatalogService {
         kycStatus: "pending" | "verified" | "rejected";
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
@@ -2855,8 +2889,28 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        kycDocuments: {
+            id: string;
+            userId: string;
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            docType: string;
+            secureUrl: string;
+            publicId: string;
+            status: "pending" | "verified" | "rejected";
+            rejectionReason: string | null;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
+            uploadedAt: Date;
+        }[];
         activity: string;
         isOpen: boolean;
+        isOpenNow: boolean;
+        businessHours: {
+            day: number;
+            isOpen: boolean;
+            openTime: string;
+            closeTime: string;
+        }[] | null;
         showInApp: boolean;
         displayOrder: number;
         deliveryRadiusKm: number;
