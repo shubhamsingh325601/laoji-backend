@@ -1,3 +1,4 @@
+import { OnModuleInit } from '@nestjs/common';
 import type { Db } from '../../config/database.module';
 import { coupons } from '../../../drizzle/schema';
 import type { CreateCouponDto } from './dto/create-coupon.dto';
@@ -20,9 +21,10 @@ declare function toPublicCoupon(c: CouponRow): {
     firstNOrders: number | null;
     vendorId: string | null;
 };
-export declare class CouponService {
+export declare class CouponService implements OnModuleInit {
     private readonly db;
     constructor(db: Db);
+    onModuleInit(): Promise<void>;
     listAllForAdmin(): Promise<{
         id: string;
         code: string;
@@ -51,17 +53,17 @@ export declare class CouponService {
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
-        createdAt: Date;
-        description: string | null;
-        vendorId: string | null;
-        minOrderValue: number;
-        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
+        minOrderValue: number;
         maxDiscount: number | null;
+        description: string | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        vendorId: string | null;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;

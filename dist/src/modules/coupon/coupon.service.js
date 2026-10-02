@@ -41,19 +41,46 @@ let CouponService = class CouponService {
     constructor(db) {
         this.db = db;
     }
+    async onModuleInit() {
+        try {
+            await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+        }
+        catch (err) {
+            console.warn('[CouponService] Auto-migration notice:', err);
+        }
+    }
     async listAllForAdmin() {
-        return this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+        try {
+            return await this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+        }
+        catch (err) {
+            if (err?.message?.includes('vendor_id') || err?.code === '42703') {
+                await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+                return this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+            }
+            throw err;
+        }
     }
     async listActive(vendorId) {
-        const condition = vendorId
-            ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
-            : (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true);
-        const rows = await this.db
-            .select()
-            .from(schema_1.coupons)
-            .where(condition)
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
-        return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+        try {
+            const condition = vendorId
+                ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
+                : (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true);
+            const rows = await this.db
+                .select()
+                .from(schema_1.coupons)
+                .where(condition)
+                .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+            return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+        }
+        catch (err) {
+            if (err?.message?.includes('vendor_id') || err?.code === '42703') {
+                await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+                const rows = await this.db.select().from(schema_1.coupons).where((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true)).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+                return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+            }
+            throw err;
+        }
     }
     async create(dto) {
         const cleanCode = dto.code.trim().toUpperCase();

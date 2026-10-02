@@ -1,5 +1,5 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
+import { BadRequestException, Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { and, desc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { coupons, foodOrders, groceryOrders } from '../../../drizzle/schema';
@@ -39,24 +39,49 @@ function firstNOrdersOf(c: CouponRow): number | null {
 }
 
 @Injectable()
-export class CouponService {
+export class CouponService implements OnModuleInit {
   constructor(@Inject(DRIZZLE) private readonly db: Db) {}
 
+  async onModuleInit() {
+    try {
+      await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+    } catch (err) {
+      console.warn('[CouponService] Auto-migration notice:', err);
+    }
+  }
+
   async listAllForAdmin() {
-    return this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
+    try {
+      return await this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
+    } catch (err: any) {
+      if (err?.message?.includes('vendor_id') || err?.code === '42703') {
+        await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+        return this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
+      }
+      throw err;
+    }
   }
 
   async listActive(vendorId?: string) {
-    const condition = vendorId
-      ? and(eq(coupons.isActive, true), or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)))
-      : eq(coupons.isActive, true);
+    try {
+      const condition = vendorId
+        ? and(eq(coupons.isActive, true), or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)))
+        : eq(coupons.isActive, true);
 
-    const rows = await this.db
-      .select()
-      .from(coupons)
-      .where(condition)
-      .orderBy(desc(coupons.createdAt));
-    return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+      const rows = await this.db
+        .select()
+        .from(coupons)
+        .where(condition)
+        .orderBy(desc(coupons.createdAt));
+      return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+    } catch (err: any) {
+      if (err?.message?.includes('vendor_id') || err?.code === '42703') {
+        await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+        const rows = await this.db.select().from(coupons).where(eq(coupons.isActive, true)).orderBy(desc(coupons.createdAt));
+        return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+      }
+      throw err;
+    }
   }
 
   async create(dto: CreateCouponDto) {
