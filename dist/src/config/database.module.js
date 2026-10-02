@@ -56,8 +56,14 @@ exports.DatabaseModule = DatabaseModule = __decorate([
             {
                 provide: exports.DRIZZLE,
                 inject: [config_1.ConfigService],
-                useFactory: (config) => {
+                useFactory: async (config) => {
                     const pool = new pg_1.Pool({ connectionString: config.get('DATABASE_URL') });
+                    try {
+                        await pool.query('ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;');
+                    }
+                    catch (err) {
+                        console.warn('[DB Init] Auto-migration notice:', err);
+                    }
                     return (0, node_postgres_1.drizzle)(pool, { schema });
                 },
             },

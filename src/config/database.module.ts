@@ -13,8 +13,13 @@ export type Db = NodePgDatabase<typeof schema>;
     {
       provide: DRIZZLE,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
+      useFactory: async (config: ConfigService) => {
         const pool = new Pool({ connectionString: config.get<string>('DATABASE_URL') });
+        try {
+          await pool.query('ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;');
+        } catch (err) {
+          console.warn('[DB Init] Auto-migration notice:', err);
+        }
         return drizzle(pool, { schema });
       },
     },
