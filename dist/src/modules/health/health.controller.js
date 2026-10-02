@@ -26,6 +26,17 @@ let HealthController = class HealthController {
         await this.db.execute((0, drizzle_orm_1.sql) `select 1`);
         return { status: 'ok', db: 'connected' };
     }
+    async checkCoupons() {
+        try {
+            await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+            const cols = await this.db.execute((0, drizzle_orm_1.sql) `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'coupons'`);
+            const couponsRows = await this.db.execute((0, drizzle_orm_1.sql) `SELECT * FROM "coupons" LIMIT 5`);
+            return { status: 'ok', cols: cols.rows ?? cols, coupons: couponsRows.rows ?? couponsRows };
+        }
+        catch (e) {
+            return { status: 'error', message: e.message, stack: e.stack };
+        }
+    }
 };
 exports.HealthController = HealthController;
 __decorate([
@@ -34,6 +45,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], HealthController.prototype, "check", null);
+__decorate([
+    (0, common_1.Get)('db-check'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], HealthController.prototype, "checkCoupons", null);
 exports.HealthController = HealthController = __decorate([
     (0, throttler_1.SkipThrottle)({
         default: true,

@@ -33,4 +33,16 @@ export class HealthController {
     await this.db.execute(sql`select 1`);
     return { status: 'ok', db: 'connected' };
   }
+
+  @Get('db-check')
+  async checkCoupons() {
+    try {
+      await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+      const cols = await this.db.execute(sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'coupons'`);
+      const couponsRows = await this.db.execute(sql`SELECT * FROM "coupons" LIMIT 5`);
+      return { status: 'ok', cols: (cols as any).rows ?? cols, coupons: (couponsRows as any).rows ?? couponsRows };
+    } catch (e: any) {
+      return { status: 'error', message: e.message, stack: e.stack };
+    }
+  }
 }

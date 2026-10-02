@@ -6,4 +6,17 @@ export declare class HealthController {
         status: string;
         db: string;
     }>;
+    checkCoupons(): Promise<{
+        status: string;
+        cols: any;
+        coupons: any;
+        message?: undefined;
+        stack?: undefined;
+    } | {
+        status: string;
+        message: any;
+        stack: any;
+        cols?: undefined;
+        coupons?: undefined;
+    }>;
 }
