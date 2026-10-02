@@ -2245,6 +2245,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
+      imageUrl: vendor.imageUrl,
       createdAt: vendor.createdAt,
     }));
   }
@@ -2324,6 +2325,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
+      imageUrl: vendor.imageUrl,
       rating: restaurant?.ratingAvg ?? 4.8,
       ratingCount: 12,
       productCount,
@@ -2943,6 +2945,10 @@ export class CatalogService {
     if (dto.bankAccount !== undefined) updateFields.bankAccount = dto.bankAccount ? dto.bankAccount.trim() : null;
     if (dto.bankIfsc !== undefined) updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
     if (dto.upiId !== undefined) updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
+    if (dto.imageUrl !== undefined) {
+      updateFields.imageUrl = dto.imageUrl ? dto.imageUrl.trim() : null;
+      await this.db.update(restaurants).set({ imageUrl: updateFields.imageUrl }).where(eq(restaurants.vendorId, id));
+    }
 
     if (Object.keys(updateFields).length > 0) {
       await this.db.update(vendors).set(updateFields).where(eq(vendors.id, id));

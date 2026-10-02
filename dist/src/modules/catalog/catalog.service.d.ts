@@ -2720,6 +2720,7 @@ export declare class CatalogService {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         createdAt: Date;
     }[]>;
     getAdminVendor(id: string): Promise<{
@@ -2768,6 +2769,7 @@ export declare class CatalogService {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         rating: number;
         ratingCount: number;
         productCount: number;
@@ -2883,6 +2885,7 @@ export declare class CatalogService {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         createdAt: Date;
     }[]>;
     updateAdminVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
@@ -2931,6 +2934,7 @@ export declare class CatalogService {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         rating: number;
         ratingCount: number;
         productCount: number;

@@ -17,6 +17,7 @@ export type Db = NodePgDatabase<typeof schema>;
         const pool = new Pool({ connectionString: config.get<string>('DATABASE_URL') });
         try {
           await pool.query(`
+            ALTER TABLE "vendors" ADD COLUMN IF NOT EXISTS "image_url" text;
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "beneficiary_user_id" uuid;
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT true;

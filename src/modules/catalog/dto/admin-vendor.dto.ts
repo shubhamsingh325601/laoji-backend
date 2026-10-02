@@ -75,6 +75,10 @@ export class CreateAdminVendorDto {
   @IsOptional()
   @IsNumber()
   displayOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class UpdateAdminVendorDto {
@@ -180,6 +184,10 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsNumber()
   displayOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class ReorderVendorItemDto {

@@ -1710,6 +1710,7 @@ let CatalogService = class CatalogService {
             commissionPct: 10,
             cashbackPct: 5,
             discountPct: 0,
+            imageUrl: vendor.imageUrl,
             createdAt: vendor.createdAt,
         }));
     }
@@ -1784,6 +1785,7 @@ let CatalogService = class CatalogService {
             commissionPct: 10,
             cashbackPct: 5,
             discountPct: 0,
+            imageUrl: vendor.imageUrl,
             rating: restaurant?.ratingAvg ?? 4.8,
             ratingCount: 12,
             productCount,
@@ -2357,6 +2359,10 @@ let CatalogService = class CatalogService {
             updateFields.bankIfsc = dto.bankIfsc ? dto.bankIfsc.trim().toUpperCase() : null;
         if (dto.upiId !== undefined)
             updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
+        if (dto.imageUrl !== undefined) {
+            updateFields.imageUrl = dto.imageUrl ? dto.imageUrl.trim() : null;
+            await this.db.update(schema_1.restaurants).set({ imageUrl: updateFields.imageUrl }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id));
+        }
         if (Object.keys(updateFields).length > 0) {
             await this.db.update(schema_1.vendors).set(updateFields).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
             if (updateFields.isOpen !== undefined || updateFields.showInApp !== undefined) {

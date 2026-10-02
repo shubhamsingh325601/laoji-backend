@@ -17,6 +17,7 @@ export declare class CreateAdminVendorDto {
     upiId?: string;
     showInApp?: boolean;
     displayOrder?: number;
+    imageUrl?: string;
 }
 export declare class UpdateAdminVendorDto {
     businessName?: string;
@@ -43,6 +44,7 @@ export declare class UpdateAdminVendorDto {
     upiId?: string;
     showInApp?: boolean;
     displayOrder?: number;
+    imageUrl?: string;
 }
 export declare class ReorderVendorItemDto {
     id: string;

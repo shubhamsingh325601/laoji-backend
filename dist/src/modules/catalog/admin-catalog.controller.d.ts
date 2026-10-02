@@ -628,6 +628,7 @@ export declare class AdminCatalogController {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         createdAt: Date;
     }[]>;
     getVendor(id: string): Promise<{
@@ -676,6 +677,7 @@ export declare class AdminCatalogController {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         rating: number;
         ratingCount: number;
         productCount: number;
@@ -758,6 +760,7 @@ export declare class AdminCatalogController {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         createdAt: Date;
     }[]>;
     updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
@@ -806,6 +809,7 @@ export declare class AdminCatalogController {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         rating: number;
         ratingCount: number;
         productCount: number;

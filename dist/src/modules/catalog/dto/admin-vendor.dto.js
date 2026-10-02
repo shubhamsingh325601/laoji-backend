@@ -31,6 +31,7 @@ class CreateAdminVendorDto {
     upiId;
     showInApp;
     displayOrder;
+    imageUrl;
 }
 exports.CreateAdminVendorDto = CreateAdminVendorDto;
 __decorate([
@@ -125,6 +126,11 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateAdminVendorDto.prototype, "displayOrder", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminVendorDto.prototype, "imageUrl", void 0);
 class UpdateAdminVendorDto {
     businessName;
     ownerName;
@@ -150,6 +156,7 @@ class UpdateAdminVendorDto {
     upiId;
     showInApp;
     displayOrder;
+    imageUrl;
 }
 exports.UpdateAdminVendorDto = UpdateAdminVendorDto;
 __decorate([
@@ -278,6 +285,11 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateAdminVendorDto.prototype, "displayOrder", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAdminVendorDto.prototype, "imageUrl", void 0);
 class ReorderVendorItemDto {
     id;
     displayOrder;
