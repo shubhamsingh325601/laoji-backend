@@ -30,6 +30,7 @@ const area_manager_module_1 = require("./modules/area-manager/area-manager.modul
 const coupon_module_1 = require("./modules/coupon/coupon.module");
 const banner_module_1 = require("./modules/banner/banner.module");
 const vendor_discounts_module_1 = require("./modules/vendor-discounts/vendor-discounts.module");
+const wallet_module_1 = require("./modules/wallet/wallet.module");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 const response_cache_module_1 = require("./common/cache/response-cache.module");
 let AppModule = class AppModule {
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             coupon_module_1.CouponModule,
             banner_module_1.BannerModule,
             vendor_discounts_module_1.VendorDiscountsModule,
+            wallet_module_1.WalletModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: throttler_guard_1.AppThrottlerGuard },

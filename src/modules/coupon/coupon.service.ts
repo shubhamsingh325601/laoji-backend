@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException, OnModuleIni
 import { and, desc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { coupons, foodOrders, groceryOrders } from '../../../drizzle/schema';
+import { coupons, foodOrders, groceryOrders, users } from '../../../drizzle/schema';
 import type { CreateCouponDto } from './dto/create-coupon.dto';
 import type { UpdateCouponDto } from './dto/update-coupon.dto';
 
@@ -30,6 +30,9 @@ function toPublicCoupon(c: CouponRow) {
     isFirstOrderOnly: c.isFirstOrderOnly,
     firstNOrders: firstNOrdersOf(c),
     vendorId: c.vendorId,
+    showInApp: c.showInApp,
+    startsAt: c.startsAt,
+    expiresAt: c.expiresAt,
   };
 }
 
@@ -44,44 +47,85 @@ export class CouponService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+      await this.db.execute(sql`
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "beneficiary_user_id" uuid;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT true;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_type" varchar(20);
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_value" double precision;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "max_uses_per_user" integer;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "max_total_uses" integer;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "total_redemptions" integer NOT NULL DEFAULT 0;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "starts_at" timestamp with time zone;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "expires_at" timestamp with time zone;
+      `);
     } catch (err) {
       console.warn('[CouponService] Auto-migration notice:', err);
     }
   }
 
   async listAllForAdmin() {
-    try {
-      return await this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
-    } catch (err: any) {
-      if (err?.message?.includes('vendor_id') || err?.code === '42703') {
-        await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
-        return this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
-      }
-      throw err;
-    }
+    const rows = await this.db
+      .select({
+        id: coupons.id,
+        code: coupons.code,
+        discountType: coupons.discountType,
+        discountValue: coupons.discountValue,
+        minOrderValue: coupons.minOrderValue,
+        maxDiscount: coupons.maxDiscount,
+        description: coupons.description,
+        isFirstOrderOnly: coupons.isFirstOrderOnly,
+        firstNOrders: coupons.firstNOrders,
+        isActive: coupons.isActive,
+        vendorId: coupons.vendorId,
+        beneficiaryUserId: coupons.beneficiaryUserId,
+        showInApp: coupons.showInApp,
+        affiliateCommissionType: coupons.affiliateCommissionType,
+        affiliateCommissionValue: coupons.affiliateCommissionValue,
+        maxUsesPerUser: coupons.maxUsesPerUser,
+        maxTotalUses: coupons.maxTotalUses,
+        totalRedemptions: coupons.totalRedemptions,
+        startsAt: coupons.startsAt,
+        expiresAt: coupons.expiresAt,
+        createdAt: coupons.createdAt,
+        beneficiaryName: users.name,
+        beneficiaryPhone: users.phone,
+        beneficiaryRole: users.role,
+      })
+      .from(coupons)
+      .leftJoin(users, eq(coupons.beneficiaryUserId, users.id))
+      .orderBy(desc(coupons.createdAt));
+    return rows;
   }
 
+  /**
+   * Only return coupons that are active AND marked as showInApp=true.
+   * Creator/Vendor affiliate coupons (showInApp=false) are hidden and must be given manually.
+   */
   async listActive(vendorId?: string) {
-    try {
-      const condition = vendorId
-        ? and(eq(coupons.isActive, true), or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)))
-        : eq(coupons.isActive, true);
+    const condition = vendorId
+      ? and(
+          eq(coupons.isActive, true),
+          eq(coupons.showInApp, true),
+          or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)),
+        )
+      : and(eq(coupons.isActive, true), eq(coupons.showInApp, true));
 
-      const rows = await this.db
-        .select()
-        .from(coupons)
-        .where(condition)
-        .orderBy(desc(coupons.createdAt));
-      return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
-    } catch (err: any) {
-      if (err?.message?.includes('vendor_id') || err?.code === '42703') {
-        await this.db.execute(sql`ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
-        const rows = await this.db.select().from(coupons).where(eq(coupons.isActive, true)).orderBy(desc(coupons.createdAt));
-        return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
-      }
-      throw err;
-    }
+    const rows = await this.db
+      .select()
+      .from(coupons)
+      .where(condition)
+      .orderBy(desc(coupons.createdAt));
+
+    // Filter out expired coupons or coupons not yet active
+    const now = new Date();
+    const active = rows.filter((c) => {
+      if (c.startsAt && now < new Date(c.startsAt)) return false;
+      if (c.expiresAt && now > new Date(c.expiresAt)) return false;
+      return true;
+    });
+
+    return active.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
   }
 
   async create(dto: CreateCouponDto) {
@@ -108,6 +152,14 @@ export class CouponService implements OnModuleInit {
         firstNOrders: dto.firstNOrders ?? null,
         isActive: dto.isActive ?? true,
         vendorId: dto.vendorId ?? null,
+        beneficiaryUserId: dto.beneficiaryUserId ?? null,
+        showInApp: dto.showInApp ?? true,
+        affiliateCommissionType: dto.affiliateCommissionType ?? null,
+        affiliateCommissionValue: dto.affiliateCommissionValue ?? null,
+        maxUsesPerUser: dto.maxUsesPerUser ?? null,
+        maxTotalUses: dto.maxTotalUses ?? null,
+        startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       })
       .returning();
 
@@ -131,6 +183,14 @@ export class CouponService implements OnModuleInit {
     if (dto.firstNOrders !== undefined) updates.firstNOrders = dto.firstNOrders;
     if (dto.isActive !== undefined) updates.isActive = dto.isActive;
     if (dto.vendorId !== undefined) updates.vendorId = dto.vendorId;
+    if (dto.beneficiaryUserId !== undefined) updates.beneficiaryUserId = dto.beneficiaryUserId;
+    if (dto.showInApp !== undefined) updates.showInApp = dto.showInApp;
+    if (dto.affiliateCommissionType !== undefined) updates.affiliateCommissionType = dto.affiliateCommissionType;
+    if (dto.affiliateCommissionValue !== undefined) updates.affiliateCommissionValue = dto.affiliateCommissionValue;
+    if (dto.maxUsesPerUser !== undefined) updates.maxUsesPerUser = dto.maxUsesPerUser;
+    if (dto.maxTotalUses !== undefined) updates.maxTotalUses = dto.maxTotalUses;
+    if (dto.startsAt !== undefined) updates.startsAt = dto.startsAt ? new Date(dto.startsAt) : null;
+    if (dto.expiresAt !== undefined) updates.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
 
     const [updated] = await this.db
       .update(coupons)
@@ -169,11 +229,49 @@ export class CouponService implements OnModuleInit {
   }
 
   /**
-   * Decides whether `code` applies to a cart and how much it takes off.
-   * A free-delivery voucher's discount is the order's delivery fee, so it's
-   * worth nothing on an order that already ships free.
+   * Count how many non-cancelled orders a specific customer has placed using this coupon code.
    */
-  async evaluate(code: string, ctx: { subtotal: number; deliveryFee: number; userId?: string; vendorId?: string }): Promise<CouponEvaluation> {
+  async countCouponOrdersForUser(couponCode: string, userId: string): Promise<number> {
+    const counted = (table: typeof groceryOrders | typeof foodOrders) =>
+      this.db
+        .select({ id: table.id })
+        .from(table)
+        .where(
+          and(
+            eq(table.customerId, userId),
+            eq(table.couponCode, couponCode),
+            notInArray(table.status, ['cancelled', 'failed']),
+          ),
+        );
+    const [grocery, food] = await Promise.all([counted(groceryOrders), counted(foodOrders)]);
+    return grocery.length + food.length;
+  }
+
+  /**
+   * Count total non-cancelled orders placed platform-wide with this coupon code.
+   */
+  async countTotalCouponOrders(couponCode: string): Promise<number> {
+    const counted = (table: typeof groceryOrders | typeof foodOrders) =>
+      this.db
+        .select({ id: table.id })
+        .from(table)
+        .where(
+          and(
+            eq(table.couponCode, couponCode),
+            notInArray(table.status, ['cancelled', 'failed']),
+          ),
+        );
+    const [grocery, food] = await Promise.all([counted(groceryOrders), counted(foodOrders)]);
+    return grocery.length + food.length;
+  }
+
+  /**
+   * Decides whether `code` applies to a cart and how much it takes off.
+   */
+  async evaluate(
+    code: string,
+    ctx: { subtotal: number; deliveryFee: number; userId?: string; vendorId?: string },
+  ): Promise<CouponEvaluation> {
     const cleanCode = (code || '').trim().toUpperCase();
     if (!cleanCode) {
       return { valid: false, message: 'Please enter a coupon code', discount: 0 };
@@ -184,11 +282,20 @@ export class CouponService implements OnModuleInit {
       .from(coupons)
       .where(and(eq(coupons.code, cleanCode), eq(coupons.isActive, true)));
     if (!coupon) {
-      return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+      return { valid: false, message: 'Invalid or inactive coupon code', discount: 0 };
+    }
+
+    const now = new Date();
+    if (coupon.startsAt && now < new Date(coupon.startsAt)) {
+      return { valid: false, message: `Coupon ${coupon.code} is not active yet`, discount: 0 };
+    }
+
+    if (coupon.expiresAt && now > new Date(coupon.expiresAt)) {
+      return { valid: false, message: `Coupon ${coupon.code} has expired`, discount: 0 };
     }
 
     if (coupon.vendorId && coupon.vendorId !== ctx.vendorId) {
-      return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+      return { valid: false, message: 'Coupon is not valid for this vendor', discount: 0 };
     }
 
     if (ctx.subtotal < coupon.minOrderValue) {
@@ -199,6 +306,7 @@ export class CouponService implements OnModuleInit {
       };
     }
 
+    // First N orders restriction (for customer welcome vouchers)
     const firstN = firstNOrdersOf(coupon);
     if (firstN != null && ctx.userId) {
       const placed = await this.countPlacedOrders(ctx.userId);
@@ -209,6 +317,33 @@ export class CouponService implements OnModuleInit {
             firstN === 1
               ? `Coupon ${coupon.code} is valid only on your first order`
               : `Coupon ${coupon.code} is valid only on your first ${firstN} orders`,
+          discount: 0,
+        };
+      }
+    }
+
+    // Per-user usage limit (e.g. 1 user 1 time for affiliate/creator coupons)
+    if (coupon.maxUsesPerUser != null && ctx.userId) {
+      const userUsage = await this.countCouponOrdersForUser(cleanCode, ctx.userId);
+      if (userUsage >= coupon.maxUsesPerUser) {
+        return {
+          valid: false,
+          message:
+            coupon.maxUsesPerUser === 1
+              ? `You have already used coupon ${coupon.code}`
+              : `You have reached the maximum allowed uses (${coupon.maxUsesPerUser}) for ${coupon.code}`,
+          discount: 0,
+        };
+      }
+    }
+
+    // Total redemption limit (e.g. first 50 users)
+    if (coupon.maxTotalUses != null) {
+      const totalUsage = await this.countTotalCouponOrders(cleanCode);
+      if (totalUsage >= coupon.maxTotalUses) {
+        return {
+          valid: false,
+          message: `Coupon ${coupon.code} has reached its maximum usage limit`,
           discount: 0,
         };
       }
@@ -239,10 +374,7 @@ export class CouponService implements OnModuleInit {
   }
 
   /**
-   * Welcome vouchers apply without being typed in: an active free-delivery
-   * voucher limited to a customer's first N orders (FREEDEL3) is picked
-   * automatically when the checkout names no coupon. This also covers app
-   * builds that never send a coupon code.
+   * Welcome vouchers apply without being typed in: only active public free-delivery vouchers.
    */
   async findAutoApply(ctx: { subtotal: number; deliveryFee: number; userId: string; vendorId?: string }) {
     if (ctx.deliveryFee <= 0) return null;
@@ -250,7 +382,13 @@ export class CouponService implements OnModuleInit {
       await this.db
         .select()
         .from(coupons)
-        .where(and(eq(coupons.isActive, true), eq(coupons.discountType, 'free_delivery')))
+        .where(
+          and(
+            eq(coupons.isActive, true),
+            eq(coupons.showInApp, true),
+            eq(coupons.discountType, 'free_delivery'),
+          ),
+        )
     ).filter((c) => firstNOrdersOf(c) != null);
 
     let best: { code: string; evaluation: CouponEvaluation } | null = null;
@@ -263,8 +401,6 @@ export class CouponService implements OnModuleInit {
     return best;
   }
 
-  // Kept for app builds that validate before checkout. The delivery fee isn't
-  // known here, so a free-delivery voucher reports ₹0 until a quote prices it.
   async validate(code: string, subtotal: number, userId?: string, vendorId?: string) {
     const res = await this.evaluate(code, { subtotal, deliveryFee: Number.POSITIVE_INFINITY, userId, vendorId });
     if (res.valid && res.coupon?.discountType === 'free_delivery') {

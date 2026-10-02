@@ -11,6 +11,7 @@ import { DRIZZLE } from '../../config/database.module';
 import {
   addresses,
   allocationAttempts,
+  coupons,
   deliveryPartners,
   foodOrderItems,
   foodOrderRatings,
@@ -38,6 +39,7 @@ import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVe
 import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
 import { CouponService } from '../coupon/coupon.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
+import { WalletService } from '../wallet/wallet.service';
 import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
 import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
@@ -62,6 +64,7 @@ export class OrderService {
     private readonly revenueConfig: RevenueConfigService,
     private readonly coupons: CouponService,
     private readonly vendorDiscounts: VendorDiscountsService,
+    private readonly wallet: WalletService,
   ) {
     this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
       this.handlePaymentSatisfied(type, orderId).catch((err) => {
@@ -235,7 +238,7 @@ export class OrderService {
           deliveryFee,
           platformCommission: subtotal * commissionPct,
           commissionPct,
-          couponCode: discount > 0 ? priced.coupon!.code : null,
+          couponCode: priced.coupon?.code ?? null,
           discount,
           total,
           instructions: dto.instructions ?? null,
@@ -243,6 +246,10 @@ export class OrderService {
           deliveryAddressId: dto.deliveryAddressId,
         })
         .returning();
+
+      if (order.couponCode) {
+        await this.recordPendingAffiliateCommission(order, 'grocery');
+      }
 
       await this.db.insert(groceryOrderItems).values(
         dto.items.map((line) => ({
@@ -447,7 +454,7 @@ export class OrderService {
           deliveryFee,
           platformCommission: subtotal * commissionPct,
           commissionPct,
-          couponCode: discount > 0 ? pricing.coupon!.code : null,
+          couponCode: pricing.coupon?.code ?? null,
           discount,
           total,
           instructions: dto.instructions ?? null,
@@ -455,6 +462,10 @@ export class OrderService {
           deliveryAddressId: dto.deliveryAddressId,
         })
         .returning();
+
+      if (order.couponCode) {
+        await this.recordPendingAffiliateCommission(order, 'food');
+      }
 
       await this.db.insert(foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
 
@@ -1140,6 +1151,9 @@ export class OrderService {
     // paid via UPI owes the customer a refund exactly the same way.
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
+    // Cancel any pending affiliate commission for this order
+    await this.wallet.cancelPendingCommission(type, orderId);
+
     const orderCode = this.orderCode(orderId);
     this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     // Vendor/partner never heard about an order whose payment was never completed, so no cancel notice either.
@@ -1178,6 +1192,9 @@ export class OrderService {
 
     await this.payments.markRefundPendingIfPaid(type, orderId);
 
+    // Cancel any pending affiliate commission for this order
+    await this.wallet.cancelPendingCommission(type, orderId);
+
     const orderCode = this.orderCode(orderId);
     this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
     const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
@@ -1198,5 +1215,43 @@ export class OrderService {
     if (!vendorId) return null;
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
     return vendor?.userId ?? null;
+  }
+
+  private async recordPendingAffiliateCommission(order: any, type: 'grocery' | 'food') {
+    try {
+      const [coupon] = await this.db
+        .select()
+        .from(coupons)
+        .where(eq(coupons.code, order.couponCode))
+        .limit(1);
+
+      if (
+        !coupon ||
+        !coupon.beneficiaryUserId ||
+        coupon.affiliateCommissionValue == null ||
+        coupon.affiliateCommissionValue <= 0
+      ) {
+        return;
+      }
+
+      let commission = 0;
+      if (coupon.affiliateCommissionType === 'percentage') {
+        commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+      } else {
+        commission = Math.min(coupon.affiliateCommissionValue, order.platformCommission);
+      }
+
+      if (commission > 0) {
+        await this.wallet.recordPendingCommission({
+          userId: coupon.beneficiaryUserId,
+          amount: commission,
+          orderId: order.id,
+          orderType: type,
+          couponCode: coupon.code,
+        });
+      }
+    } catch (err) {
+      console.error('[OrderService] recordPendingAffiliateCommission failed:', err);
+    }
   }
 }

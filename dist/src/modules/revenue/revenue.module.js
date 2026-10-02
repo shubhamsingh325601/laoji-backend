@@ -13,11 +13,13 @@ const settlement_service_1 = require("./settlement.service");
 const admin_revenue_controller_1 = require("./admin-revenue.controller");
 const vendor_settlement_controller_1 = require("./vendor-settlement.controller");
 const partner_settlement_controller_1 = require("./partner-settlement.controller");
+const wallet_module_1 = require("../wallet/wallet.module");
 let RevenueModule = class RevenueModule {
 };
 exports.RevenueModule = RevenueModule;
 exports.RevenueModule = RevenueModule = __decorate([
     (0, common_1.Module)({
+        imports: [wallet_module_1.WalletModule],
         controllers: [admin_revenue_controller_1.AdminRevenueController, vendor_settlement_controller_1.VendorSettlementController, partner_settlement_controller_1.PartnerSettlementController],
         providers: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService],
         exports: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService],

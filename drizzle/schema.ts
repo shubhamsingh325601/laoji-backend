@@ -857,6 +857,23 @@ export const coupons = pgTable('coupons', {
   // vendorId null = global coupon (applies to all vendors)
   // vendorId set = vendor-specific coupon (only for this vendor)
   vendorId: uuid('vendor_id').references(() => vendors.id),
+  // Creator / Vendor / Affiliate who owns this coupon code and earns commission
+  beneficiaryUserId: uuid('beneficiary_user_id').references(() => users.id),
+  // If false, coupon is hidden from the customer app's public list (owner shares manually)
+  showInApp: boolean('show_in_app').notNull().default(true),
+  // How affiliate gets paid from our platform commission: 'percentage' or 'flat'
+  affiliateCommissionType: varchar('affiliate_commission_type', { length: 20 }),
+  // Percentage of platform commission (e.g. 50 = 50% of platform cut) or flat ₹ amount
+  affiliateCommissionValue: doublePrecision('affiliate_commission_value'),
+  // Max times a single user can redeem this coupon code (e.g. 1)
+  maxUsesPerUser: integer('max_uses_per_user'),
+  // Max total orders platform-wide for this coupon (null = unlimited)
+  maxTotalUses: integer('max_total_uses'),
+  // Counter of total redemptions
+  totalRedemptions: integer('total_redemptions').notNull().default(0),
+  // Validity window
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -923,6 +940,58 @@ export const vendorDiscountRedemptions = pgTable('vendor_discount_redemptions', 
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   orderId: uuid('order_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const wallets = pgTable('wallets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  balance: doublePrecision('balance').notNull().default(0),
+  totalEarned: doublePrecision('total_earned').notNull().default(0),
+  totalWithdrawn: doublePrecision('total_withdrawn').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const walletTransactions = pgTable('wallet_transactions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  walletId: uuid('wallet_id')
+    .notNull()
+    .references(() => wallets.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  amount: doublePrecision('amount').notNull(),
+  type: varchar('type', { length: 30 }).notNull(), // 'affiliate_commission' | 'withdrawal' | 'adjustment'
+  status: varchar('status', { length: 20 }).notNull().default('completed'), // 'pending' | 'completed' | 'cancelled' | 'rejected'
+  description: text('description').notNull(),
+  orderId: uuid('order_id'),
+  orderType: varchar('order_type', { length: 20 }), // 'grocery' | 'food'
+  couponCode: varchar('coupon_code', { length: 50 }),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const withdrawalRequests = pgTable('withdrawal_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  walletId: uuid('wallet_id')
+    .notNull()
+    .references(() => wallets.id, { onDelete: 'cascade' }),
+  amount: doublePrecision('amount').notNull(),
+  payoutMethod: varchar('payout_method', { length: 20 }).notNull(), // 'upi' | 'bank'
+  upiId: varchar('upi_id', { length: 100 }),
+  bankAccount: varchar('bank_account', { length: 50 }),
+  bankIfsc: varchar('bank_ifsc', { length: 20 }),
+  accountHolderName: varchar('account_holder_name', { length: 200 }),
+  status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+  adminNotes: text('admin_notes'),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

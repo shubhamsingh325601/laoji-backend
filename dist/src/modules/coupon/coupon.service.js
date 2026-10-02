@@ -29,6 +29,9 @@ function toPublicCoupon(c) {
         isFirstOrderOnly: c.isFirstOrderOnly,
         firstNOrders: firstNOrdersOf(c),
         vendorId: c.vendorId,
+        showInApp: c.showInApp,
+        startsAt: c.startsAt,
+        expiresAt: c.expiresAt,
     };
 }
 function firstNOrdersOf(c) {
@@ -43,44 +46,74 @@ let CouponService = class CouponService {
     }
     async onModuleInit() {
         try {
-            await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
+            await this.db.execute((0, drizzle_orm_1.sql) `
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "beneficiary_user_id" uuid;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT true;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_type" varchar(20);
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_value" double precision;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "max_uses_per_user" integer;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "max_total_uses" integer;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "total_redemptions" integer NOT NULL DEFAULT 0;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "starts_at" timestamp with time zone;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "expires_at" timestamp with time zone;
+      `);
         }
         catch (err) {
             console.warn('[CouponService] Auto-migration notice:', err);
         }
     }
     async listAllForAdmin() {
-        try {
-            return await this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
-        }
-        catch (err) {
-            if (err?.message?.includes('vendor_id') || err?.code === '42703') {
-                await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
-                return this.db.select().from(schema_1.coupons).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
-            }
-            throw err;
-        }
+        const rows = await this.db
+            .select({
+            id: schema_1.coupons.id,
+            code: schema_1.coupons.code,
+            discountType: schema_1.coupons.discountType,
+            discountValue: schema_1.coupons.discountValue,
+            minOrderValue: schema_1.coupons.minOrderValue,
+            maxDiscount: schema_1.coupons.maxDiscount,
+            description: schema_1.coupons.description,
+            isFirstOrderOnly: schema_1.coupons.isFirstOrderOnly,
+            firstNOrders: schema_1.coupons.firstNOrders,
+            isActive: schema_1.coupons.isActive,
+            vendorId: schema_1.coupons.vendorId,
+            beneficiaryUserId: schema_1.coupons.beneficiaryUserId,
+            showInApp: schema_1.coupons.showInApp,
+            affiliateCommissionType: schema_1.coupons.affiliateCommissionType,
+            affiliateCommissionValue: schema_1.coupons.affiliateCommissionValue,
+            maxUsesPerUser: schema_1.coupons.maxUsesPerUser,
+            maxTotalUses: schema_1.coupons.maxTotalUses,
+            totalRedemptions: schema_1.coupons.totalRedemptions,
+            startsAt: schema_1.coupons.startsAt,
+            expiresAt: schema_1.coupons.expiresAt,
+            createdAt: schema_1.coupons.createdAt,
+            beneficiaryName: schema_1.users.name,
+            beneficiaryPhone: schema_1.users.phone,
+            beneficiaryRole: schema_1.users.role,
+        })
+            .from(schema_1.coupons)
+            .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.coupons.beneficiaryUserId, schema_1.users.id))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+        return rows;
     }
     async listActive(vendorId) {
-        try {
-            const condition = vendorId
-                ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
-                : (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true);
-            const rows = await this.db
-                .select()
-                .from(schema_1.coupons)
-                .where(condition)
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
-            return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
-        }
-        catch (err) {
-            if (err?.message?.includes('vendor_id') || err?.code === '42703') {
-                await this.db.execute((0, drizzle_orm_1.sql) `ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;`);
-                const rows = await this.db.select().from(schema_1.coupons).where((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true)).orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
-                return rows.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
-            }
-            throw err;
-        }
+        const condition = vendorId
+            ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
+            : (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true));
+        const rows = await this.db
+            .select()
+            .from(schema_1.coupons)
+            .where(condition)
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.coupons.createdAt));
+        const now = new Date();
+        const active = rows.filter((c) => {
+            if (c.startsAt && now < new Date(c.startsAt))
+                return false;
+            if (c.expiresAt && now > new Date(c.expiresAt))
+                return false;
+            return true;
+        });
+        return active.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
     }
     async create(dto) {
         const cleanCode = dto.code.trim().toUpperCase();
@@ -104,6 +137,14 @@ let CouponService = class CouponService {
             firstNOrders: dto.firstNOrders ?? null,
             isActive: dto.isActive ?? true,
             vendorId: dto.vendorId ?? null,
+            beneficiaryUserId: dto.beneficiaryUserId ?? null,
+            showInApp: dto.showInApp ?? true,
+            affiliateCommissionType: dto.affiliateCommissionType ?? null,
+            affiliateCommissionValue: dto.affiliateCommissionValue ?? null,
+            maxUsesPerUser: dto.maxUsesPerUser ?? null,
+            maxTotalUses: dto.maxTotalUses ?? null,
+            startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
+            expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         })
             .returning();
         return created;
@@ -134,6 +175,22 @@ let CouponService = class CouponService {
             updates.isActive = dto.isActive;
         if (dto.vendorId !== undefined)
             updates.vendorId = dto.vendorId;
+        if (dto.beneficiaryUserId !== undefined)
+            updates.beneficiaryUserId = dto.beneficiaryUserId;
+        if (dto.showInApp !== undefined)
+            updates.showInApp = dto.showInApp;
+        if (dto.affiliateCommissionType !== undefined)
+            updates.affiliateCommissionType = dto.affiliateCommissionType;
+        if (dto.affiliateCommissionValue !== undefined)
+            updates.affiliateCommissionValue = dto.affiliateCommissionValue;
+        if (dto.maxUsesPerUser !== undefined)
+            updates.maxUsesPerUser = dto.maxUsesPerUser;
+        if (dto.maxTotalUses !== undefined)
+            updates.maxTotalUses = dto.maxTotalUses;
+        if (dto.startsAt !== undefined)
+            updates.startsAt = dto.startsAt ? new Date(dto.startsAt) : null;
+        if (dto.expiresAt !== undefined)
+            updates.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
         const [updated] = await this.db
             .update(schema_1.coupons)
             .set(updates)
@@ -157,6 +214,22 @@ let CouponService = class CouponService {
         const [grocery, food] = await Promise.all([counted(schema_1.groceryOrders), counted(schema_1.foodOrders)]);
         return grocery.length + food.length;
     }
+    async countCouponOrdersForUser(couponCode, userId) {
+        const counted = (table) => this.db
+            .select({ id: table.id })
+            .from(table)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(table.customerId, userId), (0, drizzle_orm_1.eq)(table.couponCode, couponCode), (0, drizzle_orm_1.notInArray)(table.status, ['cancelled', 'failed'])));
+        const [grocery, food] = await Promise.all([counted(schema_1.groceryOrders), counted(schema_1.foodOrders)]);
+        return grocery.length + food.length;
+    }
+    async countTotalCouponOrders(couponCode) {
+        const counted = (table) => this.db
+            .select({ id: table.id })
+            .from(table)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(table.couponCode, couponCode), (0, drizzle_orm_1.notInArray)(table.status, ['cancelled', 'failed'])));
+        const [grocery, food] = await Promise.all([counted(schema_1.groceryOrders), counted(schema_1.foodOrders)]);
+        return grocery.length + food.length;
+    }
     async evaluate(code, ctx) {
         const cleanCode = (code || '').trim().toUpperCase();
         if (!cleanCode) {
@@ -167,10 +240,17 @@ let CouponService = class CouponService {
             .from(schema_1.coupons)
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.code, cleanCode), (0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true)));
         if (!coupon) {
-            return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+            return { valid: false, message: 'Invalid or inactive coupon code', discount: 0 };
+        }
+        const now = new Date();
+        if (coupon.startsAt && now < new Date(coupon.startsAt)) {
+            return { valid: false, message: `Coupon ${coupon.code} is not active yet`, discount: 0 };
+        }
+        if (coupon.expiresAt && now > new Date(coupon.expiresAt)) {
+            return { valid: false, message: `Coupon ${coupon.code} has expired`, discount: 0 };
         }
         if (coupon.vendorId && coupon.vendorId !== ctx.vendorId) {
-            return { valid: false, message: 'Invalid or expired coupon code', discount: 0 };
+            return { valid: false, message: 'Coupon is not valid for this vendor', discount: 0 };
         }
         if (ctx.subtotal < coupon.minOrderValue) {
             return {
@@ -188,6 +268,28 @@ let CouponService = class CouponService {
                     message: firstN === 1
                         ? `Coupon ${coupon.code} is valid only on your first order`
                         : `Coupon ${coupon.code} is valid only on your first ${firstN} orders`,
+                    discount: 0,
+                };
+            }
+        }
+        if (coupon.maxUsesPerUser != null && ctx.userId) {
+            const userUsage = await this.countCouponOrdersForUser(cleanCode, ctx.userId);
+            if (userUsage >= coupon.maxUsesPerUser) {
+                return {
+                    valid: false,
+                    message: coupon.maxUsesPerUser === 1
+                        ? `You have already used coupon ${coupon.code}`
+                        : `You have reached the maximum allowed uses (${coupon.maxUsesPerUser}) for ${coupon.code}`,
+                    discount: 0,
+                };
+            }
+        }
+        if (coupon.maxTotalUses != null) {
+            const totalUsage = await this.countTotalCouponOrders(cleanCode);
+            if (totalUsage >= coupon.maxTotalUses) {
+                return {
+                    valid: false,
+                    message: `Coupon ${coupon.code} has reached its maximum usage limit`,
                     discount: 0,
                 };
             }
@@ -221,7 +323,7 @@ let CouponService = class CouponService {
         const candidates = (await this.db
             .select()
             .from(schema_1.coupons)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.discountType, 'free_delivery')))).filter((c) => firstNOrdersOf(c) != null);
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true), (0, drizzle_orm_1.eq)(schema_1.coupons.discountType, 'free_delivery')))).filter((c) => firstNOrdersOf(c) != null);
         let best = null;
         for (const c of candidates) {
             const evaluation = await this.evaluate(c.code, ctx);

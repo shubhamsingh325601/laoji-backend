@@ -16,7 +16,19 @@ export declare class AdminCouponController {
         firstNOrders: number | null;
         isActive: boolean;
         vendorId: string | null;
+        beneficiaryUserId: string | null;
+        showInApp: boolean;
+        affiliateCommissionType: string | null;
+        affiliateCommissionValue: number | null;
+        maxUsesPerUser: number | null;
+        maxTotalUses: number | null;
+        totalRedemptions: number;
+        startsAt: Date | null;
+        expiresAt: Date | null;
         createdAt: Date;
+        beneficiaryName: string | null;
+        beneficiaryPhone: string | null;
+        beneficiaryRole: "customer" | "vendor" | "delivery_partner" | "admin" | null;
     }[]>;
     listByVendor(vendorId: string): Promise<{
         code: string;
@@ -28,11 +40,16 @@ export declare class AdminCouponController {
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
         vendorId: string | null;
+        showInApp: boolean;
+        startsAt: Date | null;
+        expiresAt: Date | null;
         id: string;
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
         createdAt: Date;
+        expiresAt: Date | null;
+        showInApp: boolean;
         description: string | null;
         vendorId: string | null;
         minOrderValue: number;
@@ -43,6 +60,13 @@ export declare class AdminCouponController {
         maxDiscount: number | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
+        beneficiaryUserId: string | null;
+        affiliateCommissionType: string | null;
+        affiliateCommissionValue: number | null;
+        maxUsesPerUser: number | null;
+        maxTotalUses: number | null;
+        totalRedemptions: number;
+        startsAt: Date | null;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;
@@ -56,6 +80,15 @@ export declare class AdminCouponController {
         firstNOrders: number | null;
         isActive: boolean;
         vendorId: string | null;
+        beneficiaryUserId: string | null;
+        showInApp: boolean;
+        affiliateCommissionType: string | null;
+        affiliateCommissionValue: number | null;
+        maxUsesPerUser: number | null;
+        maxTotalUses: number | null;
+        totalRedemptions: number;
+        startsAt: Date | null;
+        expiresAt: Date | null;
         createdAt: Date;
     }>;
     delete(id: string): Promise<{

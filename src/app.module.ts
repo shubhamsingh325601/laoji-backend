@@ -21,6 +21,7 @@ import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { BannerModule } from './modules/banner/banner.module';
 import { VendorDiscountsModule } from './modules/vendor-discounts/vendor-discounts.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseCacheModule } from './common/cache/response-cache.module';
 
@@ -80,6 +81,7 @@ import { ResponseCacheModule } from './common/cache/response-cache.module';
     CouponModule,
     BannerModule,
     VendorDiscountsModule,
+    WalletModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

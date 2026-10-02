@@ -46,4 +46,39 @@ export class UpdateCouponDto {
   @IsOptional()
   @IsUUID()
   vendorId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  beneficiaryUserId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsIn(['percentage', 'flat'])
+  affiliateCommissionType?: 'percentage' | 'flat' | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  affiliateCommissionValue?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxUsesPerUser?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxTotalUses?: number | null;
+
+  @IsOptional()
+  @IsString()
+  startsAt?: string | null;
+
+  @IsOptional()
+  @IsString()
+  expiresAt?: string | null;
 }

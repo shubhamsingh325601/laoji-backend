@@ -22,6 +22,14 @@ class CreateCouponDto {
     firstNOrders;
     isActive;
     vendorId;
+    beneficiaryUserId;
+    showInApp;
+    affiliateCommissionType;
+    affiliateCommissionValue;
+    maxUsesPerUser;
+    maxTotalUses;
+    startsAt;
+    expiresAt;
 }
 exports.CreateCouponDto = CreateCouponDto;
 __decorate([
@@ -75,4 +83,47 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateCouponDto.prototype, "vendorId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateCouponDto.prototype, "beneficiaryUserId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateCouponDto.prototype, "showInApp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['percentage', 'flat']),
+    __metadata("design:type", String)
+], CreateCouponDto.prototype, "affiliateCommissionType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateCouponDto.prototype, "affiliateCommissionValue", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateCouponDto.prototype, "maxUsesPerUser", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateCouponDto.prototype, "maxTotalUses", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateCouponDto.prototype, "startsAt", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateCouponDto.prototype, "expiresAt", void 0);
 //# sourceMappingURL=create-coupon.dto.js.map

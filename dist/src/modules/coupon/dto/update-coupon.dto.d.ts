@@ -9,4 +9,12 @@ export declare class UpdateCouponDto {
     firstNOrders?: number | null;
     isActive?: boolean;
     vendorId?: string | null;
+    beneficiaryUserId?: string | null;
+    showInApp?: boolean;
+    affiliateCommissionType?: 'percentage' | 'flat' | null;
+    affiliateCommissionValue?: number | null;
+    maxUsesPerUser?: number | null;
+    maxTotalUses?: number | null;
+    startsAt?: string | null;
+    expiresAt?: string | null;
 }

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.vendorDiscountRedemptions = void 0;
+exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -536,6 +536,15 @@ exports.coupons = (0, pg_core_1.pgTable)('coupons', {
     firstNOrders: (0, pg_core_1.integer)('first_n_orders'),
     isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
     vendorId: (0, pg_core_1.uuid)('vendor_id').references(() => exports.vendors.id),
+    beneficiaryUserId: (0, pg_core_1.uuid)('beneficiary_user_id').references(() => exports.users.id),
+    showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(true),
+    affiliateCommissionType: (0, pg_core_1.varchar)('affiliate_commission_type', { length: 20 }),
+    affiliateCommissionValue: (0, pg_core_1.doublePrecision)('affiliate_commission_value'),
+    maxUsesPerUser: (0, pg_core_1.integer)('max_uses_per_user'),
+    maxTotalUses: (0, pg_core_1.integer)('max_total_uses'),
+    totalRedemptions: (0, pg_core_1.integer)('total_redemptions').notNull().default(0),
+    startsAt: (0, pg_core_1.timestamp)('starts_at', { withTimezone: true }),
+    expiresAt: (0, pg_core_1.timestamp)('expires_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.banners = (0, pg_core_1.pgTable)('banners', {
@@ -587,6 +596,55 @@ exports.vendorDiscountRedemptions = (0, pg_core_1.pgTable)('vendor_discount_rede
         .notNull()
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     orderId: (0, pg_core_1.uuid)('order_id'),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.wallets = (0, pg_core_1.pgTable)('wallets', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    userId: (0, pg_core_1.uuid)('user_id')
+        .notNull()
+        .unique()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    balance: (0, pg_core_1.doublePrecision)('balance').notNull().default(0),
+    totalEarned: (0, pg_core_1.doublePrecision)('total_earned').notNull().default(0),
+    totalWithdrawn: (0, pg_core_1.doublePrecision)('total_withdrawn').notNull().default(0),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.walletTransactions = (0, pg_core_1.pgTable)('wallet_transactions', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    walletId: (0, pg_core_1.uuid)('wallet_id')
+        .notNull()
+        .references(() => exports.wallets.id, { onDelete: 'cascade' }),
+    userId: (0, pg_core_1.uuid)('user_id')
+        .notNull()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    type: (0, pg_core_1.varchar)('type', { length: 30 }).notNull(),
+    status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('completed'),
+    description: (0, pg_core_1.text)('description').notNull(),
+    orderId: (0, pg_core_1.uuid)('order_id'),
+    orderType: (0, pg_core_1.varchar)('order_type', { length: 20 }),
+    couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
+    metadata: (0, pg_core_1.jsonb)('metadata'),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.withdrawalRequests = (0, pg_core_1.pgTable)('withdrawal_requests', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    userId: (0, pg_core_1.uuid)('user_id')
+        .notNull()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    walletId: (0, pg_core_1.uuid)('wallet_id')
+        .notNull()
+        .references(() => exports.wallets.id, { onDelete: 'cascade' }),
+    amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    payoutMethod: (0, pg_core_1.varchar)('payout_method', { length: 20 }).notNull(),
+    upiId: (0, pg_core_1.varchar)('upi_id', { length: 100 }),
+    bankAccount: (0, pg_core_1.varchar)('bank_account', { length: 50 }),
+    bankIfsc: (0, pg_core_1.varchar)('bank_ifsc', { length: 20 }),
+    accountHolderName: (0, pg_core_1.varchar)('account_holder_name', { length: 200 }),
+    status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('pending'),
+    adminNotes: (0, pg_core_1.text)('admin_notes'),
+    processedAt: (0, pg_core_1.timestamp)('processed_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 //# sourceMappingURL=schema.js.map

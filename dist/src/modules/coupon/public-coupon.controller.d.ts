@@ -18,6 +18,9 @@ export declare class PublicCouponController {
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
         vendorId: string | null;
+        showInApp: boolean;
+        startsAt: Date | null;
+        expiresAt: Date | null;
         id: string;
     }[]>;
     validate(dto: ValidateCouponDto, req: Request): Promise<import("./coupon.service").CouponEvaluation>;

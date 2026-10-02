@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const wallet_service_1 = require("../wallet/wallet.service");
 let SettlementService = class SettlementService {
     db;
-    constructor(db) {
+    wallet;
+    constructor(db, wallet) {
         this.db = db;
+        this.wallet = wallet;
     }
     async vendorIdForUser(userId) {
         const [row] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
@@ -49,7 +52,72 @@ let SettlementService = class SettlementService {
             commissionPctSnapshot: order.commissionPct,
         })
             .returning();
+        if (order.couponCode) {
+            await this.confirmAffiliateCommission(order, type, orderId);
+        }
         return settlement;
+    }
+    async confirmAffiliateCommission(order, type, orderId) {
+        try {
+            const [coupon] = await this.db
+                .select()
+                .from(schema_1.coupons)
+                .where((0, drizzle_orm_1.eq)(schema_1.coupons.code, order.couponCode))
+                .limit(1);
+            if (!coupon ||
+                !coupon.beneficiaryUserId ||
+                coupon.affiliateCommissionValue == null ||
+                coupon.affiliateCommissionValue <= 0) {
+                return;
+            }
+            let commission = 0;
+            if (coupon.affiliateCommissionType === 'percentage') {
+                commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+            }
+            else {
+                commission = Math.min(coupon.affiliateCommissionValue, order.platformCommission);
+            }
+            if (commission > 0) {
+                const [pending] = await this.db
+                    .select()
+                    .from(schema_1.walletTransactions)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.orderId, orderId), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.type, 'affiliate_commission'), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.status, 'pending')))
+                    .limit(1);
+                if (pending) {
+                    await this.wallet.confirmCommissionOnDelivery(type, orderId);
+                }
+                else {
+                    const wallet = await this.wallet.getOrCreateWallet(coupon.beneficiaryUserId);
+                    const orderCode = orderId.slice(0, 8).toUpperCase();
+                    await this.db.insert(schema_1.walletTransactions).values({
+                        walletId: wallet.id,
+                        userId: coupon.beneficiaryUserId,
+                        amount: commission,
+                        type: 'affiliate_commission',
+                        status: 'completed',
+                        description: `Affiliate referral commission for ${type} order #${orderCode} (Coupon: ${coupon.code})`,
+                        orderId,
+                        orderType: type,
+                        couponCode: coupon.code,
+                    });
+                    await this.db
+                        .update(schema_1.wallets)
+                        .set({
+                        balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${commission}`,
+                        totalEarned: (0, drizzle_orm_1.sql) `${schema_1.wallets.totalEarned} + ${commission}`,
+                        updatedAt: new Date(),
+                    })
+                        .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+                }
+                await this.db
+                    .update(schema_1.coupons)
+                    .set({ totalRedemptions: (0, drizzle_orm_1.sql) `${schema_1.coupons.totalRedemptions} + 1` })
+                    .where((0, drizzle_orm_1.eq)(schema_1.coupons.id, coupon.id));
+            }
+        }
+        catch (err) {
+            console.error('[SettlementService] Failed to credit affiliate commission on order delivery:', err);
+        }
     }
     async listForVendor(vendorId) {
         const groceryRows = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendorId));
@@ -143,6 +211,6 @@ exports.SettlementService = SettlementService;
 exports.SettlementService = SettlementService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [Object, wallet_service_1.WalletService])
 ], SettlementService);
 //# sourceMappingURL=settlement.service.js.map

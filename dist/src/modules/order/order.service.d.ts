@@ -7,6 +7,7 @@ import { NotificationService } from '../notification/notification.service';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
 import { CouponService } from '../coupon/coupon.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
+import { WalletService } from '../wallet/wallet.service';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -20,7 +21,8 @@ export declare class OrderService {
     private readonly revenueConfig;
     private readonly coupons;
     private readonly vendorDiscounts;
-    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService, coupons: CouponService, vendorDiscounts: VendorDiscountsService);
+    private readonly wallet;
+    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService, coupons: CouponService, vendorDiscounts: VendorDiscountsService, wallet: WalletService);
     private orderCode;
     private priceGroceryCart;
     private priceTotals;
@@ -52,6 +54,9 @@ export declare class OrderService {
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
                 vendorId: string | null;
+                showInApp: boolean;
+                startsAt: Date | null;
+                expiresAt: Date | null;
             } | null;
         } | null;
     }>;
@@ -81,6 +86,9 @@ export declare class OrderService {
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
                 vendorId: string | null;
+                showInApp: boolean;
+                startsAt: Date | null;
+                expiresAt: Date | null;
             } | null;
         } | null;
     }>;
@@ -1334,4 +1342,5 @@ export declare class OrderService {
         createdAt: Date;
     }>;
     private vendorUserIdForOrder;
+    private recordPendingAffiliateCommission;
 }

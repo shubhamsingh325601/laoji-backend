@@ -28,6 +28,7 @@ const order_cancelled_1 = require("../notification/templates/push/order-cancelle
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const coupon_service_1 = require("../coupon/coupon.service");
 const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
+const wallet_service_1 = require("../wallet/wallet.service");
 const catalog_types_1 = require("../catalog/catalog.types");
 const meal_slots_1 = require("../catalog/meal-slots");
 const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
@@ -42,7 +43,8 @@ let OrderService = class OrderService {
     revenueConfig;
     coupons;
     vendorDiscounts;
-    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons, vendorDiscounts) {
+    wallet;
+    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons, vendorDiscounts, wallet) {
         this.db = db;
         this.allocation = allocation;
         this.catalog = catalog;
@@ -52,6 +54,7 @@ let OrderService = class OrderService {
         this.revenueConfig = revenueConfig;
         this.coupons = coupons;
         this.vendorDiscounts = vendorDiscounts;
+        this.wallet = wallet;
         this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
             this.handlePaymentSatisfied(type, orderId).catch((err) => {
                 console.error('[OrderService] handlePaymentSatisfied error:', err);
@@ -173,7 +176,7 @@ let OrderService = class OrderService {
                 deliveryFee,
                 platformCommission: subtotal * commissionPct,
                 commissionPct,
-                couponCode: discount > 0 ? priced.coupon.code : null,
+                couponCode: priced.coupon?.code ?? null,
                 discount,
                 total,
                 instructions: dto.instructions ?? null,
@@ -181,6 +184,9 @@ let OrderService = class OrderService {
                 deliveryAddressId: dto.deliveryAddressId,
             })
                 .returning();
+            if (order.couponCode) {
+                await this.recordPendingAffiliateCommission(order, 'grocery');
+            }
             await this.db.insert(schema_1.groceryOrderItems).values(dto.items.map((line) => ({
                 groceryOrderId: order.id,
                 productId: line.productId,
@@ -337,7 +343,7 @@ let OrderService = class OrderService {
                 deliveryFee,
                 platformCommission: subtotal * commissionPct,
                 commissionPct,
-                couponCode: discount > 0 ? pricing.coupon.code : null,
+                couponCode: pricing.coupon?.code ?? null,
                 discount,
                 total,
                 instructions: dto.instructions ?? null,
@@ -345,6 +351,9 @@ let OrderService = class OrderService {
                 deliveryAddressId: dto.deliveryAddressId,
             })
                 .returning();
+            if (order.couponCode) {
+                await this.recordPendingAffiliateCommission(order, 'food');
+            }
             await this.db.insert(schema_1.foodOrderItems).values(orderItemRows.map((r) => ({ ...r, foodOrderId: order.id })));
             await this.db.insert(schema_1.orderStatusHistory).values({
                 foodOrderId: order.id,
@@ -841,6 +850,7 @@ let OrderService = class OrderService {
             changedBy: adminUserId,
         });
         await this.payments.markRefundPendingIfPaid(type, orderId);
+        await this.wallet.cancelPendingCommission(type, orderId);
         const orderCode = this.orderCode(orderId);
         this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
         const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
@@ -877,6 +887,7 @@ let OrderService = class OrderService {
             changedBy: customerId,
         });
         await this.payments.markRefundPendingIfPaid(type, orderId);
+        await this.wallet.cancelPendingCommission(type, orderId);
         const orderCode = this.orderCode(orderId);
         this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
         const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
@@ -898,6 +909,40 @@ let OrderService = class OrderService {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
         return vendor?.userId ?? null;
     }
+    async recordPendingAffiliateCommission(order, type) {
+        try {
+            const [coupon] = await this.db
+                .select()
+                .from(schema_1.coupons)
+                .where((0, drizzle_orm_1.eq)(schema_1.coupons.code, order.couponCode))
+                .limit(1);
+            if (!coupon ||
+                !coupon.beneficiaryUserId ||
+                coupon.affiliateCommissionValue == null ||
+                coupon.affiliateCommissionValue <= 0) {
+                return;
+            }
+            let commission = 0;
+            if (coupon.affiliateCommissionType === 'percentage') {
+                commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+            }
+            else {
+                commission = Math.min(coupon.affiliateCommissionValue, order.platformCommission);
+            }
+            if (commission > 0) {
+                await this.wallet.recordPendingCommission({
+                    userId: coupon.beneficiaryUserId,
+                    amount: commission,
+                    orderId: order.id,
+                    orderType: type,
+                    couponCode: coupon.code,
+                });
+            }
+        }
+        catch (err) {
+            console.error('[OrderService] recordPendingAffiliateCommission failed:', err);
+        }
+    }
 };
 exports.OrderService = OrderService;
 exports.OrderService = OrderService = __decorate([
@@ -910,6 +955,7 @@ exports.OrderService = OrderService = __decorate([
         notification_service_1.NotificationService,
         revenue_config_service_1.RevenueConfigService,
         coupon_service_1.CouponService,
-        vendor_discounts_service_1.VendorDiscountsService])
+        vendor_discounts_service_1.VendorDiscountsService,
+        wallet_service_1.WalletService])
 ], OrderService);
 //# sourceMappingURL=order.service.js.map

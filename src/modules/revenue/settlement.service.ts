@@ -1,14 +1,28 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { deliveryPartners, foodOrders, groceryOrders, restaurants, settlements, vendors } from '../../../drizzle/schema';
+import {
+  coupons,
+  deliveryPartners,
+  foodOrders,
+  groceryOrders,
+  restaurants,
+  settlements,
+  vendors,
+  wallets,
+  walletTransactions,
+} from '../../../drizzle/schema';
+import { WalletService } from '../wallet/wallet.service';
 
 type OrderType = 'grocery' | 'food';
 
 @Injectable()
 export class SettlementService {
-  constructor(@Inject(DRIZZLE) private readonly db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Db,
+    private readonly wallet: WalletService,
+  ) {}
 
   // Small local identity lookups rather than importing CatalogModule/
   // DeliveryModule here — both of those already import RevenueModule (for
@@ -49,7 +63,92 @@ export class SettlementService {
         commissionPctSnapshot: order.commissionPct,
       })
       .returning();
+
+    // Confirm or credit affiliate commission from our platform commission into creator's wallet
+    if (order.couponCode) {
+      await this.confirmAffiliateCommission(order, type, orderId);
+    }
+
     return settlement;
+  }
+
+  private async confirmAffiliateCommission(order: any, type: OrderType, orderId: string) {
+    try {
+      const [coupon] = await this.db
+        .select()
+        .from(coupons)
+        .where(eq(coupons.code, order.couponCode))
+        .limit(1);
+
+      if (
+        !coupon ||
+        !coupon.beneficiaryUserId ||
+        coupon.affiliateCommissionValue == null ||
+        coupon.affiliateCommissionValue <= 0
+      ) {
+        return;
+      }
+
+      // Calculate affiliate commission from our platform commission
+      let commission = 0;
+      if (coupon.affiliateCommissionType === 'percentage') {
+        commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+      } else {
+        commission = Math.min(coupon.affiliateCommissionValue, order.platformCommission);
+      }
+
+      if (commission > 0) {
+        // Check if there was already a pending transaction recorded for this order
+        const [pending] = await this.db
+          .select()
+          .from(walletTransactions)
+          .where(
+            and(
+              eq(walletTransactions.orderId, orderId),
+              eq(walletTransactions.type, 'affiliate_commission'),
+              eq(walletTransactions.status, 'pending'),
+            ),
+          )
+          .limit(1);
+
+        if (pending) {
+          await this.wallet.confirmCommissionOnDelivery(type, orderId);
+        } else {
+          // If not recorded yet, credit directly to wallet and create completed transaction
+          const wallet = await this.wallet.getOrCreateWallet(coupon.beneficiaryUserId);
+          const orderCode = orderId.slice(0, 8).toUpperCase();
+
+          await this.db.insert(walletTransactions).values({
+            walletId: wallet.id,
+            userId: coupon.beneficiaryUserId,
+            amount: commission,
+            type: 'affiliate_commission',
+            status: 'completed',
+            description: `Affiliate referral commission for ${type} order #${orderCode} (Coupon: ${coupon.code})`,
+            orderId,
+            orderType: type,
+            couponCode: coupon.code,
+          });
+
+          await this.db
+            .update(wallets)
+            .set({
+              balance: sql`${wallets.balance} + ${commission}`,
+              totalEarned: sql`${wallets.totalEarned} + ${commission}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(wallets.id, wallet.id));
+        }
+
+        // Increment totalRedemptions on coupon
+        await this.db
+          .update(coupons)
+          .set({ totalRedemptions: sql`${coupons.totalRedemptions} + 1` })
+          .where(eq(coupons.id, coupon.id));
+      }
+    } catch (err) {
+      console.error('[SettlementService] Failed to credit affiliate commission on order delivery:', err);
+    }
   }
 
   async listForVendor(vendorId: string) {

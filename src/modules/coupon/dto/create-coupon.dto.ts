@@ -43,4 +43,41 @@ export class CreateCouponDto {
   @IsOptional()
   @IsUUID()
   vendorId?: string;
+
+  // Person / creator / vendor who owns this coupon and earns commission
+  @IsOptional()
+  @IsUUID()
+  beneficiaryUserId?: string;
+
+  // If false, coupon is hidden from the customer app's public list
+  @IsOptional()
+  @IsBoolean()
+  showInApp?: boolean;
+
+  @IsOptional()
+  @IsIn(['percentage', 'flat'])
+  affiliateCommissionType?: 'percentage' | 'flat';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  affiliateCommissionValue?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxUsesPerUser?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxTotalUses?: number;
+
+  @IsOptional()
+  @IsString()
+  startsAt?: string;
+
+  @IsOptional()
+  @IsString()
+  expiresAt?: string;
 }

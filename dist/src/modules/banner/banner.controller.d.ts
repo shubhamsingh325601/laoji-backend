@@ -594,10 +594,10 @@ export declare class AdminBannerController {
         imageUrl: string;
         sortOrder: number;
         isActive: boolean;
+        startsAt: Date | null;
         title: string;
         subtitle: string | null;
         placement: string;
-        startsAt: Date | null;
         endsAt: Date | null;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{

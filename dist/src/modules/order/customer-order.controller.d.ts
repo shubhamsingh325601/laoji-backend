@@ -32,6 +32,9 @@ export declare class CustomerOrderController {
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
                 vendorId: string | null;
+                showInApp: boolean;
+                startsAt: Date | null;
+                expiresAt: Date | null;
             } | null;
         } | null;
     }>;
@@ -61,6 +64,9 @@ export declare class CustomerOrderController {
                 isFirstOrderOnly: boolean;
                 firstNOrders: number | null;
                 vendorId: string | null;
+                showInApp: boolean;
+                startsAt: Date | null;
+                expiresAt: Date | null;
             } | null;
         } | null;
     }>;
