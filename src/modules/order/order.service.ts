@@ -1030,12 +1030,26 @@ export class OrderService {
     const grocery = await this.db
       .select()
       .from(groceryOrders)
-      .where(opts.includeUnpaid ? undefined : inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+      .where(
+        opts.includeUnpaid
+          ? undefined
+          : or(
+              inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
+              eq(groceryOrders.status, 'cancelled'),
+            ),
+      )
       .orderBy(desc(groceryOrders.createdAt));
     const food = await this.db
       .select()
       .from(foodOrders)
-      .where(opts.includeUnpaid ? undefined : inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+      .where(
+        opts.includeUnpaid
+          ? undefined
+          : or(
+              inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
+              eq(foodOrders.status, 'cancelled'),
+            ),
+      )
       .orderBy(desc(foodOrders.createdAt));
 
     const customerIds = [...new Set([...grocery.map((o) => o.customerId), ...food.map((o) => o.customerId)])];

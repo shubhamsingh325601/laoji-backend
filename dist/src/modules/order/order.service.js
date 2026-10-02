@@ -767,12 +767,16 @@ let OrderService = class OrderService {
         const grocery = await this.db
             .select()
             .from(schema_1.groceryOrders)
-            .where(opts.includeUnpaid ? undefined : (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+            .where(opts.includeUnpaid
+            ? undefined
+            : (0, drizzle_orm_1.or)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'cancelled')))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
         const food = await this.db
             .select()
             .from(schema_1.foodOrders)
-            .where(opts.includeUnpaid ? undefined : (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
+            .where(opts.includeUnpaid
+            ? undefined
+            : (0, drizzle_orm_1.or)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'cancelled')))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
         const customerIds = [...new Set([...grocery.map((o) => o.customerId), ...food.map((o) => o.customerId)])];
         const customerRows = customerIds.length
