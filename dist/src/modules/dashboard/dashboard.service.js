@@ -69,8 +69,12 @@ let DashboardService = class DashboardService {
                 .from(schema_1.foodOrders)
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, lastWeekStart), (0, drizzle_orm_1.lt)(schema_1.foodOrders.createdAt, lastWeekEnd), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
         ]);
-        const gmvToday = sumTotal(groceryToday) + sumTotal(foodToday);
-        const gmvLastWeek = sumTotal(groceryLastWeek) + sumTotal(foodLastWeek);
+        const groceryTodayDelivered = groceryToday.filter((o) => o.status === 'delivered');
+        const foodTodayDelivered = foodToday.filter((o) => o.status === 'delivered');
+        const groceryLastWeekDelivered = groceryLastWeek.filter((o) => o.status === 'delivered');
+        const foodLastWeekDelivered = foodLastWeek.filter((o) => o.status === 'delivered');
+        const gmvToday = sumTotal(groceryTodayDelivered) + sumTotal(foodTodayDelivered);
+        const gmvLastWeek = sumTotal(groceryLastWeekDelivered) + sumTotal(foodLastWeekDelivered);
         const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
         const [allVendors, allPartners, pendingSuggestionsRows, pendingCategorySuggestionRows] = await Promise.all([
             this.db.select().from(schema_1.vendors),
@@ -84,8 +88,8 @@ let DashboardService = class DashboardService {
         const verifiedPartners = allPartners.filter((p) => p.kycStatus === 'verified');
         return {
             ordersToday: {
-                grocery: groceryToday.filter((o) => o.status === 'delivered').length,
-                food: foodToday.filter((o) => o.status === 'delivered').length,
+                grocery: groceryTodayDelivered.length,
+                food: foodTodayDelivered.length,
             },
             gmvToday,
             gmvDeltaPct,
@@ -180,10 +184,10 @@ let DashboardService = class DashboardService {
         return {
             acceptanceRate: accepted + rejected > 0 ? Math.round((accepted / (accepted + rejected)) * 1000) / 10 : null,
             avgPrepMinutes: prep.length ? Math.round((prep.reduce((x, y) => x + y, 0) / prep.length) * 10) / 10 : null,
-            totalOrders: grocery.length + food.length,
+            totalOrders: delivered.length,
             deliveredOrders: delivered.length,
             cancelledOrders: [...grocery, ...food].filter((o) => o.status === 'cancelled' || o.status === 'failed').length,
-            grossSales: sum(delivered.map((o) => o.subtotal)),
+            grossSales: sum(delivered.map((o) => o.total)),
             vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
             platformEarnings: sum(rows.map((r) => r.platformShare)),
         };
@@ -331,6 +335,7 @@ let DashboardService = class DashboardService {
                 createdAt: schema_1.groceryOrders.createdAt,
                 status: schema_1.groceryOrders.status,
                 platformCommission: schema_1.groceryOrders.platformCommission,
+                total: schema_1.groceryOrders.total,
             })
                 .from(schema_1.groceryOrders)
                 .where((0, drizzle_orm_1.gte)(schema_1.groceryOrders.createdAt, start)),
@@ -339,6 +344,7 @@ let DashboardService = class DashboardService {
                 createdAt: schema_1.foodOrders.createdAt,
                 status: schema_1.foodOrders.status,
                 platformCommission: schema_1.foodOrders.platformCommission,
+                total: schema_1.foodOrders.total,
             })
                 .from(schema_1.foodOrders)
                 .where((0, drizzle_orm_1.gte)(schema_1.foodOrders.createdAt, start)),
@@ -353,17 +359,19 @@ let DashboardService = class DashboardService {
             const b = buckets.get(dayKey(o.createdAt));
             if (!b)
                 continue;
-            b.grocery += 1;
-            if (o.status === 'delivered')
-                b.revenue += o.platformCommission;
+            if (o.status === 'delivered') {
+                b.grocery += 1;
+                b.revenue += o.total;
+            }
         }
         for (const o of food) {
             const b = buckets.get(dayKey(o.createdAt));
             if (!b)
                 continue;
-            b.food += 1;
-            if (o.status === 'delivered')
-                b.revenue += o.platformCommission;
+            if (o.status === 'delivered') {
+                b.food += 1;
+                b.revenue += o.total;
+            }
         }
         return [...buckets.entries()].map(([date, v]) => ({ date, ...v }));
     }
@@ -401,8 +409,10 @@ let DashboardService = class DashboardService {
             if (!o.vendorId)
                 continue;
             const a = ensure(o.vendorId);
-            a.orders += 1;
-            a.gmv += o.total;
+            if (o.status === 'delivered') {
+                a.orders += 1;
+                a.gmv += o.total;
+            }
             const start = acceptedAt.get(o.id);
             const end = readyAt.get(o.id);
             if (start && end && end > start)
@@ -413,8 +423,10 @@ let DashboardService = class DashboardService {
             if (!vendorId)
                 continue;
             const a = ensure(vendorId);
-            a.orders += 1;
-            a.gmv += o.total;
+            if (o.status === 'delivered') {
+                a.orders += 1;
+                a.gmv += o.total;
+            }
             const start = acceptedAt.get(o.id);
             const end = readyAt.get(o.id);
             if (start && end && end > start)

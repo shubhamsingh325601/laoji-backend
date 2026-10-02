@@ -145,13 +145,15 @@ export class DashboardService {
         ),
     ]);
 
-    // GMV = gross value of orders placed today, regardless of outcome — the
-    // same "orders today" population as ordersToday above, not just
-    // completed ones. Revenue (platform's own earnings) is a different,
-    // narrower number — see getSeries() below, which uses delivered-only
-    // commission instead.
-    const gmvToday = sumTotal(groceryToday) + sumTotal(foodToday);
-    const gmvLastWeek = sumTotal(groceryLastWeek) + sumTotal(foodLastWeek);
+    // Overall GMV and completed orders must ONLY count orders with status = 'delivered'.
+    // Non-delivered orders (cancelled, failed, pending, placed) must not be counted as completed GMV.
+    const groceryTodayDelivered = groceryToday.filter((o) => o.status === 'delivered');
+    const foodTodayDelivered = foodToday.filter((o) => o.status === 'delivered');
+    const groceryLastWeekDelivered = groceryLastWeek.filter((o) => o.status === 'delivered');
+    const foodLastWeekDelivered = foodLastWeek.filter((o) => o.status === 'delivered');
+
+    const gmvToday = sumTotal(groceryTodayDelivered) + sumTotal(foodTodayDelivered);
+    const gmvLastWeek = sumTotal(groceryLastWeekDelivered) + sumTotal(foodLastWeekDelivered);
     const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
 
     const [allVendors, allPartners, pendingSuggestionsRows, pendingCategorySuggestionRows] = await Promise.all([
@@ -168,8 +170,8 @@ export class DashboardService {
 
     return {
       ordersToday: {
-        grocery: groceryToday.filter((o) => o.status === 'delivered').length,
-        food: foodToday.filter((o) => o.status === 'delivered').length,
+        grocery: groceryTodayDelivered.length,
+        food: foodTodayDelivered.length,
       },
       gmvToday,
       gmvDeltaPct,
@@ -278,10 +280,10 @@ export class DashboardService {
     return {
       acceptanceRate: accepted + rejected > 0 ? Math.round((accepted / (accepted + rejected)) * 1000) / 10 : null,
       avgPrepMinutes: prep.length ? Math.round((prep.reduce((x, y) => x + y, 0) / prep.length) * 10) / 10 : null,
-      totalOrders: grocery.length + food.length,
+      totalOrders: delivered.length,
       deliveredOrders: delivered.length,
       cancelledOrders: [...grocery, ...food].filter((o) => o.status === 'cancelled' || o.status === 'failed').length,
-      grossSales: sum(delivered.map((o) => o.subtotal)),
+      grossSales: sum(delivered.map((o) => o.total)),
       vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
       platformEarnings: sum(rows.map((r) => r.platformShare)),
     };
@@ -461,6 +463,7 @@ export class DashboardService {
           createdAt: groceryOrders.createdAt,
           status: groceryOrders.status,
           platformCommission: groceryOrders.platformCommission,
+          total: groceryOrders.total,
         })
         .from(groceryOrders)
         .where(gte(groceryOrders.createdAt, start)),
@@ -469,6 +472,7 @@ export class DashboardService {
           createdAt: foodOrders.createdAt,
           status: foodOrders.status,
           platformCommission: foodOrders.platformCommission,
+          total: foodOrders.total,
         })
         .from(foodOrders)
         .where(gte(foodOrders.createdAt, start)),
@@ -484,18 +488,19 @@ export class DashboardService {
     for (const o of grocery) {
       const b = buckets.get(dayKey(o.createdAt));
       if (!b) continue;
-      b.grocery += 1;
-      // Revenue counts platform_commission only for orders that actually
-      // completed (delivered) — order *volume* above counts everything
-      // placed, but "revenue" shouldn't credit money that was never
-      // actually earned on a failed/cancelled order.
-      if (o.status === 'delivered') b.revenue += o.platformCommission;
+      // In reports, completed orders count and daily GMV / revenue only count delivered orders
+      if (o.status === 'delivered') {
+        b.grocery += 1;
+        b.revenue += o.total;
+      }
     }
     for (const o of food) {
       const b = buckets.get(dayKey(o.createdAt));
       if (!b) continue;
-      b.food += 1;
-      if (o.status === 'delivered') b.revenue += o.platformCommission;
+      if (o.status === 'delivered') {
+        b.food += 1;
+        b.revenue += o.total;
+      }
     }
 
     return [...buckets.entries()].map(([date, v]) => ({ date, ...v }));
@@ -539,8 +544,11 @@ export class DashboardService {
     for (const o of allGrocery) {
       if (!o.vendorId) continue;
       const a = ensure(o.vendorId);
-      a.orders += 1;
-      a.gmv += o.total;
+      // ONLY delivered orders count towards vendor orders and GMV!
+      if (o.status === 'delivered') {
+        a.orders += 1;
+        a.gmv += o.total;
+      }
       const start = acceptedAt.get(o.id);
       const end = readyAt.get(o.id);
       if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
@@ -549,8 +557,11 @@ export class DashboardService {
       const vendorId = restaurantVendorId.get(o.restaurantId);
       if (!vendorId) continue;
       const a = ensure(vendorId);
-      a.orders += 1;
-      a.gmv += o.total;
+      // ONLY delivered orders count towards vendor orders and GMV!
+      if (o.status === 'delivered') {
+        a.orders += 1;
+        a.gmv += o.total;
+      }
       const start = acceptedAt.get(o.id);
       const end = readyAt.get(o.id);
       if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
