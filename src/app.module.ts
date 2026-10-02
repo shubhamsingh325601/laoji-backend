@@ -20,6 +20,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { BannerModule } from './modules/banner/banner.module';
+import { VendorDiscountsModule } from './modules/vendor-discounts/vendor-discounts.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseCacheModule } from './common/cache/response-cache.module';
 
@@ -78,6 +79,7 @@ import { ResponseCacheModule } from './common/cache/response-cache.module';
     AreaManagerModule,
     CouponModule,
     BannerModule,
+    VendorDiscountsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

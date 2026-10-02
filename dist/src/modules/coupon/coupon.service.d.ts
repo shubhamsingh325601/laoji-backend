@@ -53,17 +53,17 @@ export declare class CouponService implements OnModuleInit {
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
+        createdAt: Date;
+        description: string | null;
+        vendorId: string | null;
+        minOrderValue: number;
+        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
-        minOrderValue: number;
         maxDiscount: number | null;
-        description: string | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
-        isActive: boolean;
-        createdAt: Date;
-        vendorId: string | null;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;

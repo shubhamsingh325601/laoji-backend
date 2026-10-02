@@ -91,7 +91,7 @@ export declare class PublicBannerController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "partial", Record<"banners", "not-null">, false, "orderBy" | "where", {
+    }, "partial", Record<"banners", "not-null">, false, "where" | "orderBy", {
         id: string;
         title: string;
         subtitle: string | null;
@@ -185,7 +185,7 @@ export declare class PublicBannerController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
 }
 export declare class AdminBannerController {
     private readonly banners;

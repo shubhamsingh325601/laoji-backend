@@ -2,6 +2,7 @@ import type { Db } from '../../config/database.module';
 import { JobQueueService } from './job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 export interface CartLine {
     productId: string;
     qty: number;
@@ -16,9 +17,10 @@ export declare class AllocationService {
     private readonly jobQueue;
     private readonly payments;
     private readonly notifications;
+    private readonly vendorDiscounts;
     private readonly logger;
-    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService);
-    findBestVendor(items: CartLine[], lat: number, lng: number, excludeVendorIds?: string[]): Promise<AllocationCandidate | null>;
+    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService, vendorDiscounts: VendorDiscountsService);
+    findBestVendor(items: CartLine[], lat: number, lng: number, excludeVendorIds?: string[], userId?: string): Promise<AllocationCandidate | null>;
     createAttempt(groceryOrderId: string, vendorId: string, attemptNo: number): Promise<{
         id: string;
         createdAt: Date;

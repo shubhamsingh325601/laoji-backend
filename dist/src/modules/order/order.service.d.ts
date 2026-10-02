@@ -6,6 +6,7 @@ import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
 import { CouponService } from '../coupon/coupon.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
@@ -18,7 +19,8 @@ export declare class OrderService {
     private readonly notifications;
     private readonly revenueConfig;
     private readonly coupons;
-    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService, coupons: CouponService);
+    private readonly vendorDiscounts;
+    constructor(db: Db, allocation: AllocationService, catalog: CatalogService, delivery: DeliveryService, payments: PaymentService, notifications: NotificationService, revenueConfig: RevenueConfigService, coupons: CouponService, vendorDiscounts: VendorDiscountsService);
     private orderCode;
     private priceGroceryCart;
     private priceTotals;
@@ -372,8 +374,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;

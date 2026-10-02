@@ -14,6 +14,8 @@ export declare class PublicCatalogController {
     products(lat?: string, lng?: string, categoryId?: string): Promise<{
         categoryId: string;
         price: number;
+        mrp: number | null;
+        offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
         id: string;
@@ -26,13 +28,14 @@ export declare class PublicCatalogController {
         description: string | null;
         unit: string;
         size: string | null;
-        mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
         categoryId: string;
         price: number;
+        mrp: number | null;
+        offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
         id: string;
@@ -41,7 +44,6 @@ export declare class PublicCatalogController {
         description: string | null;
         unit: string;
         size: string | null;
-        mrp: number | null;
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
@@ -89,6 +91,10 @@ export declare class PublicCatalogController {
     } | {
         menuCategories: {
             items: {
+                price: number;
+                originalPrice: number;
+                mrp: number | null;
+                offerTag: string | null;
                 mealSlots: string[];
                 servedNow: boolean;
                 isAvailable: boolean;
@@ -110,7 +116,6 @@ export declare class PublicCatalogController {
                 menuCategoryId: string;
                 name: string;
                 description: string | null;
-                price: number;
                 imageUrl: string | null;
                 isVeg: boolean;
             }[];
@@ -145,6 +150,9 @@ export declare class PublicCatalogController {
         category: string;
         categoryId?: string | null;
         price: number;
+        originalPrice?: number;
+        discountedPrice?: number;
+        discountLabel?: string | null;
         unit: string;
         available: boolean;
         imageUrl: string | null;
@@ -155,6 +163,8 @@ export declare class PublicCatalogController {
         products: {
             categoryId: string;
             price: number;
+            mrp: number | null;
+            offerTag: string | null;
             inStock: boolean;
             restockEta: string | null;
             id: string;
@@ -167,7 +177,6 @@ export declare class PublicCatalogController {
             description: string | null;
             unit: string;
             size: string | null;
-            mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
         }[];

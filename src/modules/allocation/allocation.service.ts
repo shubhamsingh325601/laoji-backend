@@ -15,6 +15,7 @@ import { haversineKm, isVendorOpenNow } from '../catalog/catalog.types';
 import { JobQueueService } from './job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { allocationFailedAdminEmail } from '../notification/templates/email/allocation-failed-admin';
 import { orderCancelledCustomerPush } from '../notification/templates/push/order-cancelled';
 import { ALLOCATION_SLA_SECONDS, MAX_ALLOCATION_ATTEMPTS } from './allocation.constants';
@@ -39,6 +40,7 @@ export class AllocationService {
     private readonly jobQueue: JobQueueService,
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
+    private readonly vendorDiscounts: VendorDiscountsService,
   ) {}
 
   /**
@@ -61,6 +63,7 @@ export class AllocationService {
     lat: number,
     lng: number,
     excludeVendorIds: string[] = [],
+    userId?: string,
   ): Promise<AllocationCandidate | null> {
     const allVendors = await this.db.select().from(vendors);
     const inRadius = allVendors.filter(
@@ -91,12 +94,21 @@ export class AllocationService {
       });
       if (!canFulfillAll) continue;
 
-      const totalCost = items.reduce((sum, line) => sum + byProduct.get(line.productId)!.price * line.qty, 0);
+      const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id, userId);
+      const prices = new Map<string, number>();
+      let totalCost = 0;
+      for (const line of items) {
+        const vp = byProduct.get(line.productId)!;
+        const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: line.productId });
+        prices.set(line.productId, disc.price);
+        totalCost += disc.price * line.qty;
+      }
+
       candidates.push({
         vendorId: vendor.id,
         totalCost,
         distance: haversineKm(lat, lng, vendor.pickupLat, vendor.pickupLng),
-        prices: new Map(rows.map((r) => [r.productId, r.price])),
+        prices,
       });
     }
 

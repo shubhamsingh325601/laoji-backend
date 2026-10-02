@@ -37,6 +37,7 @@ import { orderConfirmedCustomerPush } from '../notification/templates/push/order
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
 import { CouponService } from '../coupon/coupon.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
 import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
@@ -60,6 +61,7 @@ export class OrderService {
     private readonly notifications: NotificationService,
     private readonly revenueConfig: RevenueConfigService,
     private readonly coupons: CouponService,
+    private readonly vendorDiscounts: VendorDiscountsService,
   ) {
     this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
       this.handlePaymentSatisfied(type, orderId).catch((err) => {
@@ -84,7 +86,7 @@ export class OrderService {
       .limit(1);
     if (!address) throw new BadRequestException('Delivery address not found');
 
-    const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng);
+    const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng, [], customerId);
     if (!candidate) {
       throw new BadRequestException(
         'No vendor can currently fulfill this cart within your delivery area — try adjusting your cart or address',
@@ -258,6 +260,17 @@ export class OrderService {
         changedBy: customerId,
       });
 
+      // Record vendor discount redemption if applicable
+      const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(candidate.vendorId, customerId);
+      const redeemedDiscountIds = new Set<string>();
+      for (const line of dto.items) {
+        const disc = this.vendorDiscounts.calculateItemDiscount(0, vDiscounts, { productId: line.productId });
+        if (disc.discountApplied && !redeemedDiscountIds.has(disc.discountApplied.id)) {
+          redeemedDiscountIds.add(disc.discountApplied.id);
+          await this.vendorDiscounts.recordRedemption(disc.discountApplied.id, candidate.vendorId, customerId, order.id);
+        }
+      }
+
       // Customer and vendor notifications are deferred until payment is satisfied
       // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.
       return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
@@ -356,12 +369,15 @@ export class OrderService {
     const variantById = new Map(variantRows.map((v) => [v.id, v]));
     const addonById = new Map(addonRows.map((a) => [a.id, a]));
 
+    const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(restaurant.vendorId, customerId);
+
     let subtotal = 0;
     const orderItemRows = dto.items.map((line) => {
       const item = itemById.get(line.menuItemId)!;
+      const disc = this.vendorDiscounts.calculateItemDiscount(item.price, vDiscounts, { menuItemId: line.menuItemId });
       const variant = line.variantId ? variantById.get(line.variantId) : undefined;
       const selectedAddons = (line.addonIds ?? []).map((id) => addonById.get(id)).filter((a): a is NonNullable<typeof a> => !!a);
-      const unitPrice = item.price + (variant?.priceDelta ?? 0) + selectedAddons.reduce((s, a) => s + a.price, 0);
+      const unitPrice = disc.price + (variant?.priceDelta ?? 0) + selectedAddons.reduce((s, a) => s + a.price, 0);
       subtotal += unitPrice * line.qty;
       return {
         menuItemId: line.menuItemId,
@@ -448,6 +464,20 @@ export class OrderService {
         actorRole: 'customer',
         changedBy: customerId,
       });
+
+      // Record vendor discount redemption
+      const [rest] = await this.db.select({ vendorId: restaurants.vendorId }).from(restaurants).where(eq(restaurants.id, dto.restaurantId)).limit(1);
+      if (rest) {
+        const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(rest.vendorId, customerId);
+        const redeemedDiscountIds = new Set<string>();
+        for (const line of dto.items) {
+          const disc = this.vendorDiscounts.calculateItemDiscount(0, vDiscounts, { menuItemId: line.menuItemId });
+          if (disc.discountApplied && !redeemedDiscountIds.has(disc.discountApplied.id)) {
+            redeemedDiscountIds.add(disc.discountApplied.id);
+            await this.vendorDiscounts.recordRedemption(disc.discountApplied.id, rest.vendorId, customerId, order.id);
+          }
+        }
+      }
 
       // Customer and vendor notifications are deferred until payment is satisfied
       // (UPI paid or Cash on Delivery selected), so neither party receives false alerts for unpaid/abandoned checkouts.

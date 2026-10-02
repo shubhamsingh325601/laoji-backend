@@ -10,6 +10,7 @@ exports.AllocationModule = void 0;
 const common_1 = require("@nestjs/common");
 const payment_module_1 = require("../payment/payment.module");
 const notification_module_1 = require("../notification/notification.module");
+const vendor_discounts_module_1 = require("../vendor-discounts/vendor-discounts.module");
 const allocation_service_1 = require("./allocation.service");
 const job_queue_service_1 = require("./job-queue.service");
 let AllocationModule = class AllocationModule {
@@ -17,7 +18,7 @@ let AllocationModule = class AllocationModule {
 exports.AllocationModule = AllocationModule;
 exports.AllocationModule = AllocationModule = __decorate([
     (0, common_1.Module)({
-        imports: [payment_module_1.PaymentModule, notification_module_1.NotificationModule],
+        imports: [payment_module_1.PaymentModule, notification_module_1.NotificationModule, vendor_discounts_module_1.VendorDiscountsModule],
         providers: [allocation_service_1.AllocationService, job_queue_service_1.JobQueueService],
         exports: [allocation_service_1.AllocationService, job_queue_service_1.JobQueueService],
     })

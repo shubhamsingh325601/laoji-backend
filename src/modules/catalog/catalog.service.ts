@@ -78,6 +78,7 @@ import type {
   UpdateMenuItemDto,
 } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import {
   productSuggestionApprovedVendorPush,
   productSuggestionRejectedVendorPush,
@@ -99,6 +100,7 @@ export class CatalogService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly notifications: NotificationService,
+    private readonly vendorDiscounts: VendorDiscountsService,
   ) {}
 
   // ---------- Vendor profile ----------
@@ -1296,7 +1298,7 @@ export class CatalogService {
         ),
       );
 
-    return this.aggregateByProduct(rows, byId);
+    return await this.aggregateByProduct(rows, byId);
   }
 
   // The category a product counts under for customers and revenue rules: a
@@ -1327,11 +1329,13 @@ export class CatalogService {
               ),
             );
 
-    const [aggregated] = this.aggregateByProduct(rows, byId);
+    const [aggregated] = await this.aggregateByProduct(rows, byId);
     return {
       ...product,
       categoryId: laojiCategoryId(product.categoryId, byId),
       price: aggregated?.price ?? null,
+      mrp: aggregated?.mrp ?? product.mrp ?? null,
+      offerTag: aggregated?.offerTag ?? null,
       inStock: aggregated?.inStock ?? false,
       restockEta: aggregated?.restockEta ?? null,
     };
@@ -1341,33 +1345,59 @@ export class CatalogService {
   // is the cheapest vendor that has it in stock (the cheapest overall if none
   // do); when none do, `restockEta` is the soonest date one expects it back.
   // `categoryId` is the one customers browse by (see laojiCategoryId).
-  private aggregateByProduct(
+  private async aggregateByProduct(
     rows: { vendorProduct: typeof vendorProducts.$inferSelect; product: typeof products.$inferSelect }[],
     categoriesById: Map<string, Category>,
   ) {
     const today = istDateString();
+    const vendorIds = Array.from(new Set(rows.map((r) => r.vendorProduct.vendorId)));
+    const discountsByVendor = new Map<string, any[]>();
+    await Promise.all(
+      vendorIds.map(async (vId) => {
+        const d = await this.vendorDiscounts.getActiveDiscountsForVendor(vId);
+        discountsByVendor.set(vId, d);
+      }),
+    );
+
     const byProduct = new Map<
       string,
-      { product: typeof products.$inferSelect; price: number; inStock: boolean; restockEta: string | null }
+      {
+        product: typeof products.$inferSelect;
+        price: number;
+        originalPrice: number;
+        mrp: number | null;
+        offerTag: string | null;
+        inStock: boolean;
+        restockEta: string | null;
+      }
     >();
     for (const { vendorProduct, product } of rows) {
+      const vDiscounts = discountsByVendor.get(vendorProduct.vendorId) || [];
+      const disc = this.vendorDiscounts.calculateItemDiscount(vendorProduct.price, vDiscounts, { productId: product.id });
       const inStock = vendorProduct.stockQty > 0;
       const eta = !inStock && vendorProduct.restockEta && vendorProduct.restockEta >= today ? vendorProduct.restockEta : null;
       const current = byProduct.get(product.id);
       if (!current) {
-        byProduct.set(product.id, { product, price: vendorProduct.price, inStock, restockEta: eta });
+        byProduct.set(product.id, {
+          product,
+          price: disc.price,
+          originalPrice: disc.originalPrice,
+          mrp: product.mrp || (disc.discountApplied ? disc.originalPrice : null),
+          offerTag: disc.discountLabel || (product.attributes?.offerTag as string | null) || null,
+          inStock,
+          restockEta: eta,
+        });
         continue;
       }
-      // Don't aggregate/compare prices - keep the first vendor's exact price
-      // Only update stock availability and restock ETA from additional vendors
       current.inStock ||= inStock;
       if (eta && (!current.restockEta || eta < current.restockEta)) current.restockEta = eta;
-      // Price remains as the first vendor's exact price (not aggregated/cheapest-selected)
     }
-    return [...byProduct.values()].map(({ product, price, inStock, restockEta }) => ({
+    return [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
       ...product,
       categoryId: laojiCategoryId(product.categoryId, categoriesById),
       price,
+      mrp: mrp || product.mrp,
+      offerTag: offerTag || null,
       inStock,
       restockEta: inStock ? null : restockEta,
     }));
@@ -1511,6 +1541,7 @@ export class CatalogService {
         );
 
       if (vProds.length > 0) {
+        const vendorDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id);
         const catMap = new Map<string, { id: string; name: string; items: any[] }>();
         for (const row of vProds) {
           const cId = row.c.id;
@@ -1521,12 +1552,16 @@ export class CatalogService {
               items: [],
             });
           }
+          const disc = this.vendorDiscounts.calculateItemDiscount(row.vp.price, vendorDiscounts, { productId: row.p.id });
           catMap.get(cId)!.items.push({
             id: row.p.id,
             menuCategoryId: cId,
             name: row.p.name,
             description: row.p.description,
-            price: row.vp.price,
+            price: disc.price,
+            originalPrice: disc.originalPrice,
+            mrp: row.p.mrp || (disc.discountApplied ? disc.originalPrice : null),
+            offerTag: disc.discountLabel,
             imageUrl: row.p.imageUrl,
             isVeg: true,
             isAvailable: row.vp.isAvailable,
@@ -1544,6 +1579,8 @@ export class CatalogService {
         };
       }
     }
+
+    const vendorDiscounts = vendor ? await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id) : [];
 
     return {
       ...restaurant,
@@ -1564,8 +1601,13 @@ export class CatalogService {
             // own switch and the item's meal slot. `servedNow` tells a client
             // which of the two is keeping it off.
             const servedNow = isServedNow(item.mealSlots, timings, now);
+            const disc = this.vendorDiscounts.calculateItemDiscount(item.price, vendorDiscounts, { menuItemId: item.id });
             return {
               ...item,
+              price: disc.price,
+              originalPrice: disc.originalPrice,
+              mrp: disc.discountApplied ? disc.originalPrice : null,
+              offerTag: disc.discountLabel,
               mealSlots: item.mealSlots ?? [],
               servedNow,
               isAvailable: item.isAvailable && servedNow,
@@ -1592,7 +1634,7 @@ export class CatalogService {
     const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
 
     // 1. Matched products
-    let productsList: ReturnType<CatalogService['aggregateByProduct']> = [];
+    let productsList: Awaited<ReturnType<CatalogService['aggregateByProduct']>> = [];
     if (productVendorIds.length > 0) {
       const pRows = await this.db
         .select({ vendorProduct: vendorProducts, product: products })
@@ -1606,7 +1648,7 @@ export class CatalogService {
             ilike(products.name, `%${trimmed}%`),
           ),
         );
-      productsList = this.aggregateByProduct(pRows, (await this.categoryIndex()).byId);
+      productsList = await this.aggregateByProduct(pRows, (await this.categoryIndex()).byId);
     }
 
     // 2. Matched restaurants, nearest first
@@ -2293,6 +2335,8 @@ export class CatalogService {
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
     if (!vendor) throw new NotFoundException('Vendor not found');
 
+    const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendorId);
+
     const results: {
       id: string;
       itemType: 'grocery' | 'menu_item';
@@ -2302,6 +2346,9 @@ export class CatalogService {
       category: string;
       categoryId?: string | null;
       price: number;
+      originalPrice?: number;
+      discountedPrice?: number;
+      discountLabel?: string | null;
       unit: string;
       available: boolean;
       imageUrl: string | null;
@@ -2330,6 +2377,7 @@ export class CatalogService {
       .where(eq(vendorProducts.vendorId, vendorId));
 
     for (const vp of vProds) {
+      const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
       results.push({
         id: vp.id,
         itemType: 'grocery',
@@ -2338,7 +2386,10 @@ export class CatalogService {
         description: vp.description ?? null,
         category: vp.categoryName,
         categoryId: vp.categoryId,
-        price: vp.price,
+        price: disc.price,
+        originalPrice: vp.price,
+        discountedPrice: disc.discountApplied ? disc.price : undefined,
+        discountLabel: disc.discountLabel ?? null,
         unit: vp.unit,
         available: vp.isAvailable,
         imageUrl: vp.imageUrl ?? null,
@@ -2366,6 +2417,7 @@ export class CatalogService {
         .where(eq(menuCategories.restaurantId, restaurant.id));
 
       for (const mi of mItems) {
+        const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
         results.push({
           id: mi.id,
           itemType: 'menu_item',
@@ -2373,7 +2425,10 @@ export class CatalogService {
           description: mi.description ?? null,
           category: mi.categoryName,
           categoryId: mi.categoryId,
-          price: mi.price,
+          price: disc.price,
+          originalPrice: mi.price,
+          discountedPrice: disc.discountApplied ? disc.price : undefined,
+          discountLabel: disc.discountLabel ?? null,
           unit: 'portion',
           available: mi.isAvailable,
           imageUrl: mi.imageUrl ?? null,

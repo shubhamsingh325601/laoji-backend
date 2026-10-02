@@ -57,15 +57,18 @@ const product_forms_1 = require("./product-forms");
 const catalog_ownership_1 = require("./catalog-ownership");
 const meal_slots_1 = require("./meal-slots");
 const notification_service_1 = require("../notification/notification.service");
+const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
 const product_suggestion_1 = require("../notification/templates/push/product-suggestion");
 const category_suggestion_1 = require("../notification/templates/push/category-suggestion");
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 let CatalogService = class CatalogService {
     db;
     notifications;
-    constructor(db, notifications) {
+    vendorDiscounts;
+    constructor(db, notifications, vendorDiscounts) {
         this.db = db;
         this.notifications = notifications;
+        this.vendorDiscounts = vendorDiscounts;
     }
     async getVendorByUserId(userId) {
         const [row] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
@@ -980,7 +983,7 @@ let CatalogService = class CatalogService {
             .from(schema_1.vendorProducts)
             .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), categoryIds ? (0, drizzle_orm_1.inArray)(schema_1.products.categoryId, categoryIds) : undefined));
-        return this.aggregateByProduct(rows, byId);
+        return await this.aggregateByProduct(rows, byId);
     }
     async customerCategoryId(categoryId) {
         const { byId } = await this.categoryIndex();
@@ -998,34 +1001,54 @@ let CatalogService = class CatalogService {
                 .from(schema_1.vendorProducts)
                 .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, id), (0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true)));
-        const [aggregated] = this.aggregateByProduct(rows, byId);
+        const [aggregated] = await this.aggregateByProduct(rows, byId);
         return {
             ...product,
             categoryId: (0, catalog_ownership_1.laojiCategoryId)(product.categoryId, byId),
             price: aggregated?.price ?? null,
+            mrp: aggregated?.mrp ?? product.mrp ?? null,
+            offerTag: aggregated?.offerTag ?? null,
             inStock: aggregated?.inStock ?? false,
             restockEta: aggregated?.restockEta ?? null,
         };
     }
-    aggregateByProduct(rows, categoriesById) {
+    async aggregateByProduct(rows, categoriesById) {
         const today = (0, catalog_types_1.istDateString)();
+        const vendorIds = Array.from(new Set(rows.map((r) => r.vendorProduct.vendorId)));
+        const discountsByVendor = new Map();
+        await Promise.all(vendorIds.map(async (vId) => {
+            const d = await this.vendorDiscounts.getActiveDiscountsForVendor(vId);
+            discountsByVendor.set(vId, d);
+        }));
         const byProduct = new Map();
         for (const { vendorProduct, product } of rows) {
+            const vDiscounts = discountsByVendor.get(vendorProduct.vendorId) || [];
+            const disc = this.vendorDiscounts.calculateItemDiscount(vendorProduct.price, vDiscounts, { productId: product.id });
             const inStock = vendorProduct.stockQty > 0;
             const eta = !inStock && vendorProduct.restockEta && vendorProduct.restockEta >= today ? vendorProduct.restockEta : null;
             const current = byProduct.get(product.id);
             if (!current) {
-                byProduct.set(product.id, { product, price: vendorProduct.price, inStock, restockEta: eta });
+                byProduct.set(product.id, {
+                    product,
+                    price: disc.price,
+                    originalPrice: disc.originalPrice,
+                    mrp: product.mrp || (disc.discountApplied ? disc.originalPrice : null),
+                    offerTag: disc.discountLabel || product.attributes?.offerTag || null,
+                    inStock,
+                    restockEta: eta,
+                });
                 continue;
             }
             current.inStock ||= inStock;
             if (eta && (!current.restockEta || eta < current.restockEta))
                 current.restockEta = eta;
         }
-        return [...byProduct.values()].map(({ product, price, inStock, restockEta }) => ({
+        return [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
             ...product,
             categoryId: (0, catalog_ownership_1.laojiCategoryId)(product.categoryId, categoriesById),
             price,
+            mrp: mrp || product.mrp,
+            offerTag: offerTag || null,
             inStock,
             restockEta: inStock ? null : restockEta,
         }));
@@ -1139,6 +1162,7 @@ let CatalogService = class CatalogService {
                 .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendor.id), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active')));
             if (vProds.length > 0) {
+                const vendorDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id);
                 const catMap = new Map();
                 for (const row of vProds) {
                     const cId = row.c.id;
@@ -1149,12 +1173,16 @@ let CatalogService = class CatalogService {
                             items: [],
                         });
                     }
+                    const disc = this.vendorDiscounts.calculateItemDiscount(row.vp.price, vendorDiscounts, { productId: row.p.id });
                     catMap.get(cId).items.push({
                         id: row.p.id,
                         menuCategoryId: cId,
                         name: row.p.name,
                         description: row.p.description,
-                        price: row.vp.price,
+                        price: disc.price,
+                        originalPrice: disc.originalPrice,
+                        mrp: row.p.mrp || (disc.discountApplied ? disc.originalPrice : null),
+                        offerTag: disc.discountLabel,
                         imageUrl: row.p.imageUrl,
                         isVeg: true,
                         isAvailable: row.vp.isAvailable,
@@ -1172,6 +1200,7 @@ let CatalogService = class CatalogService {
                 };
             }
         }
+        const vendorDiscounts = vendor ? await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id) : [];
         return {
             ...restaurant,
             mealTimings: (0, meal_slots_1.mealTimingsView)(restaurant.mealTimings),
@@ -1188,8 +1217,13 @@ let CatalogService = class CatalogService {
                     .filter((i) => i.menuCategoryId === cat.id)
                     .map((item) => {
                     const servedNow = (0, meal_slots_1.isServedNow)(item.mealSlots, timings, now);
+                    const disc = this.vendorDiscounts.calculateItemDiscount(item.price, vendorDiscounts, { menuItemId: item.id });
                     return {
                         ...item,
+                        price: disc.price,
+                        originalPrice: disc.originalPrice,
+                        mrp: disc.discountApplied ? disc.originalPrice : null,
+                        offerTag: disc.discountLabel,
                         mealSlots: item.mealSlots ?? [],
                         servedNow,
                         isAvailable: item.isAvailable && servedNow,
@@ -1216,7 +1250,7 @@ let CatalogService = class CatalogService {
                 .from(schema_1.vendorProducts)
                 .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, productVendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true), (0, drizzle_orm_1.eq)(schema_1.products.status, 'active'), (0, drizzle_orm_1.ilike)(schema_1.products.name, `%${trimmed}%`)));
-            productsList = this.aggregateByProduct(pRows, (await this.categoryIndex()).byId);
+            productsList = await this.aggregateByProduct(pRows, (await this.categoryIndex()).byId);
         }
         let matchedRestaurants = [];
         if (restaurantVendorIds.length > 0) {
@@ -1760,6 +1794,7 @@ let CatalogService = class CatalogService {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
         if (!vendor)
             throw new common_1.NotFoundException('Vendor not found');
+        const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendorId);
         const results = [];
         const vProds = await this.db
             .select({
@@ -1780,6 +1815,7 @@ let CatalogService = class CatalogService {
             .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
             .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId));
         for (const vp of vProds) {
+            const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
             results.push({
                 id: vp.id,
                 itemType: 'grocery',
@@ -1788,7 +1824,10 @@ let CatalogService = class CatalogService {
                 description: vp.description ?? null,
                 category: vp.categoryName,
                 categoryId: vp.categoryId,
-                price: vp.price,
+                price: disc.price,
+                originalPrice: vp.price,
+                discountedPrice: disc.discountApplied ? disc.price : undefined,
+                discountLabel: disc.discountLabel ?? null,
                 unit: vp.unit,
                 available: vp.isAvailable,
                 imageUrl: vp.imageUrl ?? null,
@@ -1813,6 +1852,7 @@ let CatalogService = class CatalogService {
                 .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
             for (const mi of mItems) {
+                const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
                 results.push({
                     id: mi.id,
                     itemType: 'menu_item',
@@ -1820,7 +1860,10 @@ let CatalogService = class CatalogService {
                     description: mi.description ?? null,
                     category: mi.categoryName,
                     categoryId: mi.categoryId,
-                    price: mi.price,
+                    price: disc.price,
+                    originalPrice: mi.price,
+                    discountedPrice: disc.discountApplied ? disc.price : undefined,
+                    discountLabel: disc.discountLabel ?? null,
                     unit: 'portion',
                     available: mi.isAvailable,
                     imageUrl: mi.imageUrl ?? null,
@@ -2401,6 +2444,7 @@ exports.CatalogService = CatalogService;
 exports.CatalogService = CatalogService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __metadata("design:paramtypes", [Object, notification_service_1.NotificationService])
+    __metadata("design:paramtypes", [Object, notification_service_1.NotificationService,
+        vendor_discounts_service_1.VendorDiscountsService])
 ], CatalogService);
 //# sourceMappingURL=catalog.service.js.map

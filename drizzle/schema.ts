@@ -877,3 +877,52 @@ export const banners = pgTable('banners', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Vendor-specific discounts and offers configured in Admin Vendor Profile.
+// Direct item-level / store markdown pricing: customer sees discounted prices
+// and places orders at those discounted prices.
+export const vendorDiscounts = pgTable('vendor_discounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id')
+    .notNull()
+    .references(() => vendors.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 150 }).notNull(),
+  // 'entire_store' = all products of this vendor, 'product' = specific product/menu item
+  scope: varchar('scope', { length: 30 }).notNull().default('entire_store'),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+  menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'set null' }),
+  // 'flat' = ₹ amount off, 'percentage' = % off
+  discountType: varchar('discount_type', { length: 20 }).notNull().default('percentage'),
+  discountValue: doublePrecision('discount_value').notNull().default(0),
+  maxDiscount: doublePrecision('max_discount'),
+  minOrderValue: doublePrecision('min_order_value').notNull().default(0),
+  // Total redemptions limit across all customers. Null = unlimited
+  totalUsageLimit: integer('total_usage_limit'),
+  usageCount: integer('usage_count').notNull().default(0),
+  // Max times a single customer can use this offer. Default 1
+  perUserLimit: integer('per_user_limit').notNull().default(1),
+  // Daily active window (IST format "HH:mm", e.g. "12:00" to "16:00"). Null = all day
+  startTime: varchar('start_time', { length: 10 }),
+  endTime: varchar('end_time', { length: 10 }),
+  // Date range validity
+  startDate: date('start_date', { mode: 'string' }),
+  endDate: date('end_date', { mode: 'string' }),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const vendorDiscountRedemptions = pgTable('vendor_discount_redemptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  discountId: uuid('discount_id')
+    .notNull()
+    .references(() => vendorDiscounts.id, { onDelete: 'cascade' }),
+  vendorId: uuid('vendor_id')
+    .notNull()
+    .references(() => vendors.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  orderId: uuid('order_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+

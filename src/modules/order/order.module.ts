@@ -6,13 +6,23 @@ import { PaymentModule } from '../payment/payment.module';
 import { NotificationModule } from '../notification/notification.module';
 import { RevenueModule } from '../revenue/revenue.module';
 import { CouponModule } from '../coupon/coupon.module';
+import { VendorDiscountsModule } from '../vendor-discounts/vendor-discounts.module';
 import { OrderService } from './order.service';
 import { CustomerOrderController } from './customer-order.controller';
 import { VendorOrderController } from './vendor-order.controller';
 import { AdminOrderController } from './admin-order.controller';
 
 @Module({
-  imports: [AllocationModule, CatalogModule, DeliveryModule, PaymentModule, NotificationModule, RevenueModule, CouponModule],
+  imports: [
+    AllocationModule,
+    CatalogModule,
+    DeliveryModule,
+    PaymentModule,
+    NotificationModule,
+    RevenueModule,
+    CouponModule,
+    VendorDiscountsModule,
+  ],
   controllers: [CustomerOrderController, VendorOrderController, AdminOrderController],
   providers: [OrderService],
 })

@@ -14,6 +14,7 @@ import type { CreateGroceryProductDto } from './dto/create-grocery-product.dto';
 import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
+import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 type VendorRef = {
     id: string;
     businessType: string;
@@ -21,7 +22,8 @@ type VendorRef = {
 export declare class CatalogService {
     private readonly db;
     private readonly notifications;
-    constructor(db: Db, notifications: NotificationService);
+    private readonly vendorDiscounts;
+    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService);
     getVendorByUserId(userId: string): Promise<{
         isOpenNow: boolean;
         locationIsDefault: boolean;
@@ -1363,6 +1365,8 @@ export declare class CatalogService {
     publicListProducts(lat: number, lng: number, categoryId?: string): Promise<{
         categoryId: string;
         price: number;
+        mrp: number | null;
+        offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
         id: string;
@@ -1375,7 +1379,6 @@ export declare class CatalogService {
         description: string | null;
         unit: string;
         size: string | null;
-        mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
     }[]>;
@@ -1383,6 +1386,8 @@ export declare class CatalogService {
     publicGetProduct(id: string, lat: number, lng: number): Promise<{
         categoryId: string;
         price: number;
+        mrp: number | null;
+        offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
         id: string;
@@ -1391,7 +1396,6 @@ export declare class CatalogService {
         description: string | null;
         unit: string;
         size: string | null;
-        mrp: number | null;
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
@@ -1443,6 +1447,10 @@ export declare class CatalogService {
     } | {
         menuCategories: {
             items: {
+                price: number;
+                originalPrice: number;
+                mrp: number | null;
+                offerTag: string | null;
                 mealSlots: string[];
                 servedNow: boolean;
                 isAvailable: boolean;
@@ -1464,7 +1472,6 @@ export declare class CatalogService {
                 menuCategoryId: string;
                 name: string;
                 description: string | null;
-                price: number;
                 imageUrl: string | null;
                 isVeg: boolean;
             }[];
@@ -1494,6 +1501,8 @@ export declare class CatalogService {
         products: {
             categoryId: string;
             price: number;
+            mrp: number | null;
+            offerTag: string | null;
             inStock: boolean;
             restockEta: string | null;
             id: string;
@@ -1506,7 +1515,6 @@ export declare class CatalogService {
             description: string | null;
             unit: string;
             size: string | null;
-            mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
         }[];
@@ -1912,7 +1920,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2154,7 +2162,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2424,7 +2432,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2628,7 +2636,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
@@ -2774,6 +2782,9 @@ export declare class CatalogService {
         category: string;
         categoryId?: string | null;
         price: number;
+        originalPrice?: number;
+        discountedPrice?: number;
+        discountLabel?: string | null;
         unit: string;
         available: boolean;
         imageUrl: string | null;

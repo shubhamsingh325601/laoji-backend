@@ -22,6 +22,7 @@ const catalog_types_1 = require("../catalog/catalog.types");
 const job_queue_service_1 = require("./job-queue.service");
 const payment_service_1 = require("../payment/payment.service");
 const notification_service_1 = require("../notification/notification.service");
+const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
 const allocation_failed_admin_1 = require("../notification/templates/email/allocation-failed-admin");
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const allocation_constants_1 = require("./allocation.constants");
@@ -30,14 +31,16 @@ let AllocationService = AllocationService_1 = class AllocationService {
     jobQueue;
     payments;
     notifications;
+    vendorDiscounts;
     logger = new common_1.Logger(AllocationService_1.name);
-    constructor(db, jobQueue, payments, notifications) {
+    constructor(db, jobQueue, payments, notifications, vendorDiscounts) {
         this.db = db;
         this.jobQueue = jobQueue;
         this.payments = payments;
         this.notifications = notifications;
+        this.vendorDiscounts = vendorDiscounts;
     }
-    async findBestVendor(items, lat, lng, excludeVendorIds = []) {
+    async findBestVendor(items, lat, lng, excludeVendorIds = [], userId) {
         const allVendors = await this.db.select().from(schema_1.vendors);
         const inRadius = allVendors.filter((v) => v.type !== 'restaurant' &&
             !excludeVendorIds.includes(v.id) &&
@@ -59,12 +62,20 @@ let AllocationService = AllocationService_1 = class AllocationService {
             });
             if (!canFulfillAll)
                 continue;
-            const totalCost = items.reduce((sum, line) => sum + byProduct.get(line.productId).price * line.qty, 0);
+            const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendor.id, userId);
+            const prices = new Map();
+            let totalCost = 0;
+            for (const line of items) {
+                const vp = byProduct.get(line.productId);
+                const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: line.productId });
+                prices.set(line.productId, disc.price);
+                totalCost += disc.price * line.qty;
+            }
             candidates.push({
                 vendorId: vendor.id,
                 totalCost,
                 distance: (0, catalog_types_1.haversineKm)(lat, lng, vendor.pickupLat, vendor.pickupLng),
-                prices: new Map(rows.map((r) => [r.productId, r.price])),
+                prices,
             });
         }
         if (candidates.length === 0)
@@ -163,6 +174,7 @@ exports.AllocationService = AllocationService = AllocationService_1 = __decorate
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
     __metadata("design:paramtypes", [Object, job_queue_service_1.JobQueueService,
         payment_service_1.PaymentService,
-        notification_service_1.NotificationService])
+        notification_service_1.NotificationService,
+        vendor_discounts_service_1.VendorDiscountsService])
 ], AllocationService);
 //# sourceMappingURL=allocation.service.js.map

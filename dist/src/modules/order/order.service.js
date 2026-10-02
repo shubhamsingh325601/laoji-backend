@@ -27,6 +27,7 @@ const order_confirmed_1 = require("../notification/templates/push/order-confirme
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const coupon_service_1 = require("../coupon/coupon.service");
+const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
 const catalog_types_1 = require("../catalog/catalog.types");
 const meal_slots_1 = require("../catalog/meal-slots");
 const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
@@ -40,7 +41,8 @@ let OrderService = class OrderService {
     notifications;
     revenueConfig;
     coupons;
-    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons) {
+    vendorDiscounts;
+    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons, vendorDiscounts) {
         this.db = db;
         this.allocation = allocation;
         this.catalog = catalog;
@@ -49,6 +51,7 @@ let OrderService = class OrderService {
         this.notifications = notifications;
         this.revenueConfig = revenueConfig;
         this.coupons = coupons;
+        this.vendorDiscounts = vendorDiscounts;
         this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
             this.handlePaymentSatisfied(type, orderId).catch((err) => {
                 console.error('[OrderService] handlePaymentSatisfied error:', err);
@@ -66,7 +69,7 @@ let OrderService = class OrderService {
             .limit(1);
         if (!address)
             throw new common_1.BadRequestException('Delivery address not found');
-        const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng);
+        const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng, [], customerId);
         if (!candidate) {
             throw new common_1.BadRequestException('No vendor can currently fulfill this cart within your delivery area — try adjusting your cart or address');
         }
@@ -190,6 +193,15 @@ let OrderService = class OrderService {
                 actorRole: 'customer',
                 changedBy: customerId,
             });
+            const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(candidate.vendorId, customerId);
+            const redeemedDiscountIds = new Set();
+            for (const line of dto.items) {
+                const disc = this.vendorDiscounts.calculateItemDiscount(0, vDiscounts, { productId: line.productId });
+                if (disc.discountApplied && !redeemedDiscountIds.has(disc.discountApplied.id)) {
+                    redeemedDiscountIds.add(disc.discountApplied.id);
+                    await this.vendorDiscounts.recordRedemption(disc.discountApplied.id, candidate.vendorId, customerId, order.id);
+                }
+            }
             return this.getGroceryOrder(order.id, { userId: customerId, role: 'customer' });
         }
         catch (err) {
@@ -263,12 +275,14 @@ let OrderService = class OrderService {
             : [];
         const variantById = new Map(variantRows.map((v) => [v.id, v]));
         const addonById = new Map(addonRows.map((a) => [a.id, a]));
+        const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(restaurant.vendorId, customerId);
         let subtotal = 0;
         const orderItemRows = dto.items.map((line) => {
             const item = itemById.get(line.menuItemId);
+            const disc = this.vendorDiscounts.calculateItemDiscount(item.price, vDiscounts, { menuItemId: line.menuItemId });
             const variant = line.variantId ? variantById.get(line.variantId) : undefined;
             const selectedAddons = (line.addonIds ?? []).map((id) => addonById.get(id)).filter((a) => !!a);
-            const unitPrice = item.price + (variant?.priceDelta ?? 0) + selectedAddons.reduce((s, a) => s + a.price, 0);
+            const unitPrice = disc.price + (variant?.priceDelta ?? 0) + selectedAddons.reduce((s, a) => s + a.price, 0);
             subtotal += unitPrice * line.qty;
             return {
                 menuItemId: line.menuItemId,
@@ -338,6 +352,18 @@ let OrderService = class OrderService {
                 actorRole: 'customer',
                 changedBy: customerId,
             });
+            const [rest] = await this.db.select({ vendorId: schema_1.restaurants.vendorId }).from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, dto.restaurantId)).limit(1);
+            if (rest) {
+                const vDiscounts = await this.vendorDiscounts.getActiveDiscountsForVendor(rest.vendorId, customerId);
+                const redeemedDiscountIds = new Set();
+                for (const line of dto.items) {
+                    const disc = this.vendorDiscounts.calculateItemDiscount(0, vDiscounts, { menuItemId: line.menuItemId });
+                    if (disc.discountApplied && !redeemedDiscountIds.has(disc.discountApplied.id)) {
+                        redeemedDiscountIds.add(disc.discountApplied.id);
+                        await this.vendorDiscounts.recordRedemption(disc.discountApplied.id, rest.vendorId, customerId, order.id);
+                    }
+                }
+            }
             return this.getFoodOrder(order.id, { userId: customerId, role: 'customer' });
         }
         catch (err) {
@@ -883,6 +909,7 @@ exports.OrderService = OrderService = __decorate([
         payment_service_1.PaymentService,
         notification_service_1.NotificationService,
         revenue_config_service_1.RevenueConfigService,
-        coupon_service_1.CouponService])
+        coupon_service_1.CouponService,
+        vendor_discounts_service_1.VendorDiscountsService])
 ], OrderService);
 //# sourceMappingURL=order.service.js.map

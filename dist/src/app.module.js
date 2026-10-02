@@ -16,6 +16,7 @@ const database_module_1 = require("./config/database.module");
 const health_module_1 = require("./modules/health/health.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const user_module_1 = require("./modules/user/user.module");
+const customers_module_1 = require("./modules/customers/customers.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
 const catalog_module_1 = require("./modules/catalog/catalog.module");
 const allocation_module_1 = require("./modules/allocation/allocation.module");
@@ -28,6 +29,7 @@ const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const area_manager_module_1 = require("./modules/area-manager/area-manager.module");
 const coupon_module_1 = require("./modules/coupon/coupon.module");
 const banner_module_1 = require("./modules/banner/banner.module");
+const vendor_discounts_module_1 = require("./modules/vendor-discounts/vendor-discounts.module");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 const response_cache_module_1 = require("./common/cache/response-cache.module");
 let AppModule = class AppModule {
@@ -59,6 +61,7 @@ exports.AppModule = AppModule = __decorate([
             health_module_1.HealthModule,
             auth_module_1.AuthModule,
             user_module_1.UserModule,
+            customers_module_1.CustomersModule,
             uploads_module_1.UploadsModule,
             catalog_module_1.CatalogModule,
             allocation_module_1.AllocationModule,
@@ -71,6 +74,7 @@ exports.AppModule = AppModule = __decorate([
             area_manager_module_1.AreaManagerModule,
             coupon_module_1.CouponModule,
             banner_module_1.BannerModule,
+            vendor_discounts_module_1.VendorDiscountsModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: throttler_guard_1.AppThrottlerGuard },

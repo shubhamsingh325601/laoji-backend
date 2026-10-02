@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.vendorDiscountRedemptions = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -548,6 +549,44 @@ exports.banners = (0, pg_core_1.pgTable)('banners', {
     isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
     startsAt: (0, pg_core_1.timestamp)('starts_at', { withTimezone: true }),
     endsAt: (0, pg_core_1.timestamp)('ends_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.vendorDiscounts = (0, pg_core_1.pgTable)('vendor_discounts', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    vendorId: (0, pg_core_1.uuid)('vendor_id')
+        .notNull()
+        .references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    title: (0, pg_core_1.varchar)('title', { length: 150 }).notNull(),
+    scope: (0, pg_core_1.varchar)('scope', { length: 30 }).notNull().default('entire_store'),
+    productId: (0, pg_core_1.uuid)('product_id').references(() => exports.products.id, { onDelete: 'set null' }),
+    menuItemId: (0, pg_core_1.uuid)('menu_item_id').references(() => exports.menuItems.id, { onDelete: 'set null' }),
+    discountType: (0, pg_core_1.varchar)('discount_type', { length: 20 }).notNull().default('percentage'),
+    discountValue: (0, pg_core_1.doublePrecision)('discount_value').notNull().default(0),
+    maxDiscount: (0, pg_core_1.doublePrecision)('max_discount'),
+    minOrderValue: (0, pg_core_1.doublePrecision)('min_order_value').notNull().default(0),
+    totalUsageLimit: (0, pg_core_1.integer)('total_usage_limit'),
+    usageCount: (0, pg_core_1.integer)('usage_count').notNull().default(0),
+    perUserLimit: (0, pg_core_1.integer)('per_user_limit').notNull().default(1),
+    startTime: (0, pg_core_1.varchar)('start_time', { length: 10 }),
+    endTime: (0, pg_core_1.varchar)('end_time', { length: 10 }),
+    startDate: (0, pg_core_1.date)('start_date', { mode: 'string' }),
+    endDate: (0, pg_core_1.date)('end_date', { mode: 'string' }),
+    isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.vendorDiscountRedemptions = (0, pg_core_1.pgTable)('vendor_discount_redemptions', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    discountId: (0, pg_core_1.uuid)('discount_id')
+        .notNull()
+        .references(() => exports.vendorDiscounts.id, { onDelete: 'cascade' }),
+    vendorId: (0, pg_core_1.uuid)('vendor_id')
+        .notNull()
+        .references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    userId: (0, pg_core_1.uuid)('user_id')
+        .notNull()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    orderId: (0, pg_core_1.uuid)('order_id'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 //# sourceMappingURL=schema.js.map

@@ -690,6 +690,9 @@ export declare class AdminCatalogController {
         category: string;
         categoryId?: string | null;
         price: number;
+        originalPrice?: number;
+        discountedPrice?: number;
+        discountLabel?: string | null;
         unit: string;
         available: boolean;
         imageUrl: string | null;
