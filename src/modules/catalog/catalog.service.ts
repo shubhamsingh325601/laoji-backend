@@ -2212,12 +2212,14 @@ export class CatalogService {
       .select({
         vendor: vendors,
         user: users,
+        restaurantImageUrl: restaurants.imageUrl,
       })
       .from(vendors)
       .innerJoin(users, eq(vendors.userId, users.id))
+      .leftJoin(restaurants, eq(restaurants.vendorId, vendors.id))
       .orderBy(asc(vendors.displayOrder), asc(vendors.createdAt));
 
-    return rows.map(({ vendor, user }) => ({
+    return rows.map(({ vendor, user, restaurantImageUrl }) => ({
       id: vendor.id,
       userId: vendor.userId,
       businessName: vendor.businessName,
@@ -2245,7 +2247,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
-      imageUrl: vendor.imageUrl,
+      imageUrl: vendor.imageUrl || restaurantImageUrl || null,
       createdAt: vendor.createdAt,
     }));
   }
@@ -2325,7 +2327,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
-      imageUrl: vendor.imageUrl,
+      imageUrl: vendor.imageUrl || restaurant?.imageUrl || null,
       rating: restaurant?.ratingAvg ?? 4.8,
       ratingCount: 12,
       productCount,
@@ -2832,6 +2834,7 @@ export class CatalogService {
         isOpen: true,
         showInApp: dto.showInApp ?? true,
         displayOrder: dto.displayOrder ?? 0,
+        imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
       })
       .returning();
 
@@ -2841,6 +2844,7 @@ export class CatalogService {
         await this.db.insert(restaurants).values({
           vendorId: vendor.id,
           name: dto.businessName.trim(),
+          imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
         });
       }
     }
@@ -2885,6 +2889,7 @@ export class CatalogService {
       commissionPct: 10,
       cashbackPct: 5,
       discountPct: 0,
+      imageUrl: vendor.imageUrl || null,
       tempPassword,
       createdAt: vendor.createdAt,
     };

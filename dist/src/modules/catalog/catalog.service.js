@@ -1678,11 +1678,13 @@ let CatalogService = class CatalogService {
             .select({
             vendor: schema_1.vendors,
             user: schema_1.users,
+            restaurantImageUrl: schema_1.restaurants.imageUrl,
         })
             .from(schema_1.vendors)
             .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
+            .leftJoin(schema_1.restaurants, (0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, schema_1.vendors.id))
             .orderBy((0, drizzle_orm_1.asc)(schema_1.vendors.displayOrder), (0, drizzle_orm_1.asc)(schema_1.vendors.createdAt));
-        return rows.map(({ vendor, user }) => ({
+        return rows.map(({ vendor, user, restaurantImageUrl }) => ({
             id: vendor.id,
             userId: vendor.userId,
             businessName: vendor.businessName,
@@ -1710,7 +1712,7 @@ let CatalogService = class CatalogService {
             commissionPct: 10,
             cashbackPct: 5,
             discountPct: 0,
-            imageUrl: vendor.imageUrl,
+            imageUrl: vendor.imageUrl || restaurantImageUrl || null,
             createdAt: vendor.createdAt,
         }));
     }
@@ -1785,7 +1787,7 @@ let CatalogService = class CatalogService {
             commissionPct: 10,
             cashbackPct: 5,
             discountPct: 0,
-            imageUrl: vendor.imageUrl,
+            imageUrl: vendor.imageUrl || restaurant?.imageUrl || null,
             rating: restaurant?.ratingAvg ?? 4.8,
             ratingCount: 12,
             productCount,
@@ -2238,6 +2240,7 @@ let CatalogService = class CatalogService {
             isOpen: true,
             showInApp: dto.showInApp ?? true,
             displayOrder: dto.displayOrder ?? 0,
+            imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
         })
             .returning();
         if (dto.type === 'restaurant' || dto.type === 'both') {
@@ -2246,6 +2249,7 @@ let CatalogService = class CatalogService {
                 await this.db.insert(schema_1.restaurants).values({
                     vendorId: vendor.id,
                     name: dto.businessName.trim(),
+                    imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
                 });
             }
         }
@@ -2288,6 +2292,7 @@ let CatalogService = class CatalogService {
             commissionPct: 10,
             cashbackPct: 5,
             discountPct: 0,
+            imageUrl: vendor.imageUrl || null,
             tempPassword,
             createdAt: vendor.createdAt,
         };

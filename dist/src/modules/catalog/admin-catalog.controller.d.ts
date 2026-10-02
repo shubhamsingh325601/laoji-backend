@@ -724,6 +724,7 @@ export declare class AdminCatalogController {
         commissionPct: number;
         cashbackPct: number;
         discountPct: number;
+        imageUrl: string | null;
         tempPassword: string;
         createdAt: Date;
     }>;

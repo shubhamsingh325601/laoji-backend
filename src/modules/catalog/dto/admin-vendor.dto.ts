@@ -186,8 +186,9 @@ export class UpdateAdminVendorDto {
   displayOrder?: number;
 
   @IsOptional()
+  @ValidateIf((o) => o.imageUrl !== null && o.imageUrl !== undefined)
   @IsString()
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 export class ReorderVendorItemDto {

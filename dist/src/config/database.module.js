@@ -61,6 +61,22 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                     try {
                         await pool.query(`
             ALTER TABLE "vendors" ADD COLUMN IF NOT EXISTS "image_url" text;
+            UPDATE "vendors" v
+            SET "image_url" = r."image_url"
+            FROM "restaurants" r
+            WHERE r."vendor_id" = v."id"
+              AND (v."image_url" IS NULL OR v."image_url" = '')
+              AND r."image_url" IS NOT NULL
+              AND r."image_url" != '';
+
+            UPDATE "restaurants" r
+            SET "image_url" = v."image_url"
+            FROM "vendors" v
+            WHERE r."vendor_id" = v."id"
+              AND (r."image_url" IS NULL OR r."image_url" = '')
+              AND v."image_url" IS NOT NULL
+              AND v."image_url" != '';
+
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "beneficiary_user_id" uuid;
             ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT true;

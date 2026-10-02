@@ -44,7 +44,7 @@ export declare class UpdateAdminVendorDto {
     upiId?: string;
     showInApp?: boolean;
     displayOrder?: number;
-    imageUrl?: string;
+    imageUrl?: string | null;
 }
 export declare class ReorderVendorItemDto {
     id: string;

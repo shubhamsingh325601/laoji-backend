@@ -287,8 +287,9 @@ __decorate([
 ], UpdateAdminVendorDto.prototype, "displayOrder", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((o) => o.imageUrl !== null && o.imageUrl !== undefined),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateAdminVendorDto.prototype, "imageUrl", void 0);
 class ReorderVendorItemDto {
     id;
