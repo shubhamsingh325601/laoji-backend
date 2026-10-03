@@ -2175,6 +2175,21 @@ let CatalogService = class CatalogService {
         }
         throw new common_1.NotFoundException('Item not found');
     }
+    async bulkDeleteAdminVendorItems(vendorId, itemIds) {
+        if (!itemIds || itemIds.length === 0) {
+            return { success: true, count: 0 };
+        }
+        let deletedCount = 0;
+        for (const itemId of itemIds) {
+            try {
+                await this.deleteAdminVendorItem(vendorId, itemId);
+                deletedCount++;
+            }
+            catch (e) {
+            }
+        }
+        return { success: true, count: deletedCount };
+    }
     async createAdminVendor(dto) {
         const phone = dto.phone.trim();
         const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
@@ -2340,17 +2355,15 @@ let CatalogService = class CatalogService {
         if (dto.activity !== undefined) {
             const active = dto.activity === 'active';
             updateFields.isOpen = active;
-            updateFields.showInApp = active;
+            if (dto.showInApp === undefined) {
+                updateFields.showInApp = active;
+            }
         }
         if (dto.showInApp !== undefined) {
             updateFields.showInApp = dto.showInApp;
-            updateFields.isOpen = dto.showInApp;
         }
         if (dto.isOpen !== undefined) {
             updateFields.isOpen = dto.isOpen;
-            if (!dto.isOpen) {
-                updateFields.showInApp = false;
-            }
         }
         if (dto.displayOrder !== undefined)
             updateFields.displayOrder = dto.displayOrder;

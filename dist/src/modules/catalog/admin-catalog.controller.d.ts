@@ -5,7 +5,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
-import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
+import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
     constructor(catalog: CatalogService);
@@ -24,9 +24,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
-        id: string;
         name: string;
         imageUrl: string | null;
+        id: string;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -560,16 +560,16 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
-        categoryId: string;
         description: string | null;
         unit: string;
+        imageUrl: string | null;
+        categoryId: string;
+        id: string;
+        brand: string | null;
+        status: "active" | "inactive";
+        createdAt: Date;
+        ownerVendorId: string | null;
         size: string | null;
         mrp: number | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -859,6 +859,10 @@ export declare class AdminCatalogController {
     deleteVendorItem(id: string, itemId: string): Promise<{
         success: boolean;
     }>;
+    bulkDeleteVendorItems(id: string, dto: BulkDeleteAdminVendorItemsDto): Promise<{
+        success: boolean;
+        count: number;
+    }>;
     listRestaurants(): Promise<{
         id: string;
         name: string;
@@ -887,16 +891,16 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
-            categoryId: string;
             description: string | null;
             unit: string;
+            imageUrl: string | null;
+            categoryId: string;
+            id: string;
+            brand: string | null;
+            status: "active" | "inactive";
+            createdAt: Date;
+            ownerVendorId: string | null;
             size: string | null;
             mrp: number | null;
             attributes: Record<string, string | number | boolean> | null;

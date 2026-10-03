@@ -10,7 +10,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
-import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
+import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -118,6 +118,11 @@ export class AdminCatalogController {
   @Delete('vendors/:id/items/:itemId')
   deleteVendorItem(@Param('id') id: string, @Param('itemId') itemId: string) {
     return this.catalog.deleteAdminVendorItem(id, itemId);
+  }
+
+  @Post('vendors/:id/items/bulk-delete')
+  bulkDeleteVendorItems(@Param('id') id: string, @Body() dto: BulkDeleteAdminVendorItemsDto) {
+    return this.catalog.bulkDeleteAdminVendorItems(id, dto.itemIds);
   }
 
   @Get('restaurants')

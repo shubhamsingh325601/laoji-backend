@@ -87,6 +87,9 @@ let AdminCatalogController = class AdminCatalogController {
     deleteVendorItem(id, itemId) {
         return this.catalog.deleteAdminVendorItem(id, itemId);
     }
+    bulkDeleteVendorItems(id, dto) {
+        return this.catalog.bulkDeleteAdminVendorItems(id, dto.itemIds);
+    }
     listRestaurants() {
         return this.catalog.listRestaurantsBasic();
     }
@@ -250,6 +253,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "deleteVendorItem", null);
+__decorate([
+    (0, common_1.Post)('vendors/:id/items/bulk-delete'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_vendor_item_dto_1.BulkDeleteAdminVendorItemsDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "bulkDeleteVendorItems", null);
 __decorate([
     (0, common_1.Get)('restaurants'),
     __metadata("design:type", Function),

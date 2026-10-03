@@ -1,3 +1,6 @@
+export declare class BulkDeleteAdminVendorItemsDto {
+    itemIds: string[];
+}
 export declare class CreateAdminVendorItemDto {
     itemType?: 'grocery' | 'menu_item';
     name: string;

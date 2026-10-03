@@ -1,4 +1,11 @@
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+
+export class BulkDeleteAdminVendorItemsDto {
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayNotEmpty()
+  itemIds: string[];
+}
 
 export class CreateAdminVendorItemDto {
   @IsOptional()

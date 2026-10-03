@@ -9,8 +9,18 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateAdminVendorItemDto = exports.CreateAdminVendorItemDto = void 0;
+exports.UpdateAdminVendorItemDto = exports.CreateAdminVendorItemDto = exports.BulkDeleteAdminVendorItemsDto = void 0;
 const class_validator_1 = require("class-validator");
+class BulkDeleteAdminVendorItemsDto {
+    itemIds;
+}
+exports.BulkDeleteAdminVendorItemsDto = BulkDeleteAdminVendorItemsDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.ArrayNotEmpty)(),
+    __metadata("design:type", Array)
+], BulkDeleteAdminVendorItemsDto.prototype, "itemIds", void 0);
 class CreateAdminVendorItemDto {
     itemType;
     name;
