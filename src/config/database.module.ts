@@ -85,6 +85,38 @@ export type Db = NodePgDatabase<typeof schema>;
               "processed_at" timestamp with time zone,
               "created_at" timestamp with time zone NOT NULL DEFAULT now()
             );
+
+            CREATE TABLE IF NOT EXISTS "vendor_discounts" (
+              "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+              "vendor_id" uuid NOT NULL REFERENCES "vendors"("id") ON DELETE CASCADE,
+              "title" varchar(150) NOT NULL,
+              "scope" varchar(30) NOT NULL DEFAULT 'entire_store',
+              "product_id" uuid REFERENCES "products"("id") ON DELETE SET NULL,
+              "menu_item_id" uuid REFERENCES "menu_items"("id") ON DELETE SET NULL,
+              "discount_type" varchar(20) NOT NULL DEFAULT 'percentage',
+              "discount_value" double precision NOT NULL DEFAULT 0,
+              "max_discount" double precision,
+              "min_order_value" double precision NOT NULL DEFAULT 0,
+              "total_usage_limit" integer,
+              "usage_count" integer NOT NULL DEFAULT 0,
+              "per_user_limit" integer NOT NULL DEFAULT 1,
+              "start_time" varchar(10),
+              "end_time" varchar(10),
+              "start_date" date,
+              "end_date" date,
+              "is_active" boolean NOT NULL DEFAULT true,
+              "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+              "updated_at" timestamp with time zone NOT NULL DEFAULT now()
+            );
+
+            CREATE TABLE IF NOT EXISTS "vendor_discount_redemptions" (
+              "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+              "discount_id" uuid NOT NULL REFERENCES "vendor_discounts"("id") ON DELETE CASCADE,
+              "vendor_id" uuid NOT NULL REFERENCES "vendors"("id") ON DELETE CASCADE,
+              "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+              "order_id" uuid,
+              "created_at" timestamp with time zone NOT NULL DEFAULT now()
+            );
           `);
         } catch (err) {
           console.warn('[DB Init] Auto-migration notice:', err);
