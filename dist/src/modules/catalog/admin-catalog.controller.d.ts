@@ -700,6 +700,9 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         isVeg?: boolean;
         stockQty?: number;
+        isCustomisable?: boolean;
+        variants?: any[];
+        addons?: any[];
     }[]>;
     createVendor(dto: CreateAdminVendorDto): Promise<{
         id: string;
@@ -837,6 +840,7 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         isVeg: boolean;
         categoryId: string;
+        isCustomisable: boolean;
         productId?: undefined;
         stockQty?: undefined;
     } | {
@@ -852,6 +856,7 @@ export declare class AdminCatalogController {
         categoryId: string;
         stockQty: number;
         isVeg?: undefined;
+        isCustomisable?: undefined;
     }>;
     updateVendorItem(id: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
         success: boolean;

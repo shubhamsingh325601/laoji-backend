@@ -2793,6 +2793,9 @@ export declare class CatalogService {
         imageUrl: string | null;
         isVeg?: boolean;
         stockQty?: number;
+        isCustomisable?: boolean;
+        variants?: any[];
+        addons?: any[];
     }[]>;
     addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto): Promise<{
         id: string;
@@ -2805,6 +2808,7 @@ export declare class CatalogService {
         imageUrl: string | null;
         isVeg: boolean;
         categoryId: string;
+        isCustomisable: boolean;
         productId?: undefined;
         stockQty?: undefined;
     } | {
@@ -2820,6 +2824,7 @@ export declare class CatalogService {
         categoryId: string;
         stockQty: number;
         isVeg?: undefined;
+        isCustomisable?: undefined;
     }>;
     updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
         success: boolean;

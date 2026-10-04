@@ -1887,7 +1887,16 @@ let CatalogService = class CatalogService {
                 .from(schema_1.menuItems)
                 .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
+            const mItemIds = mItems.map((i) => i.id);
+            const allVariants = mItemIds.length
+                ? await this.db.select().from(schema_1.menuItemVariants).where((0, drizzle_orm_1.inArray)(schema_1.menuItemVariants.menuItemId, mItemIds))
+                : [];
+            const allAddons = mItemIds.length
+                ? await this.db.select().from(schema_1.menuItemAddons).where((0, drizzle_orm_1.inArray)(schema_1.menuItemAddons.menuItemId, mItemIds))
+                : [];
             for (const mi of mItems) {
+                const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
+                const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
                 const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
                 results.push({
                     id: mi.id,
@@ -1904,6 +1913,9 @@ let CatalogService = class CatalogService {
                     available: mi.isAvailable,
                     imageUrl: mi.imageUrl ?? null,
                     isVeg: mi.isVeg,
+                    isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
+                    variants: itemVariants,
+                    addons: itemAddons,
                 });
             }
         }
@@ -1959,6 +1971,12 @@ let CatalogService = class CatalogService {
                 isAvailable: dto.isAvailable ?? true,
             })
                 .returning();
+            if (dto.variants && dto.variants.length > 0) {
+                await this.replaceVariants(item.id, dto.variants);
+            }
+            if (dto.addons && dto.addons.length > 0) {
+                await this.replaceAddons(item.id, dto.addons);
+            }
             return {
                 id: item.id,
                 itemType: 'menu_item',
@@ -1970,6 +1988,7 @@ let CatalogService = class CatalogService {
                 imageUrl: item.imageUrl,
                 isVeg: item.isVeg,
                 categoryId: targetCatId,
+                isCustomisable: Boolean((dto.variants && dto.variants.length > 0) || (dto.addons && dto.addons.length > 0)),
             };
         }
         else {
@@ -2165,6 +2184,12 @@ let CatalogService = class CatalogService {
                 }
                 if (Object.keys(miUpdates).length > 0) {
                     await this.db.update(schema_1.menuItems).set(miUpdates).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, itemId));
+                }
+                if (dto.variants !== undefined) {
+                    await this.replaceVariants(itemId, dto.variants);
+                }
+                if (dto.addons !== undefined) {
+                    await this.replaceAddons(itemId, dto.addons);
                 }
                 return { success: true };
             }

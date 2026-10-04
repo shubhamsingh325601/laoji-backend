@@ -1,4 +1,6 @@
-import { ArrayNotEmpty, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayNotEmpty, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateNested } from 'class-validator';
+import { MenuItemAddonInput, MenuItemVariantInput } from './menu.dto';
 
 export class BulkDeleteAdminVendorItemsDto {
   @IsArray()
@@ -52,6 +54,22 @@ export class CreateAdminVendorItemDto {
   @IsOptional()
   @IsString()
   productId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCustomisable?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MenuItemVariantInput)
+  variants?: MenuItemVariantInput[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MenuItemAddonInput)
+  addons?: MenuItemAddonInput[];
 }
 
 export class UpdateAdminVendorItemDto {
@@ -93,4 +111,20 @@ export class UpdateAdminVendorItemDto {
   @IsNumber()
   @Min(0)
   stockQty?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isCustomisable?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MenuItemVariantInput)
+  variants?: MenuItemVariantInput[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MenuItemAddonInput)
+  addons?: MenuItemAddonInput[];
 }

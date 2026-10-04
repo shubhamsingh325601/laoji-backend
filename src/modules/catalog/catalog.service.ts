@@ -2394,6 +2394,9 @@ export class CatalogService {
       imageUrl: string | null;
       isVeg?: boolean;
       stockQty?: number;
+      isCustomisable?: boolean;
+      variants?: any[];
+      addons?: any[];
     }[] = [];
 
     // 1. Fetch grocery products
@@ -2456,7 +2459,17 @@ export class CatalogService {
         .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
         .where(eq(menuCategories.restaurantId, restaurant.id));
 
+      const mItemIds = mItems.map((i) => i.id);
+      const allVariants = mItemIds.length
+        ? await this.db.select().from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, mItemIds))
+        : [];
+      const allAddons = mItemIds.length
+        ? await this.db.select().from(menuItemAddons).where(inArray(menuItemAddons.menuItemId, mItemIds))
+        : [];
+
       for (const mi of mItems) {
+        const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
+        const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
         const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
         results.push({
           id: mi.id,
@@ -2473,6 +2486,9 @@ export class CatalogService {
           available: mi.isAvailable,
           imageUrl: mi.imageUrl ?? null,
           isVeg: mi.isVeg,
+          isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
+          variants: itemVariants,
+          addons: itemAddons,
         });
       }
     }
@@ -2534,6 +2550,13 @@ export class CatalogService {
         })
         .returning();
 
+      if (dto.variants && dto.variants.length > 0) {
+        await this.replaceVariants(item.id, dto.variants);
+      }
+      if (dto.addons && dto.addons.length > 0) {
+        await this.replaceAddons(item.id, dto.addons);
+      }
+
       return {
         id: item.id,
         itemType: 'menu_item' as const,
@@ -2545,6 +2568,7 @@ export class CatalogService {
         imageUrl: item.imageUrl,
         isVeg: item.isVeg,
         categoryId: targetCatId,
+        isCustomisable: Boolean((dto.variants && dto.variants.length > 0) || (dto.addons && dto.addons.length > 0)),
       };
     } else {
       // Grocery item
@@ -2741,6 +2765,13 @@ export class CatalogService {
 
         if (Object.keys(miUpdates).length > 0) {
           await this.db.update(menuItems).set(miUpdates).where(eq(menuItems.id, itemId));
+        }
+
+        if (dto.variants !== undefined) {
+          await this.replaceVariants(itemId, dto.variants);
+        }
+        if (dto.addons !== undefined) {
+          await this.replaceAddons(itemId, dto.addons);
         }
 
         return { success: true };

@@ -1,3 +1,4 @@
+import { MenuItemAddonInput, MenuItemVariantInput } from './menu.dto';
 export declare class BulkDeleteAdminVendorItemsDto {
     itemIds: string[];
 }
@@ -13,6 +14,9 @@ export declare class CreateAdminVendorItemDto {
     categoryId?: string;
     stockQty?: number;
     productId?: string;
+    isCustomisable?: boolean;
+    variants?: MenuItemVariantInput[];
+    addons?: MenuItemAddonInput[];
 }
 export declare class UpdateAdminVendorItemDto {
     name?: string;
@@ -24,4 +28,7 @@ export declare class UpdateAdminVendorItemDto {
     isVeg?: boolean;
     categoryId?: string;
     stockQty?: number;
+    isCustomisable?: boolean;
+    variants?: MenuItemVariantInput[];
+    addons?: MenuItemAddonInput[];
 }

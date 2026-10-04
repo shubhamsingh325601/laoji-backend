@@ -159,6 +159,9 @@ export declare class PublicCatalogController {
         imageUrl: string | null;
         isVeg?: boolean;
         stockQty?: number;
+        isCustomisable?: boolean;
+        variants?: any[];
+        addons?: any[];
     }[]>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: {
