@@ -951,7 +951,7 @@ let CatalogService = class CatalogService {
     }
     async vendorsInRadius(lat, lng) {
         const allVendors = await this.db.select().from(schema_1.vendors);
-        return allVendors.filter((v) => (v.showInApp ?? true) && (0, catalog_types_1.isVendorOpenNow)(v) && (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
+        return allVendors.filter((v) => (v.showInApp !== false) && (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng) <= v.radiusKm);
     }
     async publicListProducts(lat, lng, categoryId) {
         const inRadius = await this.vendorsInRadius(lat, lng);
@@ -1056,15 +1056,34 @@ let CatalogService = class CatalogService {
     async publicListRestaurants(lat, lng) {
         const allVendors = await this.db.select().from(schema_1.vendors);
         const distanceKm = new Map(allVendors.map((v) => [v.id, (0, catalog_types_1.haversineKm)(lat, lng, v.pickupLat, v.pickupLng)]));
-        const nearbyVendors = allVendors.filter((v) => (v.showInApp ?? true) && v.isOpen && distanceKm.get(v.id) <= v.radiusKm);
-        const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
-        const vendorIds = nearbyVendors.filter((v) => v.type !== 'grocery').map((v) => v.id);
-        if (vendorIds.length === 0)
+        const nearbyVendors = allVendors.filter((v) => (v.showInApp !== false) && distanceKm.get(v.id) <= v.radiusKm);
+        if (nearbyVendors.length === 0)
             return [];
-        const rows = await this.db
+        const vendorMap = new Map(nearbyVendors.map((v) => [v.id, v]));
+        const vendorIds = nearbyVendors.map((v) => v.id);
+        let rows = await this.db
             .select()
             .from(schema_1.restaurants)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.restaurants.isOpen, true)));
+            .where((0, drizzle_orm_1.inArray)(schema_1.restaurants.vendorId, vendorIds));
+        const existingVendorIds = new Set(rows.map((r) => r.vendorId));
+        for (const v of nearbyVendors) {
+            if (!existingVendorIds.has(v.id)) {
+                try {
+                    const [newRest] = await this.db
+                        .insert(schema_1.restaurants)
+                        .values({
+                        vendorId: v.id,
+                        name: v.businessName,
+                        imageUrl: v.imageUrl,
+                    })
+                        .returning();
+                    if (newRest)
+                        rows.push(newRest);
+                }
+                catch {
+                }
+            }
+        }
         const restIds = rows.map((r) => r.id);
         const ratingsMap = new Map();
         if (restIds.length > 0) {
@@ -1087,7 +1106,7 @@ let CatalogService = class CatalogService {
         return rows
             .map((r) => {
             const v = vendorMap.get(r.vendorId);
-            const openNow = r.isOpen && (v ? (0, catalog_types_1.isVendorOpenNow)(v) : false);
+            const openNow = (v?.isOpen ?? false) && (v ? (0, catalog_types_1.isVendorOpenNow)(v) : false);
             const agg = ratingsMap.get(r.id);
             const dynamicRating = agg && agg.count > 0 ? agg.avg : (r.ratingAvg > 0 ? Math.round(r.ratingAvg * 10) / 10 : 4.8);
             const dynamicCount = agg ? agg.count : 0;
@@ -1098,6 +1117,7 @@ let CatalogService = class CatalogService {
                 ratingAvg: dynamicRating,
                 ratingCount: dynamicCount,
                 isOpen: openNow,
+                type: v?.type || 'restaurant',
                 displayOrder: v?.displayOrder ?? 0,
                 distanceKm: (0, catalog_types_1.roundKm)(distanceKm.get(r.vendorId)),
             };
@@ -1111,14 +1131,17 @@ let CatalogService = class CatalogService {
         });
     }
     async publicGetRestaurant(id, near) {
-        const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, id)).limit(1);
+        let [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, id)).limit(1);
+        if (!restaurant) {
+            [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id)).limit(1);
+        }
         if (!restaurant)
             throw new common_1.NotFoundException('Restaurant not found');
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, restaurant.vendorId)).limit(1);
         if (!vendor || vendor.showInApp === false) {
             throw new common_1.NotFoundException('Store is currently not available');
         }
-        const openNow = restaurant.isOpen && (vendor ? (0, catalog_types_1.isVendorOpenNow)(vendor) : false);
+        const openNow = (vendor?.isOpen ?? false) && (vendor ? (0, catalog_types_1.isVendorOpenNow)(vendor) : false);
         const distanceKm = near && vendor ? (0, catalog_types_1.haversineKm)(near.lat, near.lng, vendor.pickupLat, vendor.pickupLng) : null;
         const timings = (0, meal_slots_1.effectiveMealTimings)(restaurant.mealTimings);
         const now = new Date();
@@ -1699,7 +1722,7 @@ let CatalogService = class CatalogService {
             bankIfsc: vendor.bankIfsc,
             upiId: vendor.upiId,
             kycStatus: vendor.kycStatus,
-            activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
+            activity: vendor.isOpen ? 'active' : 'inactive',
             isOpen: vendor.isOpen,
             isOpenNow: (0, catalog_types_1.isVendorOpenNow)(vendor),
             businessHours: vendor.businessHours,
@@ -1774,7 +1797,7 @@ let CatalogService = class CatalogService {
             upiId: vendor.upiId,
             kycStatus: vendor.kycStatus,
             kycDocuments: kycDocs,
-            activity: (vendor.showInApp ?? true) && vendor.isOpen ? 'active' : 'inactive',
+            activity: vendor.isOpen ? 'active' : 'inactive',
             isOpen: vendor.isOpen,
             isOpenNow: (0, catalog_types_1.isVendorOpenNow)(vendor),
             businessHours: vendor.businessHours,
@@ -1795,10 +1818,19 @@ let CatalogService = class CatalogService {
         };
     }
     async getAdminVendorListings(vendorId) {
-        const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
+        let resolvedVendorId = vendorId;
+        let [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
+        if (!vendor) {
+            const [rest] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, vendorId)).limit(1);
+            if (rest) {
+                resolvedVendorId = rest.vendorId;
+                const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, resolvedVendorId)).limit(1);
+                vendor = v;
+            }
+        }
         if (!vendor)
             throw new common_1.NotFoundException('Vendor not found');
-        const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(vendorId);
+        const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(resolvedVendorId);
         const results = [];
         const vProds = await this.db
             .select({
@@ -1817,7 +1849,7 @@ let CatalogService = class CatalogService {
             .from(schema_1.vendorProducts)
             .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
             .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
-            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId));
+            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, resolvedVendorId));
         for (const vp of vProds) {
             const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
             results.push({
@@ -1838,7 +1870,7 @@ let CatalogService = class CatalogService {
                 stockQty: vp.stockQty,
             });
         }
-        const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
+        const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, resolvedVendorId)).limit(1);
         if (restaurant) {
             const mItems = await this.db
                 .select({
@@ -2258,15 +2290,13 @@ let CatalogService = class CatalogService {
             imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
         })
             .returning();
-        if (dto.type === 'restaurant' || dto.type === 'both') {
-            const [existingRest] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id)).limit(1);
-            if (!existingRest) {
-                await this.db.insert(schema_1.restaurants).values({
-                    vendorId: vendor.id,
-                    name: dto.businessName.trim(),
-                    imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
-                });
-            }
+        const [existingRest] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id)).limit(1);
+        if (!existingRest) {
+            await this.db.insert(schema_1.restaurants).values({
+                vendorId: vendor.id,
+                name: dto.businessName.trim(),
+                imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
+            });
         }
         if (email) {
             try {
@@ -2355,9 +2385,6 @@ let CatalogService = class CatalogService {
         if (dto.activity !== undefined) {
             const active = dto.activity === 'active';
             updateFields.isOpen = active;
-            if (dto.showInApp === undefined) {
-                updateFields.showInApp = active;
-            }
         }
         if (dto.showInApp !== undefined) {
             updateFields.showInApp = dto.showInApp;
@@ -2383,9 +2410,8 @@ let CatalogService = class CatalogService {
         }
         if (Object.keys(updateFields).length > 0) {
             await this.db.update(schema_1.vendors).set(updateFields).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id));
-            if (updateFields.isOpen !== undefined || updateFields.showInApp !== undefined) {
-                const restOpen = (updateFields.showInApp ?? v.showInApp ?? true) && (updateFields.isOpen ?? v.isOpen ?? true);
-                await this.db.update(schema_1.restaurants).set({ isOpen: restOpen }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id));
+            if (updateFields.isOpen !== undefined) {
+                await this.db.update(schema_1.restaurants).set({ isOpen: updateFields.isOpen }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id));
             }
         }
         if (dto.phone !== undefined || dto.email !== undefined) {

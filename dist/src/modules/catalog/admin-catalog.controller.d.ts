@@ -566,9 +566,9 @@ export declare class AdminCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -897,9 +897,9 @@ export declare class AdminCatalogController {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

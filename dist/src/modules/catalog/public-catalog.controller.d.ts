@@ -24,8 +24,8 @@ export declare class PublicCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
+        ownerVendorId: string | null;
         unit: string;
         size: string | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -62,6 +62,7 @@ export declare class PublicCatalogController {
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        type: "grocery" | "restaurant" | "both";
         displayOrder: number;
         distanceKm: number;
         id: string;
@@ -173,8 +174,8 @@ export declare class PublicCatalogController {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             attributes: Record<string, string | number | boolean> | null;
