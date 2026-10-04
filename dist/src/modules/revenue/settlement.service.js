@@ -71,7 +71,10 @@ let SettlementService = class SettlementService {
                 return;
             }
             let commission = 0;
-            if (coupon.affiliateCommissionType === 'percentage') {
+            if (coupon.affiliateCommissionType === 'order_percentage') {
+                commission = Math.round(((order.subtotal * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+            }
+            else if (coupon.affiliateCommissionType === 'percentage') {
                 commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
             }
             else {

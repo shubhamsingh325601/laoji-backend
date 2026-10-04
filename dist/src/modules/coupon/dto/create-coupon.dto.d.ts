@@ -11,7 +11,7 @@ export declare class CreateCouponDto {
     vendorId?: string;
     beneficiaryUserId?: string;
     showInApp?: boolean;
-    affiliateCommissionType?: 'percentage' | 'flat';
+    affiliateCommissionType?: 'percentage' | 'flat' | 'order_percentage';
     affiliateCommissionValue?: number;
     maxUsesPerUser?: number;
     maxTotalUses?: number;

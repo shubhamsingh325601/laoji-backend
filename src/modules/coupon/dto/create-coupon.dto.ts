@@ -55,8 +55,8 @@ export class CreateCouponDto {
   showInApp?: boolean;
 
   @IsOptional()
-  @IsIn(['percentage', 'flat'])
-  affiliateCommissionType?: 'percentage' | 'flat';
+  @IsIn(['percentage', 'flat', 'order_percentage'])
+  affiliateCommissionType?: 'percentage' | 'flat' | 'order_percentage';
 
   @IsOptional()
   @IsNumber()

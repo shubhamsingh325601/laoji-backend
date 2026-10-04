@@ -11,7 +11,7 @@ export declare class UpdateCouponDto {
     vendorId?: string | null;
     beneficiaryUserId?: string | null;
     showInApp?: boolean;
-    affiliateCommissionType?: 'percentage' | 'flat' | null;
+    affiliateCommissionType?: 'percentage' | 'flat' | 'order_percentage' | null;
     affiliateCommissionValue?: number | null;
     maxUsesPerUser?: number | null;
     maxTotalUses?: number | null;

@@ -98,7 +98,7 @@ __decorate([
 ], UpdateCouponDto.prototype, "showInApp", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['percentage', 'flat']),
+    (0, class_validator_1.IsIn)(['percentage', 'flat', 'order_percentage']),
     __metadata("design:type", Object)
 ], UpdateCouponDto.prototype, "affiliateCommissionType", void 0);
 __decorate([

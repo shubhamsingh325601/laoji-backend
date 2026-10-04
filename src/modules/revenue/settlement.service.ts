@@ -89,9 +89,11 @@ export class SettlementService {
         return;
       }
 
-      // Calculate affiliate commission from our platform commission
+      // Calculate affiliate commission (from order subtotal or platform commission)
       let commission = 0;
-      if (coupon.affiliateCommissionType === 'percentage') {
+      if (coupon.affiliateCommissionType === 'order_percentage') {
+        commission = Math.round(((order.subtotal * coupon.affiliateCommissionValue) / 100) * 100) / 100;
+      } else if (coupon.affiliateCommissionType === 'percentage') {
         commission = Math.round(((order.platformCommission * coupon.affiliateCommissionValue) / 100) * 100) / 100;
       } else {
         commission = Math.min(coupon.affiliateCommissionValue, order.platformCommission);
