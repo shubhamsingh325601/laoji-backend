@@ -44,12 +44,12 @@ export declare class WalletController {
             status: string;
             createdAt: Date;
             userId: string;
+            walletId: string;
+            amount: number;
+            payoutMethod: string;
+            upiId: string | null;
             bankAccount: string | null;
             bankIfsc: string | null;
-            upiId: string | null;
-            amount: number;
-            walletId: string;
-            payoutMethod: string;
             accountHolderName: string | null;
             adminNotes: string | null;
             processedAt: Date | null;

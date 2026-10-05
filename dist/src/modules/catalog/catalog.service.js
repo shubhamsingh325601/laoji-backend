@@ -58,6 +58,7 @@ const catalog_ownership_1 = require("./catalog-ownership");
 const meal_slots_1 = require("./meal-slots");
 const notification_service_1 = require("../notification/notification.service");
 const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
+const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const product_suggestion_1 = require("../notification/templates/push/product-suggestion");
 const category_suggestion_1 = require("../notification/templates/push/category-suggestion");
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -65,10 +66,31 @@ let CatalogService = class CatalogService {
     db;
     notifications;
     vendorDiscounts;
-    constructor(db, notifications, vendorDiscounts) {
+    revenueConfig;
+    constructor(db, notifications, vendorDiscounts, revenueConfig) {
         this.db = db;
         this.notifications = notifications;
         this.vendorDiscounts = vendorDiscounts;
+        this.revenueConfig = revenueConfig;
+    }
+    async resolveVendorCommissionPct(vendorId) {
+        if (this.revenueConfig) {
+            const resolved = await this.revenueConfig.resolve(vendorId, null);
+            return Math.round(resolved.commissionPct * 100 * 10) / 10;
+        }
+        try {
+            const rows = await this.db.select().from(schema_1.revenueConfig).where((0, drizzle_orm_1.lte)(schema_1.revenueConfig.effectiveFrom, new Date()));
+            const latest = (candidates) => candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
+            const vendorRule = latest(rows.filter((r) => r.scope === 'vendor' && r.scopeRefId === vendorId));
+            if (vendorRule)
+                return Math.round(vendorRule.commissionPct * 100 * 10) / 10;
+            const globalRule = latest(rows.filter((r) => r.scope === 'global'));
+            if (globalRule)
+                return Math.round(globalRule.commissionPct * 100 * 10) / 10;
+        }
+        catch {
+        }
+        return 10;
     }
     async getVendorByUserId(userId) {
         const [row] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
@@ -96,8 +118,10 @@ let CatalogService = class CatalogService {
             }
         }
         const isOpenNow = (0, catalog_types_1.isVendorOpenNow)(row);
+        const commissionPct = await this.resolveVendorCommissionPct(row.id);
         return {
             ...row,
+            commissionPct,
             isOpenNow,
             locationIsDefault: (0, catalog_types_1.isDefaultPickup)(row.pickupLat, row.pickupLng),
             email: user?.email ?? null,
@@ -1707,6 +1731,28 @@ let CatalogService = class CatalogService {
             .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
             .leftJoin(schema_1.restaurants, (0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, schema_1.vendors.id))
             .orderBy((0, drizzle_orm_1.asc)(schema_1.vendors.displayOrder), (0, drizzle_orm_1.asc)(schema_1.vendors.createdAt));
+        const now = new Date();
+        let globalCommission = 10;
+        const vendorCommissionMap = new Map();
+        try {
+            const revRows = await this.db.select().from(schema_1.revenueConfig).where((0, drizzle_orm_1.lte)(schema_1.revenueConfig.effectiveFrom, now));
+            const latest = (candidates) => candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
+            const globalRule = latest(revRows.filter((r) => r.scope === 'global'));
+            if (globalRule) {
+                globalCommission = Math.round(globalRule.commissionPct * 100 * 10) / 10;
+            }
+            for (const r of revRows) {
+                if (r.scope === 'vendor' && r.scopeRefId) {
+                    const allForVendor = revRows.filter((row) => row.scope === 'vendor' && row.scopeRefId === r.scopeRefId);
+                    const latestVendorRule = latest(allForVendor);
+                    if (latestVendorRule) {
+                        vendorCommissionMap.set(r.scopeRefId, Math.round(latestVendorRule.commissionPct * 100 * 10) / 10);
+                    }
+                }
+            }
+        }
+        catch {
+        }
         return rows.map(({ vendor, user, restaurantImageUrl }) => ({
             id: vendor.id,
             userId: vendor.userId,
@@ -1732,7 +1778,7 @@ let CatalogService = class CatalogService {
             pickupLat: vendor.pickupLat,
             pickupLng: vendor.pickupLng,
             locationIsDefault: (0, catalog_types_1.isDefaultPickup)(vendor.pickupLat, vendor.pickupLng),
-            commissionPct: 10,
+            commissionPct: vendorCommissionMap.get(vendor.id) ?? globalCommission,
             cashbackPct: 5,
             discountPct: 0,
             imageUrl: vendor.imageUrl || restaurantImageUrl || null,
@@ -1781,6 +1827,7 @@ let CatalogService = class CatalogService {
             .from(schema_1.kycDocuments)
             .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, vendor.userId))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
+        const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
         return {
             id: vendor.id,
             userId: vendor.userId,
@@ -1807,7 +1854,7 @@ let CatalogService = class CatalogService {
             pickupLat: vendor.pickupLat,
             pickupLng: vendor.pickupLng,
             locationIsDefault: (0, catalog_types_1.isDefaultPickup)(vendor.pickupLat, vendor.pickupLng),
-            commissionPct: 10,
+            commissionPct,
             cashbackPct: 5,
             discountPct: 0,
             imageUrl: vendor.imageUrl || restaurant?.imageUrl || null,
@@ -2247,7 +2294,7 @@ let CatalogService = class CatalogService {
         }
         return { success: true, count: deletedCount };
     }
-    async createAdminVendor(dto) {
+    async createAdminVendor(dto, adminUserId) {
         const phone = dto.phone.trim();
         const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
         const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
@@ -2323,6 +2370,48 @@ let CatalogService = class CatalogService {
                 imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null,
             });
         }
+        if (dto.commissionPct !== undefined && !isNaN(dto.commissionPct) && dto.commissionPct >= 0) {
+            try {
+                const commissionFraction = dto.commissionPct > 1 ? dto.commissionPct / 100 : dto.commissionPct;
+                if (this.revenueConfig) {
+                    const currentResolved = await this.revenueConfig.resolve(vendor.id, null);
+                    await this.revenueConfig.create(adminUserId || vendor.userId, {
+                        scope: 'vendor',
+                        scopeRefId: vendor.id,
+                        commissionPct: commissionFraction,
+                        deliveryFeeFlat: currentResolved.deliveryFeeFlat ?? 15,
+                        freeDeliveryThreshold: currentResolved.freeDeliveryThreshold ?? 99,
+                        deliveryFeeTier1: currentResolved.deliveryFeeTier1 ?? 10,
+                        deliveryFeeTier2: currentResolved.deliveryFeeTier2 ?? 15,
+                        deliveryFeeTier3: currentResolved.deliveryFeeTier3 ?? 20,
+                        minOrderValue: currentResolved.minOrderValue ?? 50,
+                        codThreshold: currentResolved.codThreshold ?? undefined,
+                        notes: 'Initial commission set during vendor creation',
+                        effectiveFrom: new Date().toISOString(),
+                    });
+                }
+                else {
+                    await this.db.insert(schema_1.revenueConfig).values({
+                        scope: 'vendor',
+                        scopeRefId: vendor.id,
+                        commissionPct: commissionFraction,
+                        deliveryFeeFlat: 15,
+                        freeDeliveryThreshold: 99,
+                        deliveryFeeTier1: 10,
+                        deliveryFeeTier2: 15,
+                        deliveryFeeTier3: 20,
+                        minOrderValue: 50,
+                        codThreshold: null,
+                        notes: 'Initial commission set during vendor creation',
+                        effectiveFrom: new Date(),
+                        createdBy: adminUserId || vendor.userId,
+                    });
+                }
+            }
+            catch (err) {
+                console.error('[CatalogService] Failed to create vendor revenue config:', err);
+            }
+        }
         if (email) {
             try {
                 this.notifications.sendWelcomeVendorEmail({
@@ -2339,6 +2428,7 @@ let CatalogService = class CatalogService {
                 console.error('[CatalogService] Failed to queue welcome vendor email:', err);
             }
         }
+        const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
         return {
             id: vendor.id,
             userId: vendor.userId,
@@ -2359,7 +2449,7 @@ let CatalogService = class CatalogService {
             pickupLat: vendor.pickupLat,
             pickupLng: vendor.pickupLng,
             locationIsDefault: (0, catalog_types_1.isDefaultPickup)(vendor.pickupLat, vendor.pickupLng),
-            commissionPct: 10,
+            commissionPct,
             cashbackPct: 5,
             discountPct: 0,
             imageUrl: vendor.imageUrl || null,
@@ -2386,7 +2476,7 @@ let CatalogService = class CatalogService {
         }
         return this.listVendorsAdmin();
     }
-    async updateAdminVendor(id, dto) {
+    async updateAdminVendor(id, dto, adminUserId) {
         const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, id)).limit(1);
         if (!v)
             throw new common_1.NotFoundException('Vendor not found');
@@ -2447,6 +2537,50 @@ let CatalogService = class CatalogService {
                 userUpdates.email = dto.email.trim() ? dto.email.trim().toLowerCase() : null;
             if (Object.keys(userUpdates).length > 0) {
                 await this.db.update(schema_1.users).set(userUpdates).where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId));
+            }
+        }
+        if (dto.commissionPct !== undefined && !isNaN(dto.commissionPct) && dto.commissionPct >= 0) {
+            try {
+                const commissionFraction = dto.commissionPct > 1 ? dto.commissionPct / 100 : dto.commissionPct;
+                if (this.revenueConfig) {
+                    const currentResolved = await this.revenueConfig.resolve(id, null);
+                    if (Math.abs(currentResolved.commissionPct - commissionFraction) > 0.0001) {
+                        await this.revenueConfig.create(adminUserId || v.userId, {
+                            scope: 'vendor',
+                            scopeRefId: id,
+                            commissionPct: commissionFraction,
+                            deliveryFeeFlat: currentResolved.deliveryFeeFlat ?? 15,
+                            freeDeliveryThreshold: currentResolved.freeDeliveryThreshold ?? 99,
+                            deliveryFeeTier1: currentResolved.deliveryFeeTier1 ?? 10,
+                            deliveryFeeTier2: currentResolved.deliveryFeeTier2 ?? 15,
+                            deliveryFeeTier3: currentResolved.deliveryFeeTier3 ?? 20,
+                            minOrderValue: currentResolved.minOrderValue ?? 50,
+                            codThreshold: currentResolved.codThreshold ?? undefined,
+                            notes: 'Updated commission from vendor profile edit',
+                            effectiveFrom: new Date().toISOString(),
+                        });
+                    }
+                }
+                else {
+                    await this.db.insert(schema_1.revenueConfig).values({
+                        scope: 'vendor',
+                        scopeRefId: id,
+                        commissionPct: commissionFraction,
+                        deliveryFeeFlat: 15,
+                        freeDeliveryThreshold: 99,
+                        deliveryFeeTier1: 10,
+                        deliveryFeeTier2: 15,
+                        deliveryFeeTier3: 20,
+                        minOrderValue: 50,
+                        codThreshold: null,
+                        notes: 'Updated commission from vendor profile edit',
+                        effectiveFrom: new Date(),
+                        createdBy: adminUserId || v.userId,
+                    });
+                }
+            }
+            catch (err) {
+                console.error('[CatalogService] Failed to update vendor revenue config:', err);
             }
         }
         return this.getAdminVendor(id);
@@ -2519,7 +2653,9 @@ exports.CatalogService = CatalogService;
 exports.CatalogService = CatalogService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
+    __param(3, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, notification_service_1.NotificationService,
-        vendor_discounts_service_1.VendorDiscountsService])
+        vendor_discounts_service_1.VendorDiscountsService,
+        revenue_config_service_1.RevenueConfigService])
 ], CatalogService);
 //# sourceMappingURL=catalog.service.js.map

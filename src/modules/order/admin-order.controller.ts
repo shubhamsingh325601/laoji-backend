@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { OrderService } from './order.service';
+import { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -22,8 +23,28 @@ export class AdminOrderController {
     return this.orders.getOrderTimelineForAdmin(type, id);
   }
 
+  @Post(':type/:id/accept')
+  accept(@CurrentUser() user: JwtAccessPayload, @Param('type') type: 'grocery' | 'food', @Param('id') id: string) {
+    return this.orders.acceptOrderByAdmin(user.sub, type, id);
+  }
+
   @Post(':type/:id/cancel')
   cancel(@CurrentUser() user: JwtAccessPayload, @Param('type') type: 'grocery' | 'food', @Param('id') id: string) {
     return this.orders.cancelOrder(user.sub, type, id);
+  }
+
+  @Post(':type/:id/restore')
+  restore(@CurrentUser() user: JwtAccessPayload, @Param('type') type: 'grocery' | 'food', @Param('id') id: string) {
+    return this.orders.restoreOrder(user.sub, type, id);
+  }
+
+  @Post(':type/:id/change-vendor')
+  changeVendor(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+    @Body() dto: ChangeOrderVendorDto,
+  ) {
+    return this.orders.changeOrderVendor(user.sub, type, id, dto);
   }
 }

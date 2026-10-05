@@ -153,6 +153,13 @@ let PaymentService = class PaymentService {
         await this.db.update(schema_1.payments).set({ status: 'refund_pending', updatedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id));
         await this.setOrderPaymentStatus(type, orderId, 'refund_pending');
     }
+    async restorePaymentStatusIfRestored(type, orderId) {
+        const payment = await this.latestPayment(type, orderId);
+        if (payment && payment.status === 'refund_pending') {
+            await this.db.update(schema_1.payments).set({ status: 'paid', updatedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id));
+            await this.setOrderPaymentStatus(type, orderId, 'paid');
+        }
+    }
     async enrichForAdmin(rows) {
         if (!rows.length)
             return [];

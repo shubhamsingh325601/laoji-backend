@@ -72,17 +72,18 @@ export declare class CouponService implements OnModuleInit {
     create(dto: CreateCouponDto): Promise<{
         id: string;
         createdAt: Date;
+        expiresAt: Date | null;
         showInApp: boolean;
-        vendorId: string | null;
         description: string | null;
+        vendorId: string | null;
+        minOrderValue: number;
+        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
-        minOrderValue: number;
         maxDiscount: number | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
-        isActive: boolean;
         beneficiaryUserId: string | null;
         affiliateCommissionType: string | null;
         affiliateCommissionValue: number | null;
@@ -90,7 +91,6 @@ export declare class CouponService implements OnModuleInit {
         maxTotalUses: number | null;
         totalRedemptions: number;
         startsAt: Date | null;
-        expiresAt: Date | null;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;

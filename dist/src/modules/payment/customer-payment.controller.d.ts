@@ -9,10 +9,10 @@ export declare class CustomerPaymentController {
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
+        amount: number;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "cod" | "razorpay";
-        amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
         reconciledBy: string | null;

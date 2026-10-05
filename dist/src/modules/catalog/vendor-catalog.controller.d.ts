@@ -40,6 +40,7 @@ export declare class VendorCatalogController {
         businessType: string;
     }>;
     myProfile(user: JwtAccessPayload): Promise<{
+        commissionPct: number;
         isOpenNow: boolean;
         locationIsDefault: boolean;
         email: string | null;

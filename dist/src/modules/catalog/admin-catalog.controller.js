@@ -63,14 +63,14 @@ let AdminCatalogController = class AdminCatalogController {
     getVendorListings(id) {
         return this.catalog.getAdminVendorListings(id);
     }
-    createVendor(dto) {
-        return this.catalog.createAdminVendor(dto);
+    createVendor(dto, user) {
+        return this.catalog.createAdminVendor(dto, user?.sub);
     }
     reorderVendors(dto) {
         return this.catalog.reorderVendors(dto);
     }
-    updateVendor(id, dto) {
-        return this.catalog.updateAdminVendor(id, dto);
+    updateVendor(id, dto, user) {
+        return this.catalog.updateAdminVendor(id, dto, user?.sub);
     }
     deleteVendor(id) {
         return this.catalog.deleteAdminVendor(id);
@@ -195,8 +195,9 @@ __decorate([
 __decorate([
     (0, common_1.Post)('vendors'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [admin_vendor_dto_1.CreateAdminVendorDto]),
+    __metadata("design:paramtypes", [admin_vendor_dto_1.CreateAdminVendorDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "createVendor", null);
 __decorate([
@@ -210,8 +211,9 @@ __decorate([
     (0, common_1.Patch)('vendors/:id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, admin_vendor_dto_1.UpdateAdminVendorDto]),
+    __metadata("design:paramtypes", [String, admin_vendor_dto_1.UpdateAdminVendorDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "updateVendor", null);
 __decorate([
