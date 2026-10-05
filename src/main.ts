@@ -7,9 +7,16 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const rawCors = process.env.CORS_ORIGIN?.replace(/^["']|["']$/g, '').trim();
+  const defaultOrigins = [
+    'http://localhost:8080',
+    'http://localhost:8081',
+    'https://laoji-admin.vercel.app',
+    'https://www.laojionline.com',
+    'https://laojionline.com',
+  ];
   const corsOrigins = rawCors
-    ? rawCors.split(',').map((s) => s.trim())
-    : ['http://localhost:8080', 'https://laoji-admin.vercel.app'];
+    ? Array.from(new Set([...rawCors.split(',').map((s) => s.trim()), 'https://www.laojionline.com', 'https://laojionline.com']))
+    : defaultOrigins;
 
   app.enableCors({
     origin: corsOrigins,
