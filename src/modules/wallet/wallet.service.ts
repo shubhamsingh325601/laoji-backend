@@ -187,6 +187,23 @@ export class WalletService {
   }
 
   /**
+   * Called if an order is restored by admin.
+   * Restores any cancelled commission for this order back to pending.
+   */
+  async restorePendingCommission(orderType: 'grocery' | 'food', orderId: string) {
+    await this.db
+      .update(walletTransactions)
+      .set({ status: 'pending' })
+      .where(
+        and(
+          eq(walletTransactions.orderId, orderId),
+          eq(walletTransactions.type, 'affiliate_commission'),
+          eq(walletTransactions.status, 'cancelled'),
+        ),
+      );
+  }
+
+  /**
    * User requests a payout/withdrawal from their available balance.
    */
   async requestWithdrawal(userId: string, dto: RequestWithdrawalDto) {

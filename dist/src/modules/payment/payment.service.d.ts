@@ -31,10 +31,10 @@ export declare class PaymentService {
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
+        amount: number;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         provider: "upi_deeplink" | "cod" | "razorpay";
-        amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
         reconciledBy: string | null;
@@ -70,6 +70,7 @@ export declare class PaymentService {
     }>;
     markCodCollected(type: OrderType, orderId: string): Promise<void>;
     markRefundPendingIfPaid(type: OrderType, orderId: string): Promise<void>;
+    restorePaymentStatusIfRestored(type: OrderType, orderId: string): Promise<void>;
     private enrichForAdmin;
     listPendingForAdmin(): Promise<{
         id: string;

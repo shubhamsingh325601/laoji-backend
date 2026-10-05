@@ -77,8 +77,8 @@ export class AdminCatalogController {
   }
 
   @Post('vendors')
-  createVendor(@Body() dto: CreateAdminVendorDto) {
-    return this.catalog.createAdminVendor(dto);
+  createVendor(@Body() dto: CreateAdminVendorDto, @CurrentUser() user?: JwtAccessPayload) {
+    return this.catalog.createAdminVendor(dto, user?.sub);
   }
 
   @Put('vendors/reorder')
@@ -87,8 +87,12 @@ export class AdminCatalogController {
   }
 
   @Patch('vendors/:id')
-  updateVendor(@Param('id') id: string, @Body() dto: UpdateAdminVendorDto) {
-    return this.catalog.updateAdminVendor(id, dto);
+  updateVendor(
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminVendorDto,
+    @CurrentUser() user?: JwtAccessPayload,
+  ) {
+    return this.catalog.updateAdminVendor(id, dto, user?.sub);
   }
 
   @Delete('vendors/:id')

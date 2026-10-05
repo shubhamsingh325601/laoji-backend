@@ -15,6 +15,7 @@ import type { UpdateRestaurantDto } from './dto/restaurant.dto';
 import type { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
+import { RevenueConfigService } from '../revenue/revenue-config.service';
 type VendorRef = {
     id: string;
     businessType: string;
@@ -23,8 +24,11 @@ export declare class CatalogService {
     private readonly db;
     private readonly notifications;
     private readonly vendorDiscounts;
-    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService);
+    private readonly revenueConfig?;
+    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService, revenueConfig?: RevenueConfigService | undefined);
+    private resolveVendorCommissionPct;
     getVendorByUserId(userId: string): Promise<{
+        commissionPct: number;
         isOpenNow: boolean;
         locationIsDefault: boolean;
         email: string | null;
@@ -61,6 +65,7 @@ export declare class CatalogService {
         createdAt: Date;
     } | null>;
     requireVendor(userId: string): Promise<{
+        commissionPct: number;
         isOpenNow: boolean;
         locationIsDefault: boolean;
         email: string | null;
@@ -2836,7 +2841,7 @@ export declare class CatalogService {
         success: boolean;
         count: number;
     }>;
-    createAdminVendor(dto: CreateAdminVendorDto): Promise<{
+    createAdminVendor(dto: CreateAdminVendorDto, adminUserId?: string): Promise<{
         id: string;
         userId: string;
         businessName: string;
@@ -2899,7 +2904,7 @@ export declare class CatalogService {
         imageUrl: string | null;
         createdAt: Date;
     }[]>;
-    updateAdminVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+    updateAdminVendor(id: string, dto: UpdateAdminVendorDto, adminUserId?: string): Promise<{
         id: string;
         userId: string;
         businessName: string;

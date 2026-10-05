@@ -19,6 +19,7 @@ const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const order_service_1 = require("./order.service");
+const change_order_vendor_dto_1 = require("./dto/change-order-vendor.dto");
 let AdminOrderController = class AdminOrderController {
     orders;
     constructor(orders) {
@@ -30,8 +31,17 @@ let AdminOrderController = class AdminOrderController {
     timeline(type, id) {
         return this.orders.getOrderTimelineForAdmin(type, id);
     }
+    accept(user, type, id) {
+        return this.orders.acceptOrderByAdmin(user.sub, type, id);
+    }
     cancel(user, type, id) {
         return this.orders.cancelOrder(user.sub, type, id);
+    }
+    restore(user, type, id) {
+        return this.orders.restoreOrder(user.sub, type, id);
+    }
+    changeVendor(user, type, id, dto) {
+        return this.orders.changeOrderVendor(user.sub, type, id, dto);
     }
 };
 exports.AdminOrderController = AdminOrderController;
@@ -51,6 +61,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "timeline", null);
 __decorate([
+    (0, common_1.Post)(':type/:id/accept'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "accept", null);
+__decorate([
     (0, common_1.Post)(':type/:id/cancel'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('type')),
@@ -59,6 +78,25 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/restore'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "restore", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/change-vendor'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, change_order_vendor_dto_1.ChangeOrderVendorDto]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "changeVendor", null);
 exports.AdminOrderController = AdminOrderController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),

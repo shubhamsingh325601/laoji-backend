@@ -168,6 +168,14 @@ export class PaymentService {
     await this.setOrderPaymentStatus(type, orderId, 'refund_pending');
   }
 
+  async restorePaymentStatusIfRestored(type: OrderType, orderId: string) {
+    const payment = await this.latestPayment(type, orderId);
+    if (payment && payment.status === 'refund_pending') {
+      await this.db.update(payments).set({ status: 'paid', updatedAt: new Date() }).where(eq(payments.id, payment.id));
+      await this.setOrderPaymentStatus(type, orderId, 'paid');
+    }
+  }
+
   // ---------- Admin: manual reconciliation ----------
 
   private async enrichForAdmin(rows: (typeof payments.$inferSelect)[]) {

@@ -10,15 +10,15 @@ export declare class AdminRevenueController {
         id: string;
         createdAt: Date;
         commissionPct: number;
+        codThreshold: number | null;
+        minOrderValue: number | null;
+        freeDeliveryThreshold: number | null;
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
-        freeDeliveryThreshold: number | null;
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
-        minOrderValue: number | null;
-        codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
         createdBy: string | null;

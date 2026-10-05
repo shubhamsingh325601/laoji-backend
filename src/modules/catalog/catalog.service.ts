@@ -1,5 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -20,6 +20,7 @@ import {
   productSuggestions,
   products,
   restaurants,
+  revenueConfig,
   users,
   vendorProducts,
   vendors,
@@ -79,6 +80,7 @@ import type {
 } from './dto/menu.dto';
 import { NotificationService } from '../notification/notification.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
+import { RevenueConfigService } from '../revenue/revenue-config.service';
 import {
   productSuggestionApprovedVendorPush,
   productSuggestionRejectedVendorPush,
@@ -101,7 +103,27 @@ export class CatalogService {
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly notifications: NotificationService,
     private readonly vendorDiscounts: VendorDiscountsService,
+    @Optional() private readonly revenueConfig?: RevenueConfigService,
   ) {}
+
+  private async resolveVendorCommissionPct(vendorId: string): Promise<number> {
+    if (this.revenueConfig) {
+      const resolved = await this.revenueConfig.resolve(vendorId, null);
+      return Math.round(resolved.commissionPct * 100 * 10) / 10;
+    }
+    try {
+      const rows = await this.db.select().from(revenueConfig).where(lte(revenueConfig.effectiveFrom, new Date()));
+      const latest = (candidates: typeof rows) =>
+        candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
+      const vendorRule = latest(rows.filter((r) => r.scope === 'vendor' && r.scopeRefId === vendorId));
+      if (vendorRule) return Math.round(vendorRule.commissionPct * 100 * 10) / 10;
+      const globalRule = latest(rows.filter((r) => r.scope === 'global'));
+      if (globalRule) return Math.round(globalRule.commissionPct * 100 * 10) / 10;
+    } catch {
+      // ignore
+    }
+    return 10;
+  }
 
   // ---------- Vendor profile ----------
 
@@ -133,9 +155,11 @@ export class CatalogService {
     }
 
     const isOpenNow = isVendorOpenNow(row);
+    const commissionPct = await this.resolveVendorCommissionPct(row.id);
 
     return {
       ...row,
+      commissionPct,
       isOpenNow,
       // Still on the fallback pickup point, i.e. never set from the shop's GPS.
       locationIsDefault: isDefaultPickup(row.pickupLat, row.pickupLng),
@@ -2246,6 +2270,32 @@ export class CatalogService {
       .leftJoin(restaurants, eq(restaurants.vendorId, vendors.id))
       .orderBy(asc(vendors.displayOrder), asc(vendors.createdAt));
 
+    // Batch resolve revenue config rules in 1 DB query
+    const now = new Date();
+    let globalCommission = 10;
+    const vendorCommissionMap = new Map<string, number>();
+
+    try {
+      const revRows = await this.db.select().from(revenueConfig).where(lte(revenueConfig.effectiveFrom, now));
+      const latest = (candidates: typeof revRows) =>
+        candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
+      const globalRule = latest(revRows.filter((r) => r.scope === 'global'));
+      if (globalRule) {
+        globalCommission = Math.round(globalRule.commissionPct * 100 * 10) / 10;
+      }
+      for (const r of revRows) {
+        if (r.scope === 'vendor' && r.scopeRefId) {
+          const allForVendor = revRows.filter((row) => row.scope === 'vendor' && row.scopeRefId === r.scopeRefId);
+          const latestVendorRule = latest(allForVendor);
+          if (latestVendorRule) {
+            vendorCommissionMap.set(r.scopeRefId, Math.round(latestVendorRule.commissionPct * 100 * 10) / 10);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return rows.map(({ vendor, user, restaurantImageUrl }) => ({
       id: vendor.id,
       userId: vendor.userId,
@@ -2271,7 +2321,7 @@ export class CatalogService {
       pickupLat: vendor.pickupLat,
       pickupLng: vendor.pickupLng,
       locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
-      commissionPct: 10,
+      commissionPct: vendorCommissionMap.get(vendor.id) ?? globalCommission,
       cashbackPct: 5,
       discountPct: 0,
       imageUrl: vendor.imageUrl || restaurantImageUrl || null,
@@ -2325,6 +2375,8 @@ export class CatalogService {
       .where(eq(kycDocuments.userId, vendor.userId))
       .orderBy(desc(kycDocuments.uploadedAt));
 
+    const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
+
     return {
       id: vendor.id,
       userId: vendor.userId,
@@ -2351,7 +2403,7 @@ export class CatalogService {
       pickupLat: vendor.pickupLat,
       pickupLng: vendor.pickupLng,
       locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
-      commissionPct: 10,
+      commissionPct,
       cashbackPct: 5,
       discountPct: 0,
       imageUrl: vendor.imageUrl || restaurant?.imageUrl || null,
@@ -2843,7 +2895,7 @@ export class CatalogService {
   }
 
 
-  async createAdminVendor(dto: CreateAdminVendorDto) {
+  async createAdminVendor(dto: CreateAdminVendorDto, adminUserId?: string) {
     const phone = dto.phone.trim();
     const email = dto.email && dto.email.trim() ? dto.email.trim().toLowerCase() : null;
 
@@ -2933,6 +2985,48 @@ export class CatalogService {
       });
     }
 
+    // If commissionPct is provided, create a vendor-scoped revenue config rule
+    if (dto.commissionPct !== undefined && !isNaN(dto.commissionPct) && dto.commissionPct >= 0) {
+      try {
+        const commissionFraction = dto.commissionPct > 1 ? dto.commissionPct / 100 : dto.commissionPct;
+        if (this.revenueConfig) {
+          const currentResolved = await this.revenueConfig.resolve(vendor.id, null);
+          await this.revenueConfig.create(adminUserId || vendor.userId, {
+            scope: 'vendor',
+            scopeRefId: vendor.id,
+            commissionPct: commissionFraction,
+            deliveryFeeFlat: currentResolved.deliveryFeeFlat ?? 15,
+            freeDeliveryThreshold: currentResolved.freeDeliveryThreshold ?? 99,
+            deliveryFeeTier1: currentResolved.deliveryFeeTier1 ?? 10,
+            deliveryFeeTier2: currentResolved.deliveryFeeTier2 ?? 15,
+            deliveryFeeTier3: currentResolved.deliveryFeeTier3 ?? 20,
+            minOrderValue: currentResolved.minOrderValue ?? 50,
+            codThreshold: currentResolved.codThreshold ?? undefined,
+            notes: 'Initial commission set during vendor creation',
+            effectiveFrom: new Date().toISOString(),
+          });
+        } else {
+          await this.db.insert(revenueConfig).values({
+            scope: 'vendor',
+            scopeRefId: vendor.id,
+            commissionPct: commissionFraction,
+            deliveryFeeFlat: 15,
+            freeDeliveryThreshold: 99,
+            deliveryFeeTier1: 10,
+            deliveryFeeTier2: 15,
+            deliveryFeeTier3: 20,
+            minOrderValue: 50,
+            codThreshold: null,
+            notes: 'Initial commission set during vendor creation',
+            effectiveFrom: new Date(),
+            createdBy: adminUserId || vendor.userId,
+          });
+        }
+      } catch (err) {
+        console.error('[CatalogService] Failed to create vendor revenue config:', err);
+      }
+    }
+
     // Send Welcome Email with credentials and APK download/install instructions
     if (email) {
       try {
@@ -2949,6 +3043,8 @@ export class CatalogService {
         console.error('[CatalogService] Failed to queue welcome vendor email:', err);
       }
     }
+
+    const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
 
     return {
       id: vendor.id,
@@ -2970,7 +3066,7 @@ export class CatalogService {
       pickupLat: vendor.pickupLat,
       pickupLng: vendor.pickupLng,
       locationIsDefault: isDefaultPickup(vendor.pickupLat, vendor.pickupLng),
-      commissionPct: 10,
+      commissionPct,
       cashbackPct: 5,
       discountPct: 0,
       imageUrl: vendor.imageUrl || null,
@@ -2998,7 +3094,7 @@ export class CatalogService {
     return this.listVendorsAdmin();
   }
 
-  async updateAdminVendor(id: string, dto: UpdateAdminVendorDto) {
+  async updateAdminVendor(id: string, dto: UpdateAdminVendorDto, adminUserId?: string) {
     const [v] = await this.db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
     if (!v) throw new NotFoundException('Vendor not found');
 
@@ -3047,6 +3143,49 @@ export class CatalogService {
       if (dto.email !== undefined) userUpdates.email = dto.email.trim() ? dto.email.trim().toLowerCase() : null;
       if (Object.keys(userUpdates).length > 0) {
         await this.db.update(users).set(userUpdates).where(eq(users.id, v.userId));
+      }
+    }
+
+    if (dto.commissionPct !== undefined && !isNaN(dto.commissionPct) && dto.commissionPct >= 0) {
+      try {
+        const commissionFraction = dto.commissionPct > 1 ? dto.commissionPct / 100 : dto.commissionPct;
+        if (this.revenueConfig) {
+          const currentResolved = await this.revenueConfig.resolve(id, null);
+          if (Math.abs(currentResolved.commissionPct - commissionFraction) > 0.0001) {
+            await this.revenueConfig.create(adminUserId || v.userId, {
+              scope: 'vendor',
+              scopeRefId: id,
+              commissionPct: commissionFraction,
+              deliveryFeeFlat: currentResolved.deliveryFeeFlat ?? 15,
+              freeDeliveryThreshold: currentResolved.freeDeliveryThreshold ?? 99,
+              deliveryFeeTier1: currentResolved.deliveryFeeTier1 ?? 10,
+              deliveryFeeTier2: currentResolved.deliveryFeeTier2 ?? 15,
+              deliveryFeeTier3: currentResolved.deliveryFeeTier3 ?? 20,
+              minOrderValue: currentResolved.minOrderValue ?? 50,
+              codThreshold: currentResolved.codThreshold ?? undefined,
+              notes: 'Updated commission from vendor profile edit',
+              effectiveFrom: new Date().toISOString(),
+            });
+          }
+        } else {
+          await this.db.insert(revenueConfig).values({
+            scope: 'vendor',
+            scopeRefId: id,
+            commissionPct: commissionFraction,
+            deliveryFeeFlat: 15,
+            freeDeliveryThreshold: 99,
+            deliveryFeeTier1: 10,
+            deliveryFeeTier2: 15,
+            deliveryFeeTier3: 20,
+            minOrderValue: 50,
+            codThreshold: null,
+            notes: 'Updated commission from vendor profile edit',
+            effectiveFrom: new Date(),
+            createdBy: adminUserId || v.userId,
+          });
+        }
+      } catch (err) {
+        console.error('[CatalogService] Failed to update vendor revenue config:', err);
       }
     }
 

@@ -704,7 +704,7 @@ export declare class AdminCatalogController {
         variants?: any[];
         addons?: any[];
     }[]>;
-    createVendor(dto: CreateAdminVendorDto): Promise<{
+    createVendor(dto: CreateAdminVendorDto, user?: JwtAccessPayload): Promise<{
         id: string;
         userId: string;
         businessName: string;
@@ -767,7 +767,7 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         createdAt: Date;
     }[]>;
-    updateVendor(id: string, dto: UpdateAdminVendorDto): Promise<{
+    updateVendor(id: string, dto: UpdateAdminVendorDto, user?: JwtAccessPayload): Promise<{
         id: string;
         userId: string;
         businessName: string;

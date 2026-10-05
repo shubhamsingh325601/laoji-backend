@@ -19,7 +19,7 @@ export declare class DeliveryOrderController {
             id: string;
             customerId: string;
             idempotencyKey: string | null;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;
@@ -39,7 +39,7 @@ export declare class DeliveryOrderController {
             id: string;
             customerId: string;
             idempotencyKey: string | null;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             subtotal: number;
             deliveryFee: number;
             platformCommission: number;

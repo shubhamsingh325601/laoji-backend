@@ -142,6 +142,12 @@ let WalletService = class WalletService {
             .set({ status: 'cancelled' })
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.orderId, orderId), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.type, 'affiliate_commission'), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.status, 'pending')));
     }
+    async restorePendingCommission(orderType, orderId) {
+        await this.db
+            .update(schema_1.walletTransactions)
+            .set({ status: 'pending' })
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.orderId, orderId), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.type, 'affiliate_commission'), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.status, 'cancelled')));
+    }
     async requestWithdrawal(userId, dto) {
         const wallet = await this.getOrCreateWallet(userId);
         if (dto.amount <= 0) {

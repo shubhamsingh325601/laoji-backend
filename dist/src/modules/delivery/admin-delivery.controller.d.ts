@@ -10,7 +10,7 @@ export declare class AdminDeliveryController {
         phone: string;
         email: string;
         vehicleType: string;
-        kycStatus: "pending" | "verified" | "rejected";
+        kycStatus: "pending" | "rejected" | "verified";
         online: boolean;
         activity: string;
         zone: string;
@@ -25,7 +25,7 @@ export declare class AdminDeliveryController {
         phone: string;
         email: string;
         vehicleType: string;
-        kycStatus: "pending" | "verified" | "rejected";
+        kycStatus: "pending" | "rejected" | "verified";
         online: boolean;
         activity: string;
         zone: string;
@@ -36,7 +36,7 @@ export declare class AdminDeliveryController {
             docType: string;
             secureUrl: string;
             publicId: string;
-            status: "pending" | "verified" | "rejected";
+            status: "pending" | "rejected" | "verified";
             rejectionReason: string | null;
             reviewedBy: string | null;
             reviewedAt: Date | null;
@@ -53,11 +53,12 @@ export declare class AdminDeliveryController {
         id: string;
         createdAt: Date;
         userId: string;
-        aadhaarNumber: string | null;
+        updatedAt: Date;
+        upiId: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
-        upiId: string | null;
-        kycStatus: "pending" | "verified" | "rejected";
+        aadhaarNumber: string | null;
+        kycStatus: "pending" | "rejected" | "verified";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -65,12 +66,11 @@ export declare class AdminDeliveryController {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
-        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateAdminDeliveryPartnerDto): Promise<{
         id: string;
         userId: string;
-        kycStatus: "pending" | "verified" | "rejected";
+        kycStatus: "pending" | "rejected" | "verified";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;

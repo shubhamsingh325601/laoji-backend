@@ -419,9 +419,9 @@ let OrderService = class OrderService {
             .from(schema_1.orderStatusHistory)
             .where((0, drizzle_orm_1.eq)(schema_1.orderStatusHistory.groceryOrderId, id))
             .orderBy(schema_1.orderStatusHistory.changedAt);
-        const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
+        const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
         const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner }, requester);
+        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner }, requester);
     }
     async getFoodOrder(id, requester) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, id)).limit(1);
@@ -435,10 +435,10 @@ let OrderService = class OrderService {
             .from(schema_1.orderStatusHistory)
             .where((0, drizzle_orm_1.eq)(schema_1.orderStatusHistory.foodOrderId, id))
             .orderBy(schema_1.orderStatusHistory.changedAt);
-        const customer = await this.customerSummary(order.customerId, order.deliveryAddressId);
+        const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
         const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
         const [rating] = await this.db.select().from(schema_1.foodOrderRatings).where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.foodOrderId, id)).limit(1);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history), customer, deliveryPartner, myRating: rating ?? null }, requester);
+        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null }, requester);
     }
     async rateFoodOrder(customerId, foodOrderId, dto) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, foodOrderId)).limit(1);
@@ -469,7 +469,7 @@ let OrderService = class OrderService {
             return order;
         return { ...order, deliveryOtp: null };
     }
-    async enrichHistory(history) {
+    async enrichHistory(history, requesterRole) {
         const userIds = [...new Set(history.map((h) => h.changedBy).filter((id) => !!id))];
         const userRows = userIds.length ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.inArray)(schema_1.users.id, userIds)) : [];
         const userById = new Map(userRows.map((u) => [u.id, u]));
@@ -478,14 +478,28 @@ let OrderService = class OrderService {
             ? await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.inArray)(schema_1.vendors.userId, vendorUserIds))
             : [];
         const vendorByUserId = new Map(vendorRows.map((v) => [v.userId, v]));
+        const isVendor = requesterRole === 'vendor';
         return history.map((h) => {
             let actorName = 'Automated';
             if (h.changedBy) {
                 const user = userById.get(h.changedBy);
-                actorName =
-                    h.actorRole === 'vendor'
-                        ? (vendorByUserId.get(h.changedBy)?.businessName ?? user?.phone ?? 'Vendor')
-                        : (user?.phone ?? user?.email ?? 'User');
+                if (isVendor) {
+                    if (h.actorRole === 'vendor') {
+                        actorName = vendorByUserId.get(h.changedBy)?.businessName ?? 'Vendor';
+                    }
+                    else if (h.actorRole === 'customer') {
+                        actorName = user?.name || 'Customer';
+                    }
+                    else {
+                        actorName = user?.name || 'Delivery Partner';
+                    }
+                }
+                else {
+                    actorName =
+                        h.actorRole === 'vendor'
+                            ? (vendorByUserId.get(h.changedBy)?.businessName ?? user?.phone ?? 'Vendor')
+                            : (user?.phone ?? user?.email ?? 'User');
+                }
             }
             return { ...h, actorName };
         });
@@ -499,17 +513,18 @@ let OrderService = class OrderService {
         const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, partner.userId)).limit(1);
         return {
             id: partner.id,
-            name: user?.name || user?.phone || 'Delivery Partner',
+            name: user?.name || 'Delivery Partner',
             phone: user?.phone || '',
             vehicleType: partner.vehicleType || 'Bike',
         };
     }
-    async customerSummary(customerId, deliveryAddressId) {
+    async customerSummary(customerId, deliveryAddressId, requesterRole) {
         const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, customerId)).limit(1);
         const [address] = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.id, deliveryAddressId)).limit(1);
+        const isVendor = requesterRole === 'vendor';
         return {
-            name: user?.name || user?.phone || 'Customer',
-            phone: user?.phone ?? '',
+            name: isVendor ? (user?.name || 'Customer') : (user?.name || user?.phone || 'Customer'),
+            phone: isVendor ? '' : (user?.phone ?? ''),
             line1: address?.formattedAddress ?? '',
             area: '',
             city: '',
@@ -865,6 +880,257 @@ let OrderService = class OrderService {
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
             : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+    }
+    async acceptOrderByAdmin(adminUserId, type, orderId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (['cancelled', 'failed', 'delivered'].includes(order.status)) {
+            throw new common_1.BadRequestException(`Cannot accept order in "${order.status}" status`);
+        }
+        if (order.status !== 'placed') {
+            throw new common_1.BadRequestException(`Order has already been accepted (current status: "${order.status}")`);
+        }
+        await this.requirePaymentSatisfied(type, orderId);
+        if (type === 'grocery') {
+            const [attempt] = await this.db
+                .select()
+                .from(schema_1.allocationAttempts)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.groceryOrderId, orderId), (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.outcome, 'pending')))
+                .limit(1);
+            if (attempt) {
+                await this.allocation.handleAcceptance(attempt.id);
+            }
+        }
+        const [updated] = await this.db
+            .update(table)
+            .set({ status: 'vendor_accepted' })
+            .where((0, drizzle_orm_1.eq)(table.id, orderId))
+            .returning();
+        await this.db.insert(schema_1.orderStatusHistory).values({
+            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+            status: 'vendor_accepted',
+            actorRole: 'admin',
+            changedBy: adminUserId,
+        });
+        const orderCode = this.orderCode(orderId);
+        this.notifications.notifyPush(updated.customerId, 'order_confirmed', (0, order_confirmed_1.orderConfirmedCustomerPush)(orderCode, orderId, type));
+        const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+        if (vendorUserId) {
+            this.notifications.notifyPush(vendorUserId, 'order_confirmed', {
+                title: 'Order accepted by Admin',
+                body: `Order ${orderCode} has been accepted by Admin on your behalf. Please prepare the items.`,
+                data: { event: 'order_confirmed', orderId, type, link: `/orders/${orderId}` },
+            });
+        }
+        return type === 'grocery'
+            ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+            : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+    }
+    async restoreOrder(adminUserId, type, orderId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (!['cancelled', 'failed'].includes(order.status)) {
+            throw new common_1.BadRequestException(`Only cancelled or failed orders can be restored (current status: "${order.status}")`);
+        }
+        await this.payments.restorePaymentStatusIfRestored(type, orderId);
+        await this.wallet.restorePendingCommission(type, orderId);
+        let revertedPaymentStatus = order.paymentStatus;
+        if (revertedPaymentStatus === 'refund_pending') {
+            revertedPaymentStatus = 'paid';
+        }
+        const [updated] = await this.db
+            .update(table)
+            .set({ status: 'placed', paymentStatus: revertedPaymentStatus })
+            .where((0, drizzle_orm_1.eq)(table.id, orderId))
+            .returning();
+        if (type === 'grocery') {
+            const groceryOrder = order;
+            if (groceryOrder.vendorId) {
+                const [existingPending] = await this.db
+                    .select()
+                    .from(schema_1.allocationAttempts)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.groceryOrderId, orderId), (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.outcome, 'pending')))
+                    .limit(1);
+                if (!existingPending) {
+                    await this.allocation.createAttempt(orderId, groceryOrder.vendorId, 1);
+                }
+            }
+        }
+        await this.db.insert(schema_1.orderStatusHistory).values({
+            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+            status: 'placed',
+            actorRole: 'admin',
+            changedBy: adminUserId,
+        });
+        const orderCode = this.orderCode(orderId);
+        this.notifications.notifyPush(updated.customerId, 'order_restored', {
+            title: 'Order Restored',
+            body: `Your order ${orderCode} has been restored by support and is now active.`,
+            data: { event: 'order_restored', orderId, type, link: `/order/${orderId}?type=${type}` },
+        });
+        const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+        if (vendorUserId) {
+            this.notifications.notifyPush(vendorUserId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(orderCode, 1, orderId, type));
+        }
+        return type === 'grocery'
+            ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+            : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+    }
+    async changeOrderVendor(adminUserId, type, orderId, dto) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (order.status === 'delivered') {
+            throw new common_1.BadRequestException('Cannot change vendor for a completed/delivered order');
+        }
+        if (order.status === 'picked_up' || order.status === 'out_for_delivery') {
+            throw new common_1.BadRequestException(`Cannot change vendor once order is in physical delivery transit (${order.status})`);
+        }
+        if (order.status === 'cancelled' || order.status === 'failed') {
+            throw new common_1.BadRequestException(`Cannot change vendor for "${order.status}" order — please restore the order first`);
+        }
+        const orderCode = this.orderCode(orderId);
+        if (order.deliveryPartnerId) {
+            const [partner] = await this.db
+                .select()
+                .from(schema_1.deliveryPartners)
+                .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, order.deliveryPartnerId))
+                .limit(1);
+            if (partner) {
+                this.notifications.notifyPush(partner.userId, 'order_cancelled', {
+                    title: 'Order Reassigned',
+                    body: `Order ${orderCode} was reassigned to another store by Admin. Pickup cancelled.`,
+                    data: { event: 'assignment_cancelled', orderId, type },
+                });
+            }
+            await this.db
+                .update(schema_1.deliveryAssignments)
+                .set({ outcome: 'timeout' })
+                .where((0, drizzle_orm_1.and)(type === 'grocery'
+                ? (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.groceryOrderId, orderId)
+                : (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.foodOrderId, orderId), (0, drizzle_orm_1.inArray)(schema_1.deliveryAssignments.outcome, ['pending', 'accepted'])));
+        }
+        if (type === 'grocery') {
+            const targetVendorId = dto.vendorId;
+            if (!targetVendorId) {
+                throw new common_1.BadRequestException('vendorId is required for grocery orders');
+            }
+            const [newVendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, targetVendorId)).limit(1);
+            if (!newVendor)
+                throw new common_1.NotFoundException('Target vendor not found');
+            const groceryOrder = order;
+            if (groceryOrder.vendorId === targetVendorId) {
+                throw new common_1.BadRequestException('Order is already assigned to this vendor');
+            }
+            const oldVendorId = groceryOrder.vendorId;
+            let oldVendorUserId = null;
+            if (oldVendorId) {
+                const [oldVendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, oldVendorId)).limit(1);
+                oldVendorUserId = oldVendor?.userId ?? null;
+            }
+            const [pendingAttempt] = await this.db
+                .select()
+                .from(schema_1.allocationAttempts)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.allocationAttempts.groceryOrderId, orderId), (0, drizzle_orm_1.eq)(schema_1.allocationAttempts.outcome, 'pending')))
+                .limit(1);
+            if (pendingAttempt) {
+                await this.allocation.handleRejection(pendingAttempt.id);
+            }
+            const [updated] = await this.db
+                .update(schema_1.groceryOrders)
+                .set({ vendorId: targetVendorId, status: 'placed', deliveryPartnerId: null })
+                .where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.id, orderId))
+                .returning();
+            await this.allocation.createAttempt(orderId, targetVendorId, 1);
+            await this.db.insert(schema_1.orderStatusHistory).values({
+                groceryOrderId: orderId,
+                status: 'placed',
+                actorRole: 'admin',
+                changedBy: adminUserId,
+            });
+            this.notifications.notifyPush(updated.customerId, 'order_placed', {
+                title: 'Store Updated',
+                body: `Your order ${orderCode} has been reassigned to ${newVendor.businessName}.`,
+                data: { event: 'order_updated', orderId, type: 'grocery', link: `/order/${orderId}?type=grocery` },
+            });
+            if (oldVendorUserId) {
+                this.notifications.notifyPush(oldVendorUserId, 'order_cancelled', {
+                    title: 'Order Reassigned',
+                    body: `Order ${orderCode} has been reassigned to another store by Admin.`,
+                    data: { event: 'order_reassigned', orderId, type: 'grocery' },
+                });
+            }
+            if (newVendor.userId) {
+                this.notifications.notifyPush(newVendor.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(orderCode, 1, orderId, 'grocery'));
+            }
+            return this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' });
+        }
+        else {
+            let targetRestaurantId = dto.restaurantId;
+            if (!targetRestaurantId && dto.vendorId) {
+                const [foundRest] = await this.db
+                    .select()
+                    .from(schema_1.restaurants)
+                    .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, dto.vendorId))
+                    .limit(1);
+                if (foundRest)
+                    targetRestaurantId = foundRest.id;
+            }
+            if (!targetRestaurantId) {
+                throw new common_1.BadRequestException('restaurantId or vendorId is required for food orders');
+            }
+            const [newRestaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, targetRestaurantId)).limit(1);
+            if (!newRestaurant)
+                throw new common_1.NotFoundException('Target restaurant not found');
+            const foodOrder = order;
+            if (foodOrder.restaurantId === targetRestaurantId) {
+                throw new common_1.BadRequestException('Order is already assigned to this restaurant');
+            }
+            const oldRestaurantId = foodOrder.restaurantId;
+            let oldRestaurantVendorUserId = null;
+            if (oldRestaurantId) {
+                const [oldRest] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, oldRestaurantId)).limit(1);
+                if (oldRest?.vendorId) {
+                    const [oldVend] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, oldRest.vendorId)).limit(1);
+                    oldRestaurantVendorUserId = oldVend?.userId ?? null;
+                }
+            }
+            const [updated] = await this.db
+                .update(schema_1.foodOrders)
+                .set({ restaurantId: targetRestaurantId, status: 'placed', deliveryPartnerId: null })
+                .where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, orderId))
+                .returning();
+            await this.db.insert(schema_1.orderStatusHistory).values({
+                foodOrderId: orderId,
+                status: 'placed',
+                actorRole: 'admin',
+                changedBy: adminUserId,
+            });
+            this.notifications.notifyPush(updated.customerId, 'order_placed', {
+                title: 'Restaurant Updated',
+                body: `Your order ${orderCode} has been reassigned to ${newRestaurant.name}.`,
+                data: { event: 'order_updated', orderId, type: 'food', link: `/order/${orderId}?type=food` },
+            });
+            if (oldRestaurantVendorUserId) {
+                this.notifications.notifyPush(oldRestaurantVendorUserId, 'order_cancelled', {
+                    title: 'Order Reassigned',
+                    body: `Order ${orderCode} has been reassigned to another restaurant by Admin.`,
+                    data: { event: 'order_reassigned', orderId, type: 'food' },
+                });
+            }
+            if (newRestaurant.vendorId) {
+                const [newVend] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, newRestaurant.vendorId)).limit(1);
+                if (newVend?.userId) {
+                    this.notifications.notifyPush(newVend.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(orderCode, 1, orderId, 'food'));
+                }
+            }
+            return this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+        }
     }
     async cancelOrderForCustomer(customerId, type, orderId) {
         const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;

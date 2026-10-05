@@ -10,6 +10,7 @@ exports.CatalogModule = void 0;
 const common_1 = require("@nestjs/common");
 const notification_module_1 = require("../notification/notification.module");
 const vendor_discounts_module_1 = require("../vendor-discounts/vendor-discounts.module");
+const revenue_module_1 = require("../revenue/revenue.module");
 const catalog_service_1 = require("./catalog.service");
 const admin_catalog_controller_1 = require("./admin-catalog.controller");
 const vendor_catalog_controller_1 = require("./vendor-catalog.controller");
@@ -20,7 +21,7 @@ let CatalogModule = class CatalogModule {
 exports.CatalogModule = CatalogModule;
 exports.CatalogModule = CatalogModule = __decorate([
     (0, common_1.Module)({
-        imports: [notification_module_1.NotificationModule, vendor_discounts_module_1.VendorDiscountsModule],
+        imports: [notification_module_1.NotificationModule, vendor_discounts_module_1.VendorDiscountsModule, revenue_module_1.RevenueModule],
         controllers: [admin_catalog_controller_1.AdminCatalogController, vendor_catalog_controller_1.VendorCatalogController, vendor_menu_controller_1.VendorMenuController, public_catalog_controller_1.PublicCatalogController],
         providers: [catalog_service_1.CatalogService],
         exports: [catalog_service_1.CatalogService],
