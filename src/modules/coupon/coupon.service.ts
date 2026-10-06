@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { coupons, foodOrders, groceryOrders, users } from '../../../drizzle/schema';
+import { CORE_DELIVERY_RADIUS_KM } from '../catalog/catalog.types';
 import type { CreateCouponDto } from './dto/create-coupon.dto';
 import type { UpdateCouponDto } from './dto/update-coupon.dto';
 
@@ -270,7 +271,7 @@ export class CouponService implements OnModuleInit {
    */
   async evaluate(
     code: string,
-    ctx: { subtotal: number; deliveryFee: number; userId?: string; vendorId?: string },
+    ctx: { subtotal: number; deliveryFee: number; userId?: string; vendorId?: string; noFreeDeliveryVoucher?: boolean },
   ): Promise<CouponEvaluation> {
     const cleanCode = (code || '').trim().toUpperCase();
     if (!cleanCode) {
@@ -356,6 +357,13 @@ export class CouponService implements OnModuleInit {
     } else if (coupon.discountType === 'flat') {
       discount = Math.min(coupon.discountValue, ctx.subtotal);
     } else if (coupon.discountType === 'free_delivery') {
+      if (ctx.noFreeDeliveryVoucher) {
+        return {
+          valid: false,
+          message: `Free delivery vouchers apply only within ${CORE_DELIVERY_RADIUS_KM} km of Sangod centre`,
+          discount: 0,
+        };
+      }
       if (ctx.deliveryFee <= 0) {
         return { valid: false, message: 'Delivery is already free on this order', discount: 0 };
       }
@@ -376,7 +384,13 @@ export class CouponService implements OnModuleInit {
   /**
    * Welcome vouchers apply without being typed in: only active public free-delivery vouchers.
    */
-  async findAutoApply(ctx: { subtotal: number; deliveryFee: number; userId: string; vendorId?: string }) {
+  async findAutoApply(ctx: {
+    subtotal: number;
+    deliveryFee: number;
+    userId: string;
+    vendorId?: string;
+    noFreeDeliveryVoucher?: boolean;
+  }) {
     if (ctx.deliveryFee <= 0) return null;
     const candidates = (
       await this.db

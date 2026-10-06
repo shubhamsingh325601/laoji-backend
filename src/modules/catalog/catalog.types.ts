@@ -81,6 +81,16 @@ export function isDefaultPickup(lat: number, lng: number): boolean {
   return FALLBACK_PICKUPS.some((p) => p.lat === lat && p.lng === lng);
 }
 
+// Orders delivered farther than this from Sangod town centre always pay the
+// outer-zone fee, free-delivery vouchers (e.g. a customer's first 3 orders)
+// included. Orders of ₹99 or more are still free.
+export const CORE_DELIVERY_RADIUS_KM = 2;
+export const OUTER_ZONE_DELIVERY_FEE = 15;
+
+export function isOutsideCoreZone(lat: number, lng: number): boolean {
+  return haversineKm(DEFAULT_PICKUP.lat, DEFAULT_PICKUP.lng, lat, lng) > CORE_DELIVERY_RADIUS_KM;
+}
+
 /** A calendar date in Asia/Kolkata as "YYYY-MM-DD" (the single-city MVP runs on IST). */
 export function istDateString(now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-GB', {

@@ -37,11 +37,14 @@ import { NotificationService } from '../notification/notification.service';
 import { orderPlacedVendorPush, orderPlacedAdminPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
+import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
+import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
+import type { ADMIN_SETTABLE_STATUSES } from './dto/admin-order-actions.dto';
 import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
 import { CouponService } from '../coupon/coupon.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { WalletService } from '../wallet/wallet.service';
-import { haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
+import { haversineKm, isOutsideCoreZone, isVendorOpenNow, OUTER_ZONE_DELIVERY_FEE, roundKm } from '../catalog/catalog.types';
 import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
@@ -115,7 +118,7 @@ export class OrderService {
     const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
     const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
     const distanceKm = candidate.distance ?? 1;
-    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId);
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId, address);
     return { candidate, revenue, ...pricing };
   }
 
@@ -128,10 +131,14 @@ export class OrderService {
     distanceKm: number,
     revenue: ResolvedRevenueConfig,
     couponCode: string | undefined,
-    vendorId?: string,
+    vendorId: string | undefined,
+    dropoff: { lat: number; lng: number },
   ) {
-    const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-    const ctx = { subtotal, deliveryFee, userId: customerId, vendorId };
+    const outerZone = isOutsideCoreZone(dropoff.lat, dropoff.lng);
+    const baseFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    // A fee of 0 means the order reached the free-delivery threshold, which stays free.
+    const deliveryFee = outerZone && baseFee > 0 ? OUTER_ZONE_DELIVERY_FEE : baseFee;
+    const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
     let code = couponCode?.trim().toUpperCase() ?? '';
     let autoApplied = false;
     let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
@@ -404,7 +411,7 @@ export class OrderService {
     // product-catalog uses that revenue_config's category scope refers
     // to; vendor-scope (falling back to global) is what applies here.
     const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId);
+    const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId, address);
     return { revenue, orderItemRows, pricing };
   }
 
@@ -1241,6 +1248,79 @@ export class OrderService {
       if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode, orderId));
     }
 
+    return type === 'grocery'
+      ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+      : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+  }
+
+  // Admin puts an order into any stage from vendor_accepted to delivered by
+  // hand (vendor or partner not responding, phone/app trouble). Every change
+  // is written to the timeline as admin. A cancelled/failed order has to be
+  // restored first.
+  async setOrderStatusByAdmin(
+    adminUserId: string,
+    type: 'grocery' | 'food',
+    orderId: string,
+    status: (typeof ADMIN_SETTABLE_STATUSES)[number],
+  ) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (['cancelled', 'failed'].includes(order.status)) {
+      throw new BadRequestException(`Restore this ${order.status} order first, then set its status`);
+    }
+    if (order.status === 'delivered') throw new BadRequestException('Order is already delivered');
+    if (order.status === status) throw new BadRequestException(`Order is already "${status}"`);
+    const needsPartner = ['delivery_assigned', 'picked_up', 'out_for_delivery', 'delivered'].includes(status);
+    if (needsPartner && !order.deliveryPartnerId) {
+      throw new BadRequestException('Assign a delivery partner before setting this status');
+    }
+
+    const timeline = () =>
+      type === 'grocery'
+        ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+        : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+
+    // A placed order still needs its vendor acceptance (and payment check) first.
+    if (order.status === 'placed') {
+      await this.acceptOrderByAdmin(adminUserId, type, orderId);
+      if (status === 'vendor_accepted') return timeline();
+    }
+
+    if (status === 'delivered') {
+      await this.delivery.adminCompleteDelivery(adminUserId, type, orderId);
+      return timeline();
+    }
+
+    const [updated] = await this.db.update(table).set({ status }).where(eq(table.id, orderId)).returning();
+    await this.db.insert(orderStatusHistory).values({
+      ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+      status,
+      actorRole: 'admin',
+      changedBy: adminUserId,
+    });
+
+    const orderCode = this.orderCode(orderId);
+    if (status === 'picked_up') {
+      this.notifications.notifyPush(updated.customerId, 'picked_up', pickedUpCustomerPush(orderCode, orderId, type));
+      const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+      if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'picked_up', pickedUpVendorPush(orderCode, orderId));
+    } else if (status === 'out_for_delivery') {
+      this.notifications.notifyPush(
+        updated.customerId,
+        'out_for_delivery',
+        outForDeliveryCustomerPush(orderCode, orderId, type, updated.deliveryOtp),
+      );
+    } else if (['preparing', 'ready', 'handed_over'].includes(status) && !updated.deliveryPartnerId) {
+      // Same auto-match the vendor's own status change starts.
+      await this.delivery.triggerAssignment(type, orderId);
+    }
+
+    return timeline();
+  }
+
+  async assignPartnerByAdmin(adminUserId: string, type: 'grocery' | 'food', orderId: string, partnerId: string) {
+    await this.delivery.adminAssignPartner(adminUserId, type, orderId, partnerId);
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
       : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });

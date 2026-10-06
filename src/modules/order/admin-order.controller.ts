@@ -6,6 +6,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { OrderService } from './order.service';
 import { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
+import { AdminAssignPartnerDto, AdminSetStatusDto } from './dto/admin-order-actions.dto';
 import { AdminCreateFoodOrderDto, AdminCreateGroceryOrderDto } from './dto/admin-create-order.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,6 +51,26 @@ export class AdminOrderController {
   @Post(':type/:id/cancel')
   cancel(@CurrentUser() user: JwtAccessPayload, @Param('type') type: 'grocery' | 'food', @Param('id') id: string) {
     return this.orders.cancelOrder(user.sub, type, id);
+  }
+
+  @Post(':type/:id/status')
+  setStatus(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+    @Body() dto: AdminSetStatusDto,
+  ) {
+    return this.orders.setOrderStatusByAdmin(user.sub, type, id, dto.status);
+  }
+
+  @Post(':type/:id/assign-partner')
+  assignPartner(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+    @Body() dto: AdminAssignPartnerDto,
+  ) {
+    return this.orders.assignPartnerByAdmin(user.sub, type, id, dto.partnerId);
   }
 
   @Post(':type/:id/restore')

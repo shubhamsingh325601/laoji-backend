@@ -36,11 +36,10 @@ import { deliveryAssignedCustomerPush } from '../notification/templates/push/del
 import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
 import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
-import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { SettlementService } from '../revenue/settlement.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
 import { AreaManagerService } from '../area-manager/area-manager.service';
-import { DELIVERY_SLA_SECONDS, MAX_DELIVERY_ASSIGNMENT_ATTEMPTS } from './delivery.constants';
+import { DELIVERY_SLA_SECONDS, PARTNER_HEARTBEAT_MAX_AGE_MS } from './delivery.constants';
 
 type OrderType = 'grocery' | 'food';
 
@@ -290,8 +289,23 @@ export class DeliveryService {
 
   private async findNearestOnlinePartner(lat: number, lng: number, excludePartnerIds: string[]) {
     const online = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.isOnline, true));
-    const candidates = online.filter((p) => !excludePartnerIds.includes(p.id));
-    if (candidates.length === 0) return null;
+    const notExcluded = online.filter((p) => !excludePartnerIds.includes(p.id));
+    if (notExcluded.length === 0) return null;
+
+    // The partner app shows one delivery at a time and stops looking for offers
+    // while one is active, so an offer sent to a partner mid-delivery can't be
+    // seen and just burns its whole window. Skip them; the order waits for the
+    // next partner who frees up (see assignWaitingOrders).
+    const busy = await this.partnersWithActiveDelivery(notExcluded.map((p) => p.id));
+    const available = notExcluded.filter((p) => !busy.has(p.id));
+    if (available.length === 0) return null;
+
+    // Prefer partners whose app was heard from recently. If every online
+    // partner looks stale (e.g. a quiet hour), still offer to them rather than
+    // leave the order waiting.
+    const now = Date.now();
+    const fresh = available.filter((p) => now - p.updatedAt.getTime() <= PARTNER_HEARTBEAT_MAX_AGE_MS);
+    const candidates = fresh.length > 0 ? fresh : available;
 
     // Filter those with known location
     const withLocation = candidates.filter((p) => p.currentLat !== null && p.currentLng !== null);
@@ -310,6 +324,22 @@ export class DeliveryService {
 
     // Fallback to any online candidate even if GPS not yet fixed
     return candidates[0];
+  }
+
+  private async partnersWithActiveDelivery(partnerIds: string[]): Promise<Set<string>> {
+    if (partnerIds.length === 0) return new Set();
+    const inFlight = ['delivery_assigned', 'picked_up', 'out_for_delivery'] as const;
+    const [grocery, food] = await Promise.all([
+      this.db
+        .select({ partnerId: groceryOrders.deliveryPartnerId })
+        .from(groceryOrders)
+        .where(and(inArray(groceryOrders.deliveryPartnerId, partnerIds), inArray(groceryOrders.status, [...inFlight]))),
+      this.db
+        .select({ partnerId: foodOrders.deliveryPartnerId })
+        .from(foodOrders)
+        .where(and(inArray(foodOrders.deliveryPartnerId, partnerIds), inArray(foodOrders.status, [...inFlight]))),
+    ]);
+    return new Set([...grocery, ...food].map((r) => r.partnerId).filter((id): id is string => !!id));
   }
 
   private async pickupPoint(type: OrderType, orderId: string): Promise<{ lat: number; lng: number } | null> {
@@ -350,7 +380,7 @@ export class DeliveryService {
     }
     const partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
     if (!partner) {
-      this.logger.warn(`No delivery partner currently online for ${type} order ${orderId}. Will match automatically when partner comes online.`);
+      this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Will match automatically when a partner comes online or finishes a delivery.`);
       return;
     }
     await this.createAssignment(type, orderId, partner.id, 1);
@@ -378,7 +408,7 @@ export class DeliveryService {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (partner && order) {
-      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee, orderId));
+      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee, orderId, type));
     }
     return assignment;
   }
@@ -405,52 +435,30 @@ export class DeliveryService {
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (!order || order.status === 'cancelled' || order.status === 'failed') return;
 
-    if (previous.attemptNo >= MAX_DELIVERY_ASSIGNMENT_ATTEMPTS) {
-      await this.markDeliveryFailed(type, orderId);
-      return;
-    }
-
-    const previousAttempts = await this.db
+    // A timeout or rejection never cancels the order. It is offered to the next
+    // partner not yet tried in this round; once every online partner has been
+    // tried it waits, and assignWaitingOrders offers it again the next time a
+    // partner comes online or reports a location.
+    const allAttempts = await this.db
       .select()
       .from(deliveryAssignments)
       .where(type === 'grocery' ? eq(deliveryAssignments.groceryOrderId, orderId) : eq(deliveryAssignments.foodOrderId, orderId));
-    const excludeIds = previousAttempts.map((a) => a.deliveryPartnerId);
+    // A round starts at attempt 1, so earlier rounds don't exclude anyone.
+    const roundStart = allAttempts
+      .filter((a) => a.attemptNo === 1 && a.createdAt <= previous.createdAt)
+      .reduce<Date | null>((latest, a) => (!latest || a.createdAt > latest ? a.createdAt : latest), null);
+    const excludeIds = allAttempts
+      .filter((a) => !roundStart || a.createdAt >= roundStart)
+      .map((a) => a.deliveryPartnerId);
 
     const point = await this.pickupPoint(type, orderId);
-    if (!point) {
-      await this.markDeliveryFailed(type, orderId);
-      return;
-    }
+    if (!point) return;
     const partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
     if (!partner) {
-      await this.markDeliveryFailed(type, orderId);
+      this.logger.warn(`No further delivery partner to offer ${type} order ${orderId}; it stays waiting for one.`);
       return;
     }
     await this.createAssignment(type, orderId, partner.id, previous.attemptNo + 1);
-  }
-
-  private async markDeliveryFailed(type: OrderType, orderId: string) {
-    const table = type === 'grocery' ? groceryOrders : foodOrders;
-    const [updated] = await this.db.update(table).set({ status: 'failed' }).where(eq(table.id, orderId)).returning();
-    await this.db.insert(orderStatusHistory).values({
-      ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
-      status: 'failed',
-      actorRole: 'system',
-    });
-    // This happens post-handed_over, i.e. after the payment gate already
-    // required paid/COD — a UPI order failing here really did take the
-    // customer's money with nothing delivered. COD is a no-op (nothing was
-    // ever collected).
-    await this.payments.markRefundPendingIfPaid(type, orderId);
-
-    // Matrix's "Order cancelled" row. No delivery partner is ever formally
-    // "assigned" (accepted) by the time this fires — every prior offer
-    // either rejected or timed out, or none existed at all — so the
-    // partner-alert cell ("if assigned") never applies here.
-    const orderCode = this.orderCode(orderId);
-    this.notifications.notifyPush(updated.customerId, 'order_cancelled', orderCancelledCustomerPush(orderCode, orderId, type));
-    const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
-    if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
   }
 
   // ---------- Delivery partner: order actions ----------
@@ -718,7 +726,11 @@ export class DeliveryService {
       const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
       if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'picked_up', pickedUpVendorPush(orderCode, orderId));
     } else {
-      this.notifications.notifyPush(order.customerId, 'out_for_delivery', outForDeliveryCustomerPush(orderCode, orderId, type));
+      this.notifications.notifyPush(
+        order.customerId,
+        'out_for_delivery',
+        outForDeliveryCustomerPush(orderCode, orderId, type, order.deliveryOtp),
+      );
     }
     return { ok: true };
   }
@@ -732,14 +744,125 @@ export class DeliveryService {
     if (!order.deliveryOtp || order.deliveryOtp !== otp) {
       throw new BadRequestException('Incorrect OTP');
     }
+    await this.completeDelivery(type, orderId, order, userId, { role: 'delivery_partner', userId });
+    return { ok: true };
+  }
 
+  // ---------- Admin overrides ----------
+
+  /**
+   * Admin marks an order delivered on the partner's behalf (no OTP). Needs an
+   * assigned partner, since the payout and the COD collection belong to them.
+   */
+  async adminCompleteDelivery(adminUserId: string, type: OrderType, orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (!order.deliveryPartnerId) throw new BadRequestException('Assign a delivery partner before marking this order delivered');
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, order.deliveryPartnerId)).limit(1);
+    if (!partner) throw new NotFoundException('Delivery partner not found');
+    await this.completeDelivery(type, orderId, order, partner.userId, { role: 'admin', userId: adminUserId });
+  }
+
+  /**
+   * Admin hands an order straight to an online partner, with no offer/accept
+   * step: any pending offer is dropped and the partner is recorded as having
+   * accepted. Works on an order that already has a partner too (reassign).
+   */
+  async adminAssignPartner(adminUserId: string, type: OrderType, orderId: string, partnerId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    const assignable = ['vendor_accepted', 'preparing', 'ready', 'handed_over', 'delivery_assigned', 'picked_up', 'out_for_delivery'];
+    if (!assignable.includes(order.status)) {
+      throw new BadRequestException(
+        order.status === 'placed'
+          ? 'Accept this order first, then assign a delivery partner'
+          : `Cannot assign a delivery partner while the order is "${order.status}"`,
+      );
+    }
+    const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, partnerId)).limit(1);
+    if (!partner) throw new NotFoundException('Delivery partner not found');
+    if (!partner.isOnline) throw new BadRequestException('This delivery partner is offline');
+    if (order.deliveryPartnerId === partnerId) {
+      throw new BadRequestException('This order is already assigned to that delivery partner');
+    }
+
+    // Drop live offers (their timers would otherwise fire on this order) and
+    // any earlier acceptance by a different partner.
+    const open = await this.db
+      .select()
+      .from(deliveryAssignments)
+      .where(
+        and(
+          type === 'grocery' ? eq(deliveryAssignments.groceryOrderId, orderId) : eq(deliveryAssignments.foodOrderId, orderId),
+          inArray(deliveryAssignments.outcome, ['pending', 'accepted']),
+        ),
+      );
+    for (const a of open) {
+      this.jobQueue.cancel(a.id);
+      await this.db
+        .update(deliveryAssignments)
+        .set({ outcome: a.outcome === 'pending' ? 'timeout' : 'rejected' })
+        .where(eq(deliveryAssignments.id, a.id));
+    }
+    const all = await this.db
+      .select()
+      .from(deliveryAssignments)
+      .where(type === 'grocery' ? eq(deliveryAssignments.groceryOrderId, orderId) : eq(deliveryAssignments.foodOrderId, orderId));
+    await this.db.insert(deliveryAssignments).values({
+      ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+      deliveryPartnerId: partnerId,
+      outcome: 'accepted',
+      attemptNo: all.reduce((max, a) => Math.max(max, a.attemptNo), 0) + 1,
+      slaDeadline: new Date(),
+    });
+
+    const inDelivery = ['delivery_assigned', 'picked_up', 'out_for_delivery'].includes(order.status);
+    const [updated] = await this.db
+      .update(table)
+      .set({
+        deliveryPartnerId: partnerId,
+        deliveryOtp: order.deliveryOtp ?? String(randomInt(0, 1_000_000)).padStart(6, '0'),
+        ...(inDelivery ? {} : { status: 'delivery_assigned' as const }),
+      })
+      .where(eq(table.id, orderId))
+      .returning();
+    if (!inDelivery) {
+      await this.db.insert(orderStatusHistory).values({
+        ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+        status: 'delivery_assigned',
+        actorRole: 'admin',
+        changedBy: adminUserId,
+      });
+    }
+
+    const orderCode = this.orderCode(orderId);
+    this.notifications.notifyPush(partner.userId, 'assignment_offered', {
+      title: `Delivery assigned to you - #${orderCode}`,
+      body: `Admin assigned order #${orderCode} to you. Open it under your active deliveries.`,
+      data: { type: 'order', id: orderId, orderType: type, status: updated.status },
+    });
+    if (!inDelivery) {
+      this.notifications.notifyPush(updated.customerId, 'delivery_assigned', deliveryAssignedCustomerPush(orderCode, orderId, type));
+    }
+  }
+
+  /** The delivered transition shared by the partner's OTP check and the admin override. */
+  private async completeDelivery(
+    type: OrderType,
+    orderId: string,
+    order: { customerId: string; subtotal: number; deliveryFee: number },
+    partnerUserId: string,
+    actor: { role: 'delivery_partner' | 'admin'; userId: string },
+  ) {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     await this.db.update(table).set({ status: 'delivered' }).where(eq(table.id, orderId));
     await this.db.insert(orderStatusHistory).values({
       ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
       status: 'delivered',
-      actorRole: 'delivery_partner',
-      changedBy: userId,
+      actorRole: actor.role,
+      changedBy: actor.userId,
     });
     // COD's only resolution point (Phase 6) — no-ops for online-paid orders.
     await this.payments.markCodCollected(type, orderId);
@@ -763,8 +886,12 @@ export class DeliveryService {
         );
       }
     }
-    this.notifications.notifyPush(userId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee, orderId));
-    return { ok: true };
+    this.notifications.notifyPush(partnerUserId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee, orderId));
+
+    // This partner is free again. Orders waiting for a partner (everyone was
+    // busy or offline when they were ready) get offered now rather than at
+    // somebody's next location ping.
+    this.assignWaitingOrders().catch((e) => this.logger.error('Failed checking waiting orders after a delivery', e));
   }
 
   // ---------- Admin Partner Management (CRUD & Welcome Email) ----------

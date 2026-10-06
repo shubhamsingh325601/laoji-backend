@@ -3,4 +3,9 @@
 // delivery-partner assignment window doesn't have to match the vendor
 // allocation window in practice, even though they start out equal.
 export const DELIVERY_SLA_SECONDS = Number(process.env.DELIVERY_SLA_SECONDS ?? 120);
-export const MAX_DELIVERY_ASSIGNMENT_ATTEMPTS = Number(process.env.MAX_DELIVERY_ASSIGNMENT_ATTEMPTS ?? 3);
+
+// The partner app pings its location every ~75s while it is open and online.
+// A partner who is still flagged online but hasn't been heard from for this
+// long (3 missed pings) most likely closed the app or lost signal; offering
+// them an order first just burns a whole SLA window before the next partner.
+export const PARTNER_HEARTBEAT_MAX_AGE_MS = Number(process.env.PARTNER_HEARTBEAT_MAX_AGE_SECONDS ?? 225) * 1000;

@@ -1258,3 +1258,70 @@ them:
 - restaurant `isOpen` and menu `isServedNow`, which are computed from
   business hours and meal slots at request time
 - restaurant ratings, which change when a customer rates an order
+
+## Outer-zone delivery fee (Sangod 2 km)
+
+Product decision: an order delivered more than 2 km from Sangod town centre
+(`DEFAULT_PICKUP`, haversine to the customer's delivery address) pays a flat
+₹15 delivery fee, even within a customer's first 3 orders. Orders of ₹99 or
+more are still free. In `priceTotals`, `isOutsideCoreZone` swaps any non-zero
+fee for `OUTER_ZONE_DELIVERY_FEE` and passes `noFreeDeliveryVoucher` to the
+coupon service, so `free_delivery` vouchers (auto-applied FREEDEL3 or typed)
+don't apply there. The distance is customer-to-centre, not vendor-to-customer.
+
+## Delivery offers never cancel an order
+
+Product decision: an order is never failed or cancelled because delivery
+partners time out or reject. `DeliveryService.reassign` offers it to the next
+online partner not yet tried in the current round (a round starts at attempt
+1, so an admin re-placing an order starts fresh). When nobody is left to offer
+it stays in its status and `assignWaitingOrders` offers it again when a
+partner comes online or reports a location. This replaces the Phase 5 rule
+(max attempts → `failed`); `MAX_DELIVERY_ASSIGNMENT_ATTEMPTS` and
+`markDeliveryFailed` are gone. Vendor allocation (grocery) still fails an
+order after its own attempts run out.
+
+## Admin: set order status & assign delivery partner
+
+- `POST /admin/orders/:type/:id/status {status}` (`OrderService.setOrderStatusByAdmin`)
+  puts an order into any of vendor_accepted … delivered, written to the
+  timeline as `admin`. Placed orders are accepted first (payment gate and
+  allocation as in `acceptOrderByAdmin`); delivery_assigned / picked_up /
+  out_for_delivery / delivered need a partner already assigned; cancelled and
+  failed orders must be restored first. `delivered` runs the same completion
+  as the partner's OTP check (`DeliveryService.completeDelivery`: COD
+  collected, settlement, pushes) without the OTP.
+- `POST /admin/orders/:type/:id/assign-partner {partnerId}`
+  (`DeliveryService.adminAssignPartner`) hands the order to an **online**
+  partner with no offer/accept step: pending offers are dropped, an
+  `accepted` assignment is recorded, and the order moves to
+  `delivery_assigned` (unless already in delivery, then it is a reassign and
+  the status stays). KYC status is not checked, same as matching.
+- The out-for-delivery push to the customer now includes the delivery OTP.
+
+## Push delivery & partner matching (orders not showing up)
+
+Fixes for new orders/offers reaching vendors and delivery partners late or never.
+
+- **FCM sends are `android.priority: 'high'` with a 2-minute TTL**
+  (`FcmPushProvider`). Without high priority Android can hold a "normal" push
+  for minutes while the phone dozes, so an order arrived after its 120s window.
+  `data` values are coerced to strings (FCM drops the whole message otherwise),
+  and transient FCM errors are retried once. A token FCM reports dead
+  (`invalid-registration-token` / `registration-token-not-registered`) is
+  deleted by `NotificationService.dispatchPush`.
+- **Rider push payloads carry the order `type` and a link that exists in the
+  app.** `assignment_offered` / `order_cancelled` for partners used
+  `link: '/orders'`, a route the partner app doesn't have. They now send
+  `/(tabs)`; the home tab shows the pending offer or active delivery.
+- **`findNearestOnlinePartner` skips partners mid-delivery** (the app shows one
+  delivery at a time and stops looking for offers while one is active, so the
+  offer could only time out) **and prefers partners heard from within
+  `PARTNER_HEARTBEAT_MAX_AGE_SECONDS` (default 225s, three missed ~75s location
+  pings)**. If nobody is fresh it still offers to the stale ones; if everyone is
+  busy the order waits. `completeDelivery` now calls `assignWaitingOrders` so a
+  waiting order is offered as soon as a partner frees up, not at the next ping.
+  Behaviour change, flagged: a busy partner no longer gets a second offer.
+- The partner app now tells the backend it is offline (and unregisters its push
+  token) on logout. Before, a logged-out partner stayed `is_online` and kept
+  being offered orders.
