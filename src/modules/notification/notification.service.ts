@@ -90,6 +90,14 @@ export class NotificationService {
     }
   }
 
+  async notifyAllAdminsPush(template: string, message: PushMessage) {
+    const admins = await this.db.select().from(users).where(eq(users.role, 'admin'));
+    for (const admin of admins) {
+      this.notifyPush(admin.id, template, message);
+    }
+  }
+
+
   private async dispatchPush(userId: string, template: string, message: PushMessage) {
     const tokens = await this.db.select().from(deviceTokens).where(eq(deviceTokens.userId, userId));
     if (!tokens.length) {

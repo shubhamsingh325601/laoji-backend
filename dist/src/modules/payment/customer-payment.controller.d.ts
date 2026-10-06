@@ -9,10 +9,10 @@ export declare class CustomerPaymentController {
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
-        amount: number;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "cod" | "upi_deeplink" | "razorpay";
+        amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
         reconciledBy: string | null;
@@ -22,7 +22,7 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "cod" | "upi_deeplink" | "razorpay";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -36,7 +36,7 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "cod" | "upi_deeplink" | "razorpay";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;

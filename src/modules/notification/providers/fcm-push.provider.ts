@@ -67,6 +67,19 @@ export class FcmPushProvider {
             ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
           },
         },
+        webpush: {
+          notification: {
+            title: message.title,
+            body: message.body,
+            icon: '/app-logo.png',
+            badge: '/favicon.ico',
+            requireInteraction: true,
+            ...(message.imageUrl ? { image: message.imageUrl } : {}),
+          },
+          fcmOptions: {
+            link: (message.data?.url as string) || (message.data?.link as string) || '/orders',
+          },
+        },
         data: message.data || {},
       };
 

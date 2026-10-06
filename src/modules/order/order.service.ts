@@ -34,7 +34,7 @@ import { CatalogService } from '../catalog/catalog.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
-import { orderPlacedVendorPush } from '../notification/templates/push/order-placed';
+import { orderPlacedVendorPush, orderPlacedAdminPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
 import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
 import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
@@ -193,7 +193,7 @@ export class OrderService {
     return this.toQuote(pricing);
   }
 
-  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto) {
+  async createGroceryOrder(customerId: string, dto: CreateGroceryOrderDto, actor?: { userId: string; role: 'admin' }) {
     const idempotencyKey = dto.idempotencyKey?.trim() || null;
     if (idempotencyKey) {
       const [existing] = await this.db
@@ -265,8 +265,8 @@ export class OrderService {
       await this.db.insert(orderStatusHistory).values({
         groceryOrderId: order.id,
         status: 'placed',
-        actorRole: 'customer',
-        changedBy: customerId,
+        actorRole: actor?.role ?? 'customer',
+        changedBy: actor?.userId ?? customerId,
       });
 
       // Record vendor discount redemption if applicable
@@ -408,7 +408,7 @@ export class OrderService {
     return { revenue, orderItemRows, pricing };
   }
 
-  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto) {
+  async createFoodOrder(customerId: string, dto: CreateFoodOrderDto, actor?: { userId: string; role: 'admin' }) {
     const idempotencyKey = dto.idempotencyKey?.trim() || null;
     if (idempotencyKey) {
       const [existing] = await this.db
@@ -474,8 +474,8 @@ export class OrderService {
       await this.db.insert(orderStatusHistory).values({
         foodOrderId: order.id,
         status: 'placed',
-        actorRole: 'customer',
-        changedBy: customerId,
+        actorRole: actor?.role ?? 'customer',
+        changedBy: actor?.userId ?? customerId,
       });
 
       // Record vendor discount redemption
@@ -636,7 +636,7 @@ export class OrderService {
           if (h.actorRole === 'vendor') {
             actorName = vendorByUserId.get(h.changedBy)?.businessName ?? 'Vendor';
           } else if (h.actorRole === 'customer') {
-            actorName = user?.name || 'Customer';
+            actorName = 'Customer';
           } else {
             actorName = user?.name || 'Delivery Partner';
           }
@@ -669,9 +669,9 @@ export class OrderService {
     const [address] = await this.db.select().from(addresses).where(eq(addresses.id, deliveryAddressId)).limit(1);
     const isVendor = requesterRole === 'vendor';
     return {
-      name: isVendor ? (user?.name || 'Customer') : (user?.name || user?.phone || 'Customer'),
+      name: isVendor ? 'Customer' : (user?.name || user?.phone || 'Customer'),
       phone: isVendor ? '' : (user?.phone ?? ''),
-      line1: address?.formattedAddress ?? '',
+      line1: isVendor ? '' : (address?.formattedAddress ?? ''),
       area: '',
       city: '',
     };
@@ -690,34 +690,78 @@ export class OrderService {
   // ---------- Vendor: grocery ----------
 
   /** List views show item count/first item name (vendor OrderCard) — attach items, skip full customer/history. */
-  private async attachGroceryItems<T extends { id: string }>(orders: T[]) {
+  private async attachGroceryItems<T extends { id: string; deliveryPartnerId?: string | null }>(orders: T[]) {
     if (orders.length === 0) return orders.map((o) => ({ ...o, items: [] }));
     const ids = orders.map((o) => o.id);
     const items = await this.db.select().from(groceryOrderItems).where(inArray(groceryOrderItems.groceryOrderId, ids));
-    return orders.map((o) => ({ ...o, items: items.filter((i) => i.groceryOrderId === o.id) }));
+    const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id): id is string => !!id))];
+    const partnerMap = new Map<string, any>();
+    if (partnerIds.length > 0) {
+      const partners = await this.db.select().from(deliveryPartners).where(inArray(deliveryPartners.id, partnerIds));
+      const userIds = partners.map((p) => p.userId);
+      const partnerUsers = userIds.length ? await this.db.select().from(users).where(inArray(users.id, userIds)) : [];
+      const userMap = new Map(partnerUsers.map((u) => [u.id, u]));
+      for (const p of partners) {
+        const u = userMap.get(p.userId);
+        partnerMap.set(p.id, {
+          id: p.id,
+          name: u?.name || 'Delivery Partner',
+          phone: u?.phone || '',
+          vehicleType: p.vehicleType || 'Bike',
+        });
+      }
+    }
+    return orders.map((o) => ({
+      ...o,
+      items: items.filter((i) => i.groceryOrderId === o.id),
+      deliveryPartner: o.deliveryPartnerId ? partnerMap.get(o.deliveryPartnerId) ?? null : null,
+    }));
   }
 
-  private async attachFoodItems<T extends { id: string }>(orders: T[]) {
+  private async attachFoodItems<T extends { id: string; deliveryPartnerId?: string | null }>(orders: T[]) {
     if (orders.length === 0) return orders.map((o) => ({ ...o, items: [] }));
     const ids = orders.map((o) => o.id);
     const items = await this.db.select().from(foodOrderItems).where(inArray(foodOrderItems.foodOrderId, ids));
-    return orders.map((o) => ({ ...o, items: items.filter((i) => i.foodOrderId === o.id) }));
+    const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id): id is string => !!id))];
+    const partnerMap = new Map<string, any>();
+    if (partnerIds.length > 0) {
+      const partners = await this.db.select().from(deliveryPartners).where(inArray(deliveryPartners.id, partnerIds));
+      const userIds = partners.map((p) => p.userId);
+      const partnerUsers = userIds.length ? await this.db.select().from(users).where(inArray(users.id, userIds)) : [];
+      const userMap = new Map(partnerUsers.map((u) => [u.id, u]));
+      for (const p of partners) {
+        const u = userMap.get(p.userId);
+        partnerMap.set(p.id, {
+          id: p.id,
+          name: u?.name || 'Delivery Partner',
+          phone: u?.phone || '',
+          vehicleType: p.vehicleType || 'Bike',
+        });
+      }
+    }
+    return orders.map((o) => ({
+      ...o,
+      items: items.filter((i) => i.foodOrderId === o.id),
+      deliveryPartner: o.deliveryPartnerId ? partnerMap.get(o.deliveryPartnerId) ?? null : null,
+    }));
   }
 
-  async handlePaymentSatisfied(type: 'grocery' | 'food', orderId: string) {
+  async handlePaymentSatisfied(type: 'grocery' | 'food', orderId: string, opts: { reopen?: boolean } = {}) {
     if (type === 'grocery') {
       const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, orderId)).limit(1);
       if (!order || !order.vendorId) return;
 
       // Idempotency check: don't create multiple attempts for the same order
-      const [existingAttempt] = await this.db
+      const [latestAttempt] = await this.db
         .select()
         .from(allocationAttempts)
         .where(eq(allocationAttempts.groceryOrderId, orderId))
+        .orderBy(desc(allocationAttempts.attemptNo))
         .limit(1);
 
-      if (!existingAttempt) {
-        await this.allocation.createAttempt(order.id, order.vendorId, 1);
+      // A reopened order starts a fresh attempt after the ones that failed it.
+      if (!latestAttempt || opts.reopen) {
+        await this.allocation.createAttempt(order.id, order.vendorId, (latestAttempt?.attemptNo ?? 0) + 1);
         const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, order.vendorId)).limit(1);
         if (vendorRow && vendorRow.userId !== order.customerId) {
           const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, order.id));
@@ -728,6 +772,15 @@ export class OrderService {
           );
         }
       }
+
+      // Notify all admins of newly placed/active order (so admins receive push alerts even when the admin app is closed)
+      const [customerUser] = order.customerId
+        ? await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1)
+        : [null];
+      this.notifications.notifyAllAdminsPush(
+        'order_placed',
+        orderPlacedAdminPush(this.orderCode(order.id), order.total, 'grocery', order.id, customerUser?.name ?? undefined),
+      );
     } else {
       const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
       if (!order || !order.restaurantId) return;
@@ -744,6 +797,15 @@ export class OrderService {
           );
         }
       }
+
+      // Notify all admins of newly placed/active order (so admins receive push alerts even when the admin app is closed)
+      const [customerUser] = order.customerId
+        ? await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1)
+        : [null];
+      this.notifications.notifyAllAdminsPush(
+        'order_placed',
+        orderPlacedAdminPush(this.orderCode(order.id), order.total, 'food', order.id, customerUser?.name ?? undefined),
+      );
     }
   }
 
@@ -1245,6 +1307,38 @@ export class OrderService {
       : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
   }
 
+  // Admin places an order for a customer who can't do it themselves (phone
+  // support, no app access). Priced exactly like the customer's own checkout;
+  // the timeline shows the admin as the actor. Payment is settled right away
+  // so the vendor hears about it: 'cod' = cash on delivery, 'paid' = payment
+  // already received and confirmed by the admin.
+  async createOrderForCustomer(
+    adminUserId: string,
+    type: 'grocery' | 'food',
+    customerId: string,
+    dto: CreateGroceryOrderDto | CreateFoodOrderDto,
+    paymentMethod: 'cod' | 'paid',
+  ) {
+    const [customer] = await this.db.select().from(users).where(eq(users.id, customerId)).limit(1);
+    if (!customer || customer.role !== 'customer') throw new NotFoundException('Customer not found');
+
+    const actor = { userId: adminUserId, role: 'admin' as const };
+    const created =
+      type === 'grocery'
+        ? await this.createGroceryOrder(customerId, dto as CreateGroceryOrderDto, actor)
+        : await this.createFoodOrder(customerId, dto as CreateFoodOrderDto, actor);
+
+    // An idempotent replay returns the existing order — don't initiate payment twice.
+    if (created.paymentStatus === 'pending') {
+      await this.payments.initiate(type, created.id, customerId, paymentMethod === 'cod' ? 'cod' : 'online');
+      if (paymentMethod === 'paid') await this.payments.confirmByCustomer(type, created.id, customerId);
+    }
+
+    return type === 'grocery'
+      ? this.getGroceryOrder(created.id, { userId: adminUserId, role: 'admin' })
+      : this.getFoodOrder(created.id, { userId: adminUserId, role: 'admin' });
+  }
+
   async restoreOrder(adminUserId: string, type: 'grocery' | 'food', orderId: string) {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
@@ -1316,7 +1410,6 @@ export class OrderService {
       ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
       : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
   }
-
   async changeOrderVendor(adminUserId: string, type: 'grocery' | 'food', orderId: string, dto: ChangeOrderVendorDto) {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
@@ -1528,8 +1621,11 @@ export class OrderService {
         }
       }
 
-      return this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
     }
+  }
+
+  async listCustomerAddressesForAdmin(customerId: string) {
+    return this.db.select().from(addresses).where(eq(addresses.userId, customerId));
   }
 
   async cancelOrderForCustomer(customerId: string, type: 'grocery' | 'food', orderId: string) {

@@ -93,6 +93,12 @@ let NotificationService = NotificationService_1 = class NotificationService {
             this.notifyEmail(admin.id, template, message);
         }
     }
+    async notifyAllAdminsPush(template, message) {
+        const admins = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.role, 'admin'));
+        for (const admin of admins) {
+            this.notifyPush(admin.id, template, message);
+        }
+    }
     async dispatchPush(userId, template, message) {
         const tokens = await this.db.select().from(schema_1.deviceTokens).where((0, drizzle_orm_1.eq)(schema_1.deviceTokens.userId, userId));
         if (!tokens.length) {

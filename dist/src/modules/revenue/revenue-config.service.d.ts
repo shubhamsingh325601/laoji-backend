@@ -15,16 +15,16 @@ export declare class RevenueConfigService {
     constructor(db: Db);
     create(adminUserId: string, dto: CreateRevenueConfigDto): Promise<{
         id: string;
+        minOrderValue: number | null;
         createdAt: Date;
+        freeDeliveryThreshold: number | null;
         commissionPct: number;
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
-        freeDeliveryThreshold: number | null;
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
-        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;

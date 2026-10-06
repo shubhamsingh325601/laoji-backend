@@ -1,8 +1,11 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { SettlementService } from './settlement.service';
+import { VendorWithdrawalService } from './vendor-withdrawal.service';
+import { RequestVendorWithdrawalDto } from './dto/vendor-withdrawal.dto';
 export declare class VendorSettlementController {
     private readonly settlements;
-    constructor(settlements: SettlementService);
+    private readonly withdrawals;
+    constructor(settlements: SettlementService, withdrawals: VendorWithdrawalService);
     list(user: JwtAccessPayload): Promise<{
         id: string;
         type: "grocery" | "food";
@@ -14,13 +17,29 @@ export declare class VendorSettlementController {
         commissionPctSnapshot: number;
         createdAt: Date;
     }[]>;
-    withdraw(user: JwtAccessPayload): Promise<{
+    listWithdrawals(user: JwtAccessPayload): Promise<{
+        hasPending: boolean;
+        withdrawals: {
+            id: string;
+            amount: number;
+            status: string;
+            payoutMethod: string;
+            payoutDestination: string | null;
+            rejectionReason: string | null;
+            payoutReference: string | null;
+            processedAt: Date | null;
+            createdAt: Date;
+        }[];
+        availableBalance: number;
+        totalEarned: number;
+        totalWithdrawn: number;
+        pendingAmount: number;
+    }>;
+    withdraw(user: JwtAccessPayload, dto: RequestVendorWithdrawalDto): Promise<{
         success: boolean;
         message: string;
+        withdrawalId: string;
+        amount: number;
         availableBalance: number;
-        kycStatus: "verified";
-        payoutMethod: string;
-        payoutDestination: string | null;
-        bankIfsc: string | null;
     }>;
 }

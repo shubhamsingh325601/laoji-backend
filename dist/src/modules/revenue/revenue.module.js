@@ -10,18 +10,26 @@ exports.RevenueModule = void 0;
 const common_1 = require("@nestjs/common");
 const revenue_config_service_1 = require("./revenue-config.service");
 const settlement_service_1 = require("./settlement.service");
+const vendor_withdrawal_service_1 = require("./vendor-withdrawal.service");
 const admin_revenue_controller_1 = require("./admin-revenue.controller");
+const admin_withdrawal_controller_1 = require("./admin-withdrawal.controller");
 const vendor_settlement_controller_1 = require("./vendor-settlement.controller");
 const partner_settlement_controller_1 = require("./partner-settlement.controller");
 const wallet_module_1 = require("../wallet/wallet.module");
+const notification_module_1 = require("../notification/notification.module");
 let RevenueModule = class RevenueModule {
 };
 exports.RevenueModule = RevenueModule;
 exports.RevenueModule = RevenueModule = __decorate([
     (0, common_1.Module)({
-        imports: [wallet_module_1.WalletModule],
-        controllers: [admin_revenue_controller_1.AdminRevenueController, vendor_settlement_controller_1.VendorSettlementController, partner_settlement_controller_1.PartnerSettlementController],
-        providers: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService],
+        imports: [wallet_module_1.WalletModule, notification_module_1.NotificationModule],
+        controllers: [
+            admin_revenue_controller_1.AdminRevenueController,
+            admin_withdrawal_controller_1.AdminWithdrawalController,
+            vendor_settlement_controller_1.VendorSettlementController,
+            partner_settlement_controller_1.PartnerSettlementController,
+        ],
+        providers: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService, vendor_withdrawal_service_1.VendorWithdrawalService],
         exports: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService],
     })
 ], RevenueModule);

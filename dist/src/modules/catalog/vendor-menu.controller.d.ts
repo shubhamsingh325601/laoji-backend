@@ -101,14 +101,14 @@ export declare class VendorMenuController {
         variants: {
             id: string;
             name: string;
-            isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
+            isDefault: boolean;
         }[];
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
+        imageUrl: string | null;
         menuCategoryId: string;
         price: number;
         isVeg: boolean;

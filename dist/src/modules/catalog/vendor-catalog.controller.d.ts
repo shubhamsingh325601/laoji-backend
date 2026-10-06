@@ -203,10 +203,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -219,13 +219,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
         product: {
@@ -233,10 +233,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -249,13 +249,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     createNewProduct(user: JwtAccessPayload, dto: CreateGroceryProductDto): Promise<{
         product: {
@@ -263,10 +263,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -279,13 +279,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         product: {
@@ -293,10 +293,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -309,13 +309,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     restockListing(user: JwtAccessPayload, id: string, dto: RestockVendorProductDto): Promise<{
         product: {
@@ -323,10 +323,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -339,13 +339,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     deleteListing(user: JwtAccessPayload, id: string): Promise<{
         success: boolean;
@@ -390,10 +390,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -406,13 +406,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     updateCustomProduct(user: JwtAccessPayload, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
         product: {
@@ -420,10 +420,10 @@ export declare class VendorCatalogController {
             id: string;
             brand: string | null;
             name: string;
+            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -436,13 +436,13 @@ export declare class VendorCatalogController {
         vendorId: string;
         price: number;
         isAvailable: boolean;
+        updatedAt: Date;
         productId: string;
         stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     deleteCustomProduct(user: JwtAccessPayload, productId: string): Promise<{
         success: boolean;

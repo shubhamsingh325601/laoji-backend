@@ -8,17 +8,17 @@ export declare class AdminRevenueController {
     constructor(revenueConfig: RevenueConfigService, settlements: SettlementService);
     create(user: JwtAccessPayload, dto: CreateRevenueConfigDto): Promise<{
         id: string;
-        createdAt: Date;
-        commissionPct: number;
-        codThreshold: number | null;
         minOrderValue: number | null;
+        createdAt: Date;
         freeDeliveryThreshold: number | null;
+        commissionPct: number;
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
         createdBy: string | null;

@@ -275,12 +275,16 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
 
       // 1. Customer phone is strictly empty string (never exposed)
       expect(result.customer.phone).toBe('');
-      // 2. Delivery partner is null
+      // 2. Customer personal details (name, address) are also redacted for vendor
+      expect(result.customer.name).toBe('Customer');
+      expect(result.customer.line1).toBe('');
+      // 3. Delivery partner is null
       expect(result.deliveryPartner).toBeNull();
-      // 3. Raw JSON does not contain customer's phone anywhere
+      // 4. Raw JSON does not contain customer's phone or address anywhere
       const jsonStr = JSON.stringify(result);
       expect(jsonStr).not.toContain(customerPhone);
-      // 4. Doorstep OTP is also hidden from vendor
+      expect(jsonStr).not.toContain('123 Main St');
+      // 5. Doorstep OTP is also hidden from vendor
       expect(result.deliveryOtp).toBeNull();
     });
 
@@ -301,8 +305,10 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
         role: 'vendor',
       });
 
-      // 1. Customer phone is still empty string
+      // 1. Customer phone is still empty string and customer name/address is redacted
       expect(result.customer.phone).toBe('');
+      expect(result.customer.name).toBe('Customer');
+      expect(result.customer.line1).toBe('');
       // 2. Delivery partner is populated
       expect(result.deliveryPartner).toBeDefined();
       expect(result.deliveryPartner).not.toBeNull();
@@ -313,6 +319,7 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
       // 4. Customer phone is NOT anywhere in the response
       const jsonStr = JSON.stringify(result);
       expect(jsonStr).not.toContain(customerPhone);
+      expect(jsonStr).not.toContain('123 Main St');
       // 5. Rider phone IS present
       expect(jsonStr).toContain(riderPhone);
     });
@@ -334,6 +341,7 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
 
       expect(result.customer.name).toBe('Customer');
       expect(result.customer.phone).toBe('');
+      expect(result.customer.line1).toBe('');
       expect(JSON.stringify(result)).not.toContain(customerPhone);
     });
   });
@@ -356,8 +364,11 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
       });
 
       expect(result.customer.phone).toBe('');
+      expect(result.customer.name).toBe('Customer');
+      expect(result.customer.line1).toBe('');
       expect(result.deliveryPartner).toBeNull();
       expect(JSON.stringify(result)).not.toContain(customerPhone);
+      expect(JSON.stringify(result)).not.toContain('123 Main St');
     });
 
     it('State 2: AFTER delivery partner assignment — customer phone redacted, delivery partner phone exposed', async () => {
@@ -379,9 +390,12 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
       });
 
       expect(result.customer.phone).toBe('');
+      expect(result.customer.name).toBe('Customer');
+      expect(result.customer.line1).toBe('');
       expect(result.deliveryPartner).not.toBeNull();
       expect(result.deliveryPartner!.phone).toBe(riderPhone);
       expect(JSON.stringify(result)).not.toContain(customerPhone);
+      expect(JSON.stringify(result)).not.toContain('123 Main St');
       expect(JSON.stringify(result)).toContain(riderPhone);
     });
   });

@@ -20,6 +20,7 @@ const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const order_service_1 = require("./order.service");
 const change_order_vendor_dto_1 = require("./dto/change-order-vendor.dto");
+const admin_create_order_dto_1 = require("./dto/admin-create-order.dto");
 let AdminOrderController = class AdminOrderController {
     orders;
     constructor(orders) {
@@ -27,6 +28,17 @@ let AdminOrderController = class AdminOrderController {
     }
     listAll(includeUnpaid) {
         return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
+    }
+    customerAddresses(customerId) {
+        return this.orders.listCustomerAddressesForAdmin(customerId);
+    }
+    createGrocery(user, dto) {
+        const { customerId, paymentMethod, ...order } = dto;
+        return this.orders.createOrderForCustomer(user.sub, 'grocery', customerId, order, paymentMethod);
+    }
+    createFood(user, dto) {
+        const { customerId, paymentMethod, ...order } = dto;
+        return this.orders.createOrderForCustomer(user.sub, 'food', customerId, order, paymentMethod);
     }
     timeline(type, id) {
         return this.orders.getOrderTimelineForAdmin(type, id);
@@ -52,6 +64,29 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "listAll", null);
+__decorate([
+    (0, common_1.Get)('customers/:customerId/addresses'),
+    __param(0, (0, common_1.Param)('customerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "customerAddresses", null);
+__decorate([
+    (0, common_1.Post)('grocery'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, admin_create_order_dto_1.AdminCreateGroceryOrderDto]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "createGrocery", null);
+__decorate([
+    (0, common_1.Post)('food'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, admin_create_order_dto_1.AdminCreateFoodOrderDto]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "createFood", null);
 __decorate([
     (0, common_1.Get)(':type/:id'),
     __param(0, (0, common_1.Param)('type')),

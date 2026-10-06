@@ -41,15 +41,6 @@ export declare class SettlementService {
         createdAt: Date;
     }[]>;
     private toSummary;
-    requestVendorWithdrawal(userId: string): Promise<{
-        success: boolean;
-        message: string;
-        availableBalance: number;
-        kycStatus: "verified";
-        payoutMethod: string;
-        payoutDestination: string | null;
-        bankIfsc: string | null;
-    }>;
     requestPartnerWithdrawal(userId: string): Promise<{
         success: boolean;
         message: string;

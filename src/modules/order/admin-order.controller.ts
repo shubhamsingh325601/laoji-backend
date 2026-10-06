@@ -6,6 +6,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { OrderService } from './order.service';
 import { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
+import { AdminCreateFoodOrderDto, AdminCreateGroceryOrderDto } from './dto/admin-create-order.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -16,6 +17,24 @@ export class AdminOrderController {
   @Get()
   listAll(@Query('includeUnpaid') includeUnpaid?: string) {
     return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
+  }
+
+  // Declared before ':type/:id' so "customers" isn't read as an order type.
+  @Get('customers/:customerId/addresses')
+  customerAddresses(@Param('customerId') customerId: string) {
+    return this.orders.listCustomerAddressesForAdmin(customerId);
+  }
+
+  @Post('grocery')
+  createGrocery(@CurrentUser() user: JwtAccessPayload, @Body() dto: AdminCreateGroceryOrderDto) {
+    const { customerId, paymentMethod, ...order } = dto;
+    return this.orders.createOrderForCustomer(user.sub, 'grocery', customerId, order, paymentMethod);
+  }
+
+  @Post('food')
+  createFood(@CurrentUser() user: JwtAccessPayload, @Body() dto: AdminCreateFoodOrderDto) {
+    const { customerId, paymentMethod, ...order } = dto;
+    return this.orders.createOrderForCustomer(user.sub, 'food', customerId, order, paymentMethod);
   }
 
   @Get(':type/:id')

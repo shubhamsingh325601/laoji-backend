@@ -33,3 +33,27 @@ export function orderPlacedVendorPush(
     },
   };
 }
+
+export function orderPlacedAdminPush(
+  orderCode: string,
+  total: number,
+  type: 'grocery' | 'food' = 'grocery',
+  orderId?: string,
+  customerName?: string,
+): PushMessage {
+  const typeLabel = type === 'food' ? 'Food' : 'Grocery';
+  const customerPart = customerName ? ` from ${customerName}` : '';
+  return {
+    title: `🛍️ New ${typeLabel} Order #${orderCode}`,
+    body: `New ${typeLabel.toLowerCase()} order${customerPart} for ₹${total} received. Tap to view.`,
+    imageUrl: undefined,
+    data: {
+      event: 'order_placed',
+      orderCode,
+      total: String(total),
+      type,
+      ...(orderId ? { orderId, link: `/orders/${orderId}`, url: `/orders/${orderId}` } : {}),
+    },
+  };
+}
+

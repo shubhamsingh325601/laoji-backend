@@ -75,6 +75,19 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
                         ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
                     },
                 },
+                webpush: {
+                    notification: {
+                        title: message.title,
+                        body: message.body,
+                        icon: '/app-logo.png',
+                        badge: '/favicon.ico',
+                        requireInteraction: true,
+                        ...(message.imageUrl ? { image: message.imageUrl } : {}),
+                    },
+                    fcmOptions: {
+                        link: message.data?.url || message.data?.link || '/orders',
+                    },
+                },
                 data: message.data || {},
             };
             await (0, messaging_1.getMessaging)(this.app).send(payload);

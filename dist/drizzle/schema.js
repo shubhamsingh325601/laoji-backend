@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = void 0;
+exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.vendorWithdrawals = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -497,6 +497,30 @@ exports.settlements = (0, pg_core_1.pgTable)('settlements', {
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     (0, pg_core_1.check)('settlements_exactly_one_order_ref', (0, drizzle_orm_1.sql) `(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`),
+]);
+exports.vendorWithdrawals = (0, pg_core_1.pgTable)('vendor_withdrawals', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    vendorId: (0, pg_core_1.uuid)('vendor_id')
+        .notNull()
+        .references(() => exports.vendors.id, { onDelete: 'cascade' }),
+    amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    availableBefore: (0, pg_core_1.doublePrecision)('available_before').notNull(),
+    status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('pending'),
+    payoutMethod: (0, pg_core_1.varchar)('payout_method', { length: 20 }).notNull(),
+    upiId: (0, pg_core_1.varchar)('upi_id', { length: 100 }),
+    bankAccount: (0, pg_core_1.varchar)('bank_account', { length: 50 }),
+    bankIfsc: (0, pg_core_1.varchar)('bank_ifsc', { length: 20 }),
+    periodStart: (0, pg_core_1.timestamp)('period_start', { withTimezone: true }),
+    periodEnd: (0, pg_core_1.timestamp)('period_end', { withTimezone: true }).notNull(),
+    rejectionReason: (0, pg_core_1.text)('rejection_reason'),
+    payoutReference: (0, pg_core_1.varchar)('payout_reference', { length: 100 }),
+    processedBy: (0, pg_core_1.uuid)('processed_by').references(() => exports.users.id),
+    processedAt: (0, pg_core_1.timestamp)('processed_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('vendor_withdrawals_one_pending_idx')
+        .on(table.vendorId)
+        .where((0, drizzle_orm_1.sql) `${table.status} = 'pending'`),
 ]);
 exports.foodOrderRatings = (0, pg_core_1.pgTable)('food_order_ratings', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),

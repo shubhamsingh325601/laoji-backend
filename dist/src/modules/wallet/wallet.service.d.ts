@@ -7,10 +7,10 @@ export declare class WalletService {
         id: string;
         createdAt: Date;
         userId: string;
+        updatedAt: Date;
         balance: number;
         totalEarned: number;
         totalWithdrawn: number;
-        updatedAt: Date;
     }>;
     getWalletSummary(userId: string): Promise<{
         wallet: {
@@ -52,16 +52,16 @@ export declare class WalletService {
         couponCode: string;
     }): Promise<{
         id: string;
+        description: string;
         status: string;
         createdAt: Date;
         userId: string;
-        description: string;
         type: string;
-        walletId: string;
-        amount: number;
-        orderId: string | null;
-        orderType: string | null;
         couponCode: string | null;
+        orderId: string | null;
+        amount: number;
+        walletId: string;
+        orderType: string | null;
         metadata: unknown;
     } | null>;
     confirmCommissionOnDelivery(orderType: 'grocery' | 'food', orderId: string): Promise<void>;
@@ -75,15 +75,15 @@ export declare class WalletService {
             status: string;
             createdAt: Date;
             userId: string;
-            walletId: string;
-            amount: number;
-            payoutMethod: string;
-            upiId: string | null;
             bankAccount: string | null;
             bankIfsc: string | null;
+            upiId: string | null;
+            amount: number;
+            walletId: string;
+            payoutMethod: string;
+            processedAt: Date | null;
             accountHolderName: string | null;
             adminNotes: string | null;
-            processedAt: Date | null;
         };
     }>;
     listAllWithdrawalRequests(status?: string): Promise<{

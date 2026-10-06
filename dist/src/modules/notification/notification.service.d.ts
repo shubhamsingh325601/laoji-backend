@@ -26,6 +26,7 @@ export declare class NotificationService {
         phone?: string;
     }): void;
     notifyAllAdminsEmail(template: string, message: EmailMessage): Promise<void>;
+    notifyAllAdminsPush(template: string, message: PushMessage): Promise<void>;
     private dispatchPush;
     private dispatchEmail;
     private dispatchSms;
@@ -68,7 +69,7 @@ export declare class NotificationService {
         link?: string;
     }): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
+        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "user" | "all";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;
