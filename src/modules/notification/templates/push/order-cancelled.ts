@@ -34,7 +34,9 @@ export function orderCancelledPartnerPush(orderCode: string, orderId?: string): 
     data: {
       event: 'order_cancelled',
       orderCode,
-      ...(orderId ? { orderId, link: `/orders` } : {}),
+      // The partner app has no /orders route; its home tab is where a pending
+      // or active assignment is shown and cleared.
+      ...(orderId ? { orderId, link: `/(tabs)` } : {}),
     },
   };
 }

@@ -105,6 +105,14 @@ export class NotificationService {
       return;
     }
     const results = await Promise.all(tokens.map((t) => this.push.send(t.fcmToken, message)));
+    // Drop tokens FCM says are dead so the next push isn't aimed at an old install.
+    const deadTokens = tokens.filter((_, i) => results[i].invalidToken).map((t) => t.fcmToken);
+    if (deadTokens.length) {
+      await this.db
+        .delete(deviceTokens)
+        .where(and(eq(deviceTokens.userId, userId), inArray(deviceTokens.fcmToken, deadTokens)))
+        .catch((err) => this.logger.warn(`Failed to prune dead device tokens for ${userId}: ${err instanceof Error ? err.message : err}`));
+    }
     await this.log(userId, 'push', template, message, results.some((r) => r.ok) ? 'sent' : 'failed');
   }
 

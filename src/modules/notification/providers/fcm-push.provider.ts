@@ -4,6 +4,34 @@ import { cert, initializeApp, type App } from 'firebase-admin/app';
 import { getMessaging, type Message } from 'firebase-admin/messaging';
 import type { PushMessage, PushSendResult } from '../notification.types';
 
+// A new-order or delivery-offer push is useless once the 120s allocation window
+// has passed, so FCM may drop it after 2 minutes instead of queueing it.
+const PUSH_TTL_MS = 120_000;
+
+const INVALID_TOKEN_CODES = new Set([
+  'messaging/invalid-registration-token',
+  'messaging/registration-token-not-registered',
+]);
+
+const TRANSIENT_CODES = new Set([
+  'messaging/internal-error',
+  'messaging/server-unavailable',
+  'messaging/unavailable',
+  'messaging/quota-exceeded',
+]);
+
+// FCM rejects the whole message if any data value is not a string. Templates
+// are typed as strings, but admin broadcasts and future callers can slip a
+// number or boolean through, which would silently drop the push.
+function stringifyData(data?: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data ?? {})) {
+    if (value === undefined || value === null) continue;
+    out[key] = typeof value === 'string' ? value : String(value);
+  }
+  return out;
+}
+
 // Real Firebase Admin SDK integration — with graceful fallback to dev-mode stub
 // if FIREBASE_* env credentials are not yet configured.
 @Injectable()
@@ -47,6 +75,12 @@ export class FcmPushProvider {
           ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
         },
         android: {
+          // High priority wakes a dozing device right away. Without it Android
+          // can hold a "normal" push for minutes, so a new order or delivery
+          // offer lands after it has already timed out. The TTL stops a stale
+          // offer being delivered long after the allocation window closed.
+          priority: 'high',
+          ttl: PUSH_TTL_MS,
           notification: {
             sound: 'default',
             priority: 'high',
@@ -80,22 +114,32 @@ export class FcmPushProvider {
             link: (message.data?.url as string) || (message.data?.link as string) || '/orders',
           },
         },
-        data: message.data || {},
+        data: stringifyData(message.data),
       };
 
-      await getMessaging(this.app).send(payload);
+      await this.sendWithRetry(this.app, payload);
       return { ok: true, stubbed: false };
     } catch (e: any) {
       const code = e?.code || e?.errorInfo?.code;
-      if (
-        code === 'messaging/invalid-registration-token' ||
-        code === 'messaging/registration-token-not-registered'
-      ) {
+      if (INVALID_TOKEN_CODES.has(code)) {
         this.logger.warn(`Stale or invalid FCM token (${code}): ${token.slice(0, 12)}...`);
-      } else {
-        this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
+        return { ok: false, stubbed: false, error: e?.message, invalidToken: true };
       }
+      this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
       return { ok: false, stubbed: false, error: e?.message };
+    }
+  }
+
+  // One quick retry for transient FCM/network errors. A dead token or a bad
+  // payload fails the same way twice, so those are thrown straight away.
+  private async sendWithRetry(app: App, payload: Message) {
+    try {
+      await getMessaging(app).send(payload);
+    } catch (e: any) {
+      const code = e?.code || e?.errorInfo?.code;
+      if (!TRANSIENT_CODES.has(code)) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await getMessaging(app).send(payload);
     }
   }
 }

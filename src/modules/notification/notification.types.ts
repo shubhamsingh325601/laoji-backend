@@ -14,6 +14,9 @@ export interface PushSendResult {
   ok: boolean;
   stubbed: boolean;
   error?: string;
+  // The device token is permanently dead (app uninstalled / token rotated) —
+  // the caller should drop it so it stops shadowing a live one.
+  invalidToken?: boolean;
 }
 
 export interface EmailSendResult {
