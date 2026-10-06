@@ -1325,3 +1325,32 @@ Fixes for new orders/offers reaching vendors and delivery partners late or never
 - The partner app now tells the backend it is offline (and unregisters its push
   token) on logout. Before, a logged-out partner stayed `is_online` and kept
   being offered orders.
+
+## Rider payout (separate from the customer delivery fee)
+
+Product decision: a delivery partner is no longer paid the customer's delivery
+fee. Admin sets rider pay by distance ranges (Revenue Config page → "Rider
+payout"); defaults are 0–3 km ₹5, 3–5 km ₹10, 5+ km ₹15. Migration
+`0026_rider_payout_tiers` (idempotent; on hosted databases run
+`npx ts-node scripts/migrate-rider-payout-tiers.ts`, it also seeds the defaults).
+
+- `rider_payout_tiers` holds the ranges; `GET`/`PUT /admin/rider-payout-tiers`
+  read and replace the whole list. A range covers (from, to] like the customer
+  fee tiers, the first starts at 0, each starts where the last ended, and the last
+  has no upper limit. `validateRiderPayoutTiers` enforces this. With no rows saved
+  the code falls back to the same defaults.
+- Distance is straight-line (Haversine) from the vendor's pickup point to the
+  delivery address, so it is the same number the customer fee tier uses.
+- `RiderPayoutService.forOrder` works the payout out once, the first time the
+  order is offered to a rider (or settled / shown to one), and saves it on
+  `grocery_orders` / `food_orders.rider_payout`. Changing the ranges later never
+  changes an order already offered. If the distance can't be worked out it pays
+  the first range and saves nothing.
+- Used for the offer push, the rider's order detail (`riderPayout`, also sent as
+  `deliveryFee` for installed rider apps), the settlement's `delivery_payout`, and
+  the delivered push. Rider history/earnings read the settlement's recorded amount,
+  so orders delivered before this change keep what they were paid.
+- Free-delivery and voucher orders no longer matter to rider pay: the rider's
+  amount comes only from distance. The old flat ₹15 fallback for ₹0-fee orders is gone.
+- Not changed, flagged: `DeliveryService.listPartnersAdmin` / `getAdminPartner` still
+  return hardcoded `todayEarnings: 450` and `totalDeliveries: 28`.

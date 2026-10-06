@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RevenueConfigService } from './revenue-config.service';
 import { SettlementService } from './settlement.service';
+import { RiderPayoutService } from './rider-payout.service';
 import { VendorWithdrawalService } from './vendor-withdrawal.service';
 import { AdminRevenueController } from './admin-revenue.controller';
 import { AdminWithdrawalController } from './admin-withdrawal.controller';
@@ -17,7 +18,7 @@ import { NotificationModule } from '../notification/notification.module';
     VendorSettlementController,
     PartnerSettlementController,
   ],
-  providers: [RevenueConfigService, SettlementService, VendorWithdrawalService],
-  exports: [RevenueConfigService, SettlementService],
+  providers: [RevenueConfigService, SettlementService, VendorWithdrawalService, RiderPayoutService],
+  exports: [RevenueConfigService, SettlementService, RiderPayoutService],
 })
 export class RevenueModule {}

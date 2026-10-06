@@ -14,6 +14,7 @@ import {
   walletTransactions,
 } from '../../../drizzle/schema';
 import { WalletService } from '../wallet/wallet.service';
+import { RiderPayoutService } from './rider-payout.service';
 
 type OrderType = 'grocery' | 'food';
 
@@ -22,6 +23,7 @@ export class SettlementService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly wallet: WalletService,
+    private readonly riderPayouts: RiderPayoutService,
   ) {}
 
   // Small local identity lookups rather than importing CatalogModule/
@@ -45,20 +47,21 @@ export class SettlementService {
   // Reuses the exact hook Phase 5/6 already fire from — DeliveryService's
   // OTP-verified delivered transition — same pattern as Phase 6's COD
   // auto-collect and Phase 7's notification dispatch, not a new one.
-  // Vendor keeps subtotal minus platform's cut; the delivery partner keeps
-  // the whole delivery fee (same "deliveryFee as earnings" precedent
-  // Phase 5's frontend already used before real settlements existed).
+  // Vendor keeps subtotal minus platform's cut; the delivery partner gets the
+  // payout the admin's rider_payout_tiers give for this order's distance —
+  // not the delivery fee the customer paid.
   async generateForDeliveredOrder(type: OrderType, orderId: string) {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (!order) return null;
+    const riderPayout = await this.riderPayouts.forOrder(type, orderId);
 
     const [settlement] = await this.db
       .insert(settlements)
       .values({
         ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
         vendorPayout: order.subtotal - order.platformCommission,
-        deliveryPayout: order.deliveryFee > 0 ? order.deliveryFee : 15,
+        deliveryPayout: riderPayout,
         platformShare: order.platformCommission,
         commissionPctSnapshot: order.commissionPct,
       })

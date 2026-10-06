@@ -24,6 +24,7 @@ import {
   orderStatusHistory,
   products,
   restaurants,
+  settlements,
   users,
   vendors,
 } from '../../../drizzle/schema';
@@ -37,6 +38,7 @@ import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templa
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
 import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
 import { SettlementService } from '../revenue/settlement.service';
+import { RiderPayoutService } from '../revenue/rider-payout.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
 import { AreaManagerService } from '../area-manager/area-manager.service';
 import { DELIVERY_SLA_SECONDS, PARTNER_HEARTBEAT_MAX_AGE_MS } from './delivery.constants';
@@ -56,6 +58,7 @@ export class DeliveryService {
     private readonly notifications: NotificationService,
     private readonly settlements: SettlementService,
     private readonly areaManagerService: AreaManagerService,
+    private readonly riderPayouts: RiderPayoutService,
   ) {}
 
   private orderCode(orderId: string): string {
@@ -216,6 +219,18 @@ export class DeliveryService {
     const restaurantRows = restaurantIds.length ? await this.db.select().from(restaurants).where(inArray(restaurants.id, restaurantIds)) : [];
     const restaurantNameById = new Map(restaurantRows.map((r) => [r.id, r.name]));
 
+    // The rider's pay is what the order's settlement recorded when it was
+    // delivered (this also covers orders delivered before rider payouts had
+    // their own ranges); anything not yet settled falls back to the order's own.
+    const [grocerySettlements, foodSettlements] = await Promise.all([
+      grocery.length ? this.db.select().from(settlements).where(inArray(settlements.groceryOrderId, grocery.map((o) => o.id))) : [],
+      food.length ? this.db.select().from(settlements).where(inArray(settlements.foodOrderId, food.map((o) => o.id))) : [],
+    ]);
+    const payoutByOrderId = new Map<string, number>();
+    for (const s of [...grocerySettlements, ...foodSettlements]) {
+      payoutByOrderId.set((s.groceryOrderId ?? s.foodOrderId)!, s.deliveryPayout);
+    }
+
     const rows = [
       ...grocery.map((o) => ({
         id: o.id,
@@ -223,7 +238,7 @@ export class DeliveryService {
         orderCode: o.id.slice(0, 8).toUpperCase(),
         type: 'grocery' as const,
         route: vendorNameById.get(o.vendorId ?? '') ?? 'Pickup',
-        payout: o.deliveryFee > 0 ? o.deliveryFee : 15,
+        payout: payoutByOrderId.get(o.id) ?? o.riderPayout ?? 0,
         status: (o.status === 'delivered' ? 'delivered' : 'cancelled') as 'delivered' | 'cancelled',
         completedAt: o.createdAt,
       })),
@@ -233,7 +248,7 @@ export class DeliveryService {
         orderCode: o.id.slice(0, 8).toUpperCase(),
         type: 'food' as const,
         route: restaurantNameById.get(o.restaurantId) ?? 'Pickup',
-        payout: o.deliveryFee > 0 ? o.deliveryFee : 15,
+        payout: payoutByOrderId.get(o.id) ?? o.riderPayout ?? 0,
         status: (o.status === 'delivered' ? 'delivered' : 'cancelled') as 'delivered' | 'cancelled',
         completedAt: o.createdAt,
       })),
@@ -408,7 +423,8 @@ export class DeliveryService {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (partner && order) {
-      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), order.deliveryFee, orderId, type));
+      const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+      this.notifications.notifyPush(partner.userId, 'assignment_offered', assignmentOfferedPartnerPush(this.orderCode(orderId), riderPayout, orderId, type));
     }
     return assignment;
   }
@@ -507,7 +523,8 @@ export class DeliveryService {
       const [vendorUser] = vendor ? await this.db.select().from(users).where(eq(users.id, vendor.userId)).limit(1) : [];
       const [address] = await this.db.select().from(addresses).where(eq(addresses.id, order.deliveryAddressId)).limit(1);
       const [customer] = await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1);
-      return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, undefined, itemsList);
+      const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+      return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, riderPayout, undefined, itemsList);
     }
 
     const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
@@ -529,13 +546,14 @@ export class DeliveryService {
     const [vendorUser] = vendor ? await this.db.select().from(users).where(eq(users.id, vendor.userId)).limit(1) : [];
     const [address] = await this.db.select().from(addresses).where(eq(addresses.id, order.deliveryAddressId)).limit(1);
     const [customer] = await this.db.select().from(users).where(eq(users.id, order.customerId)).limit(1);
-    return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, restaurant?.name, itemsList);
+    const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+    return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, riderPayout, restaurant?.name, itemsList);
   }
 
   // Post-Phase-11 MVP-completion pass: `pickupPhone` and `pickupAddress` added —
   // active-delivery screen has "Call vendor" and navigation links with full store details.
   private assembleAssignmentView(
-    order: { id: string; status: string; deliveryFee: number; deliveryPartnerId: string | null; instructions?: string | null; total?: number; paymentStatus?: string },
+    order: { id: string; status: string; deliveryPartnerId: string | null; instructions?: string | null; total?: number; paymentStatus?: string },
     type: OrderType,
     itemCount: number,
     vendor: typeof vendors.$inferSelect | undefined,
@@ -543,18 +561,13 @@ export class DeliveryService {
     address: typeof addresses.$inferSelect | undefined,
     customer: typeof users.$inferSelect | undefined,
     requestingPartnerId: string,
+    riderPayout: number,
     restaurantName?: string,
     itemsList: { id?: string; name: string; qty: number; price: number }[] = [],
   ) {
     if (order.deliveryPartnerId && order.deliveryPartnerId !== requestingPartnerId) {
       throw new ForbiddenException('Not your delivery');
     }
-    const partnerDeliveryFee = order.deliveryFee > 0
-      ? order.deliveryFee
-      : (vendor?.pickupLat && address?.lat
-          ? (haversineKm(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 3 ? 10 : haversineKm(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 5 ? 15 : 20)
-          : 15);
-
     const rawPaymentStatus = (order.paymentStatus ?? 'pending').toLowerCase().trim();
     const isCod = rawPaymentStatus === 'pending_cod' || rawPaymentStatus === 'cod';
     const isPaid = rawPaymentStatus === 'paid' || rawPaymentStatus === 'collected';
@@ -567,7 +580,10 @@ export class DeliveryService {
       status: order.status,
       orderCode: order.id.slice(0, 8).toUpperCase(),
       itemCount,
-      deliveryFee: partnerDeliveryFee,
+      // The rider's pay, not what the customer paid. Kept under the old
+      // `deliveryFee` key too, since installed rider apps read that one.
+      riderPayout,
+      deliveryFee: riderPayout,
       pickupName: restaurantName ?? vendor?.businessName ?? 'Pickup point',
       pickupAddress: vendor?.shopAddress ?? '',
       pickupPhone: vendorUser?.phone ?? '',
@@ -886,7 +902,7 @@ export class DeliveryService {
         );
       }
     }
-    this.notifications.notifyPush(partnerUserId, 'delivered', deliveredPartnerPush(orderCode, order.deliveryFee, orderId));
+    this.notifications.notifyPush(partnerUserId, 'delivered', deliveredPartnerPush(orderCode, settlement?.deliveryPayout ?? 0, orderId));
 
     // This partner is free again. Orders waiting for a partner (everyone was
     // busy or offline when they were ready) get offered now rather than at

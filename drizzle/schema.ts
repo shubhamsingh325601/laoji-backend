@@ -429,6 +429,10 @@ export const groceryOrders = pgTable(
     status: orderStatusEnum('status').notNull().default('placed'),
     subtotal: doublePrecision('subtotal').notNull(),
     deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    // What the delivery partner earns for this order, set once from the admin's
+    // rider_payout_tiers when the order is first offered for delivery. Separate
+    // from delivery_fee, which is what the customer pays.
+    riderPayout: doublePrecision('rider_payout'),
     platformCommission: doublePrecision('platform_commission').notNull().default(0),
     // Phase 8: the *rate* that produced platform_commission above, snapshotted
     // at order-creation time alongside the already-existing computed amount —
@@ -499,6 +503,7 @@ export const foodOrders = pgTable(
     status: orderStatusEnum('status').notNull().default('placed'),
     subtotal: doublePrecision('subtotal').notNull(),
     deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
+    riderPayout: doublePrecision('rider_payout'),
     platformCommission: doublePrecision('platform_commission').notNull().default(0),
     commissionPct: doublePrecision('commission_pct').notNull().default(0),
     couponCode: varchar('coupon_code', { length: 50 }),
@@ -777,6 +782,17 @@ export const categorySuggestions = pgTable('category_suggestions', {
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   reviewedBy: uuid('reviewed_by').references(() => users.id),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Admin-defined rider pay by pickup-to-drop distance. A row covers
+// (from_km, to_km]; the first row starts at 0 and the last has to_km null (no
+// upper limit). The whole list is replaced together so ranges never overlap.
+export const riderPayoutTiers = pgTable('rider_payout_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromKm: doublePrecision('from_km').notNull(),
+  toKm: doublePrecision('to_km'),
+  amount: doublePrecision('amount').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
