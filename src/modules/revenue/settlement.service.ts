@@ -203,40 +203,6 @@ export class SettlementService {
 
   // ---------- Payout / Withdrawal with KYC Verification ----------
 
-  async requestVendorWithdrawal(userId: string) {
-    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
-    if (!vendor) throw new NotFoundException('Vendor profile not set up yet');
-
-    if (vendor.kycStatus !== 'verified') {
-      throw new BadRequestException(
-        'KYC verification required before withdrawal. Please upload your Aadhaar card (front and back) to complete verification.',
-      );
-    }
-
-    if (!vendor.bankAccount && !vendor.upiId) {
-      throw new BadRequestException(
-        'Please add your Bank Account or UPI ID before requesting a withdrawal so we know where to send your funds.',
-      );
-    }
-
-    const settlementsList = await this.listForVendor(vendor.id);
-    const totalEarnings = settlementsList.reduce((sum, s) => sum + s.vendorPayout, 0);
-
-    const destinationLabel = vendor.upiId
-      ? `UPI ID (${vendor.upiId})`
-      : `Bank Account (•••• ${vendor.bankAccount?.slice(-4) || ''}, IFSC: ${vendor.bankIfsc || 'N/A'})`;
-
-    return {
-      success: true,
-      message: `Withdrawal request submitted successfully. Funds will be transferred to your registered ${destinationLabel} within 24 hours.`,
-      availableBalance: totalEarnings,
-      kycStatus: vendor.kycStatus,
-      payoutMethod: vendor.upiId ? 'upi' : 'bank',
-      payoutDestination: vendor.upiId || vendor.bankAccount,
-      bankIfsc: vendor.bankIfsc ?? null,
-    };
-  }
-
   async requestPartnerWithdrawal(userId: string) {
     const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.userId, userId)).limit(1);
     if (!partner) throw new NotFoundException('Delivery partner profile not set up yet');

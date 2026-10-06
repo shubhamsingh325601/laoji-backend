@@ -800,6 +800,45 @@ export const settlements = pgTable(
   ],
 );
 
+// Vendor payout requests. A vendor's available balance is never stored — it is
+// always sum(settlements.vendor_payout) minus approved and pending requests
+// here, so the ledger can't drift from the settlements it's built on.
+// pending -> approved | rejected, decided once by an admin who sends the money
+// by hand. Rejecting needs a reason and frees the amount again.
+// period_start/period_end bound the orders this request covers: from the
+// previous *approved* request's period_end (null = from the beginning) to the
+// moment this one was made. The payout destination is copied in at request time
+// so admin pays where the vendor asked, even if the vendor edits it later.
+// The partial unique index allows one open request per vendor at a time.
+export const vendorWithdrawals = pgTable(
+  'vendor_withdrawals',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    amount: doublePrecision('amount').notNull(),
+    availableBefore: doublePrecision('available_before').notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+    payoutMethod: varchar('payout_method', { length: 20 }).notNull(), // 'upi' | 'bank'
+    upiId: varchar('upi_id', { length: 100 }),
+    bankAccount: varchar('bank_account', { length: 50 }),
+    bankIfsc: varchar('bank_ifsc', { length: 20 }),
+    periodStart: timestamp('period_start', { withTimezone: true }),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    rejectionReason: text('rejection_reason'),
+    payoutReference: varchar('payout_reference', { length: 100 }),
+    processedBy: uuid('processed_by').references(() => users.id),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('vendor_withdrawals_one_pending_idx')
+      .on(table.vendorId)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
 // Post-Phase-11 MVP-completion pass: Ratings (Food). PRD Section 5 scopes
 // this as MVP for Food, not Phase 2. `restaurants.ratingAvg` existed since
 // Phase 3 but had no write path — this table is that write path. Grocery
