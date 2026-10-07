@@ -109,6 +109,18 @@
     "js-yaml": "^4.3.2",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "^3.15.2"
+    },
+    "proxy-addr": "^2.0.8",
+    "@fastify/busboy": "^3.2.1",
+    "@grpc/grpc-js": "^1.14.5",
+    "minimatch@3": {
+      "brace-expansion": "^1.1.20"
+    },
+    "minimatch@9": {
+      "brace-expansion": "^2.1.6"
+    },
+    "minimatch@10": {
+      "brace-expansion": "^5.0.11"
     }
   }
 }
