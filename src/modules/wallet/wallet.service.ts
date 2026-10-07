@@ -1,9 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { users, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
+import { users, vendors, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
 import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
+import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
 
 @Injectable()
 export class WalletService {
@@ -408,5 +410,310 @@ export class WalletService {
       );
 
     return updated;
+  }
+
+  /**
+   * Get wallet summary for a specific user with profile info.
+   */
+  async getUserWalletSummary(userId: string) {
+    const [u] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!u) throw new NotFoundException('User not found');
+
+    const summary = await this.getWalletSummary(userId);
+
+    let vendorInfo: { id: string; businessName: string; ownerName: string; type: string } | null = null;
+    if (u.role === 'vendor') {
+      const [v] = await this.db.select().from(vendors).where(eq(vendors.userId, userId)).limit(1);
+      if (v) {
+        vendorInfo = {
+          id: v.id,
+          businessName: v.businessName,
+          ownerName: v.ownerName,
+          type: v.type,
+        };
+      }
+    }
+
+    return {
+      ...summary,
+      user: {
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+      },
+      vendor: vendorInfo,
+    };
+  }
+
+  /**
+   * Get wallet summary for a vendor by vendorId.
+   */
+  async getVendorWalletSummary(vendorId: string) {
+    const [v] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!v) throw new NotFoundException('Vendor not found');
+
+    const [u] = await this.db.select().from(users).where(eq(users.id, v.userId)).limit(1);
+    const summary = await this.getWalletSummary(v.userId);
+
+    return {
+      ...summary,
+      vendor: {
+        id: v.id,
+        businessName: v.businessName,
+        ownerName: v.ownerName,
+        type: v.type,
+        shopAddress: v.shopAddress,
+        userId: v.userId,
+      },
+      user: u
+        ? {
+            id: u.id,
+            name: u.name,
+            phone: u.phone,
+            email: u.email,
+            role: u.role,
+            status: u.status,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Admin adds or deducts money in a customer or vendor wallet.
+   */
+  async adjustWallet(dto: AdjustWalletDto, adminId?: string) {
+    let targetUserId = dto.userId;
+
+    if (!targetUserId && dto.vendorId) {
+      const [v] = await this.db.select().from(vendors).where(eq(vendors.id, dto.vendorId)).limit(1);
+      if (!v) throw new NotFoundException('Vendor not found');
+      targetUserId = v.userId;
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestException('Either userId or vendorId must be provided');
+    }
+
+    const [user] = await this.db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
+    if (!user) throw new NotFoundException('User not found');
+
+    const amount = Math.round(Number(dto.amount) * 100) / 100;
+    if (isNaN(amount) || amount <= 0) {
+      throw new BadRequestException('Adjustment amount must be a positive number greater than 0');
+    }
+
+    const description = (dto.description || '').trim();
+    if (!description) {
+      throw new BadRequestException('Reason or description is required for wallet adjustment');
+    }
+
+    const wallet = await this.getOrCreateWallet(targetUserId);
+
+    if (dto.action === 'debit') {
+      const currentBalance = Math.round(wallet.balance * 100) / 100;
+      if (currentBalance < amount) {
+        throw new BadRequestException(
+          `Insufficient wallet balance. Current balance is ₹${currentBalance}, cannot deduct ₹${amount}`,
+        );
+      }
+
+      await this.db
+        .update(wallets)
+        .set({
+          balance: sql`${wallets.balance} - ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallets.id, wallet.id));
+
+      const [tx] = await this.db
+        .insert(walletTransactions)
+        .values({
+          walletId: wallet.id,
+          userId: targetUserId,
+          amount: -amount,
+          type: 'adjustment',
+          status: 'completed',
+          description,
+          metadata: {
+            action: 'debit',
+            adminId: adminId ?? null,
+            adjustedAt: new Date().toISOString(),
+          },
+        })
+        .returning();
+
+      const updatedSummary = await this.getWalletSummary(targetUserId);
+
+      return {
+        success: true,
+        message: `Successfully debited ₹${amount} from wallet`,
+        transaction: tx,
+        summary: updatedSummary,
+      };
+    } else {
+      // Credit
+      await this.db
+        .update(wallets)
+        .set({
+          balance: sql`${wallets.balance} + ${amount}`,
+          totalEarned: sql`${wallets.totalEarned} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallets.id, wallet.id));
+
+      const [tx] = await this.db
+        .insert(walletTransactions)
+        .values({
+          walletId: wallet.id,
+          userId: targetUserId,
+          amount,
+          type: 'adjustment',
+          status: 'completed',
+          description,
+          metadata: {
+            action: 'credit',
+            adminId: adminId ?? null,
+            adjustedAt: new Date().toISOString(),
+          },
+        })
+        .returning();
+
+      const updatedSummary = await this.getWalletSummary(targetUserId);
+
+      return {
+        success: true,
+        message: `Successfully credited ₹${amount} to wallet`,
+        transaction: tx,
+        summary: updatedSummary,
+      };
+    }
+  }
+
+  /**
+   * List all wallets with user and vendor info for admin overview.
+   */
+  async listWallets(params: { role?: string; search?: string }) {
+    const role = params.role && params.role !== 'all' ? params.role : undefined;
+
+    const conditions: (SQL<unknown> | undefined)[] = [];
+    if (role) {
+      conditions.push(eq(users.role, role as any));
+    } else {
+      conditions.push(or(eq(users.role, 'customer'), eq(users.role, 'vendor')));
+    }
+
+    const rows = await this.db
+      .select({
+        walletId: wallets.id,
+        userId: users.id,
+        userName: users.name,
+        userPhone: users.phone,
+        userEmail: users.email,
+        userRole: users.role,
+        userStatus: users.status,
+        userCreatedAt: users.createdAt,
+        balance: sql<number>`coalesce(${wallets.balance}, 0)`,
+        totalEarned: sql<number>`coalesce(${wallets.totalEarned}, 0)`,
+        totalWithdrawn: sql<number>`coalesce(${wallets.totalWithdrawn}, 0)`,
+        walletUpdatedAt: wallets.updatedAt,
+        vendorId: vendors.id,
+        businessName: vendors.businessName,
+        vendorType: vendors.type,
+      })
+      .from(users)
+      .leftJoin(wallets, eq(users.id, wallets.userId))
+      .leftJoin(vendors, eq(users.id, vendors.userId))
+      .where(and(...conditions))
+      .orderBy(desc(wallets.balance), desc(users.createdAt));
+
+    let filtered = rows;
+    if (params.search && params.search.trim()) {
+      const q = params.search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          (r.userName && r.userName.toLowerCase().includes(q)) ||
+          (r.userPhone && r.userPhone.includes(q)) ||
+          (r.userEmail && r.userEmail.toLowerCase().includes(q)) ||
+          (r.businessName && r.businessName.toLowerCase().includes(q)),
+      );
+    }
+
+    return filtered.map((r) => ({
+      walletId: r.walletId,
+      userId: r.userId,
+      userName:
+        r.userName ||
+        (r.userRole === 'customer'
+          ? `Customer +91 ${r.userPhone ?? ''}`
+          : `${r.businessName || 'Vendor'}`),
+      userPhone: r.userPhone,
+      userEmail: r.userEmail,
+      userRole: r.userRole,
+      userStatus: r.userStatus,
+      balance: Math.round(Number(r.balance) * 100) / 100,
+      totalEarned: Math.round(Number(r.totalEarned) * 100) / 100,
+      totalWithdrawn: Math.round(Number(r.totalWithdrawn) * 100) / 100,
+      vendorId: r.vendorId ?? null,
+      businessName: r.businessName ?? null,
+      vendorType: r.vendorType ?? null,
+    }));
+  }
+
+  /**
+   * List all wallet transactions for the system audit log.
+   */
+  async listAllTransactions(limit = 100) {
+    const rows = await this.db
+      .select({
+        id: walletTransactions.id,
+        walletId: walletTransactions.walletId,
+        userId: walletTransactions.userId,
+        amount: walletTransactions.amount,
+        type: walletTransactions.type,
+        status: walletTransactions.status,
+        description: walletTransactions.description,
+        orderId: walletTransactions.orderId,
+        orderType: walletTransactions.orderType,
+        couponCode: walletTransactions.couponCode,
+        metadata: walletTransactions.metadata,
+        createdAt: walletTransactions.createdAt,
+        userName: users.name,
+        userPhone: users.phone,
+        userRole: users.role,
+        businessName: vendors.businessName,
+        vendorId: vendors.id,
+      })
+      .from(walletTransactions)
+      .innerJoin(users, eq(walletTransactions.userId, users.id))
+      .leftJoin(vendors, eq(users.id, vendors.userId))
+      .orderBy(desc(walletTransactions.createdAt))
+      .limit(limit);
+
+    return rows.map((r) => ({
+      id: r.id,
+      walletId: r.walletId,
+      userId: r.userId,
+      amount: r.amount,
+      type: r.type,
+      status: r.status,
+      description: r.description,
+      orderId: r.orderId,
+      orderType: r.orderType,
+      couponCode: r.couponCode,
+      metadata: r.metadata,
+      createdAt: r.createdAt,
+      userName:
+        r.userName ||
+        (r.userRole === 'customer'
+          ? `Customer +91 ${r.userPhone ?? ''}`
+          : `${r.businessName || 'Vendor'}`),
+      userPhone: r.userPhone,
+      userRole: r.userRole,
+      businessName: r.businessName,
+      vendorId: r.vendorId,
+    }));
   }
 }

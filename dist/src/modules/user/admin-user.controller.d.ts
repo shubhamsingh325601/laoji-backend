@@ -15,6 +15,7 @@ export declare class AdminUserController {
         createdAt: Date;
         totalOrders: number;
         totalSpend: number;
+        walletBalance: number;
     }[]>;
     getOne(id: string): Promise<{
         id: string;
@@ -35,6 +36,7 @@ export declare class AdminUserController {
         }[];
         orderCount: number;
         totalSpend: number;
+        walletBalance: number;
         recentOrders: ({
             id: string;
             customerId: string;

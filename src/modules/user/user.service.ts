@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { and, count, desc, eq, ilike, inArray, ne, or, sum } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users } from '../../../drizzle/schema';
+import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users, wallets } from '../../../drizzle/schema';
 import { NotificationService } from '../notification/notification.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 
@@ -43,6 +43,11 @@ export class UserService {
       }
     }
 
+    const userWallets = userIds.length
+      ? await this.db.select().from(wallets).where(inArray(wallets.userId, userIds))
+      : [];
+    const walletMap = new Map(userWallets.map((w) => [w.userId, w]));
+
     // Order stats count delivered orders only (not cancelled/failed/in-progress). They only apply to customers; the admin Customers list
     // (GET /admin/users?role=customer) reads totalOrders/totalSpend off
     // this response and had nothing to read them from at all before.
@@ -68,6 +73,7 @@ export class UserService {
       const addr = addrMap.get(u.id);
       const g = groceryStatsById.get(u.id);
       const f = foodStatsById.get(u.id);
+      const w = walletMap.get(u.id);
       return {
         id: u.id,
         phone: u.phone,
@@ -80,6 +86,7 @@ export class UserService {
         createdAt: u.createdAt,
         totalOrders: Number(g?.count ?? 0) + Number(f?.count ?? 0),
         totalSpend: (Number(g?.total) || 0) + (Number(f?.total) || 0),
+        walletBalance: Math.round(Number(w?.balance ?? 0) * 100) / 100,
       };
     });
   }
@@ -91,6 +98,7 @@ export class UserService {
     const userAddresses = await this.db.select().from(addresses).where(eq(addresses.userId, id));
     const groceryList = await this.db.select().from(groceryOrders).where(eq(groceryOrders.customerId, id)).limit(10);
     const foodList = await this.db.select().from(foodOrders).where(eq(foodOrders.customerId, id)).limit(10);
+    const [walletRow] = await this.db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
 
     // orderCount/totalSpend must cover every order, not just the 10 fetched
     // above for recentOrders — otherwise both undercount past a customer's
@@ -117,6 +125,7 @@ export class UserService {
       addresses: userAddresses,
       orderCount: Number(groceryAgg?.count ?? 0) + Number(foodAgg?.count ?? 0),
       totalSpend: (Number(groceryAgg?.total) || 0) + (Number(foodAgg?.total) || 0),
+      walletBalance: walletRow ? Math.round(Number(walletRow.balance) * 100) / 100 : 0,
       recentOrders: [...groceryList, ...foodList].slice(0, 10),
       createdAt: u.createdAt,
     };

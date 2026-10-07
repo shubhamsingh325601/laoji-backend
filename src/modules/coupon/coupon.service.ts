@@ -108,9 +108,10 @@ export class CouponService implements OnModuleInit {
       ? and(
           eq(coupons.isActive, true),
           eq(coupons.showInApp, true),
+          eq(coupons.discountType, 'free_delivery'),
           or(isNull(coupons.vendorId), eq(coupons.vendorId, vendorId)),
         )
-      : and(eq(coupons.isActive, true), eq(coupons.showInApp, true));
+      : and(eq(coupons.isActive, true), eq(coupons.showInApp, true), eq(coupons.discountType, 'free_delivery'));
 
     const rows = await this.db
       .select()
@@ -126,7 +127,10 @@ export class CouponService implements OnModuleInit {
       return true;
     });
 
-    return active.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+    // Limit to 3 coupons
+    const limited = active.slice(0, 3);
+
+    return limited.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
   }
 
   async create(dto: CreateCouponDto) {

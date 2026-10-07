@@ -48,6 +48,10 @@ let UserService = class UserService {
                 addrMap.set(a.userId, a);
             }
         }
+        const userWallets = userIds.length
+            ? await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.inArray)(schema_1.wallets.userId, userIds))
+            : [];
+        const walletMap = new Map(userWallets.map((w) => [w.userId, w]));
         const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
         const groceryStats = customerIds.length
             ? await this.db
@@ -69,6 +73,7 @@ let UserService = class UserService {
             const addr = addrMap.get(u.id);
             const g = groceryStatsById.get(u.id);
             const f = foodStatsById.get(u.id);
+            const w = walletMap.get(u.id);
             return {
                 id: u.id,
                 phone: u.phone,
@@ -81,6 +86,7 @@ let UserService = class UserService {
                 createdAt: u.createdAt,
                 totalOrders: Number(g?.count ?? 0) + Number(f?.count ?? 0),
                 totalSpend: (Number(g?.total) || 0) + (Number(f?.total) || 0),
+                walletBalance: Math.round(Number(w?.balance ?? 0) * 100) / 100,
             };
         });
     }
@@ -91,6 +97,7 @@ let UserService = class UserService {
         const userAddresses = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.userId, id));
         const groceryList = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id)).limit(10);
         const foodList = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id)).limit(10);
+        const [walletRow] = await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.eq)(schema_1.wallets.userId, id)).limit(1);
         const [[groceryAgg], [foodAgg]] = await Promise.all([
             this.db
                 .select({ count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
@@ -112,6 +119,7 @@ let UserService = class UserService {
             addresses: userAddresses,
             orderCount: Number(groceryAgg?.count ?? 0) + Number(foodAgg?.count ?? 0),
             totalSpend: (Number(groceryAgg?.total) || 0) + (Number(foodAgg?.total) || 0),
+            walletBalance: walletRow ? Math.round(Number(walletRow.balance) * 100) / 100 : 0,
             recentOrders: [...groceryList, ...foodList].slice(0, 10),
             createdAt: u.createdAt,
         };

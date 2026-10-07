@@ -44,15 +44,15 @@ export declare class WalletController {
             status: string;
             createdAt: Date;
             userId: string;
-            bankAccount: string | null;
-            bankIfsc: string | null;
-            upiId: string | null;
+            walletId: string;
             amount: number;
             payoutMethod: string;
-            processedAt: Date | null;
-            walletId: string;
+            upiId: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
             accountHolderName: string | null;
             adminNotes: string | null;
+            processedAt: Date | null;
         };
     }>;
 }

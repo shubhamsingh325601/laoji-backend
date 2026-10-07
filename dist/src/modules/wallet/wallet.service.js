@@ -296,6 +296,265 @@ let WalletService = class WalletService {
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.userId, request.userId), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.type, 'withdrawal'), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.status, 'pending'), (0, drizzle_orm_1.sql) `${schema_1.walletTransactions.metadata}->>'withdrawalRequestId' = ${requestId}`));
         return updated;
     }
+    async getUserWalletSummary(userId) {
+        const [u] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        if (!u)
+            throw new common_1.NotFoundException('User not found');
+        const summary = await this.getWalletSummary(userId);
+        let vendorInfo = null;
+        if (u.role === 'vendor') {
+            const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
+            if (v) {
+                vendorInfo = {
+                    id: v.id,
+                    businessName: v.businessName,
+                    ownerName: v.ownerName,
+                    type: v.type,
+                };
+            }
+        }
+        return {
+            ...summary,
+            user: {
+                id: u.id,
+                name: u.name,
+                phone: u.phone,
+                email: u.email,
+                role: u.role,
+                status: u.status,
+            },
+            vendor: vendorInfo,
+        };
+    }
+    async getVendorWalletSummary(vendorId) {
+        const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
+        if (!v)
+            throw new common_1.NotFoundException('Vendor not found');
+        const [u] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, v.userId)).limit(1);
+        const summary = await this.getWalletSummary(v.userId);
+        return {
+            ...summary,
+            vendor: {
+                id: v.id,
+                businessName: v.businessName,
+                ownerName: v.ownerName,
+                type: v.type,
+                shopAddress: v.shopAddress,
+                userId: v.userId,
+            },
+            user: u
+                ? {
+                    id: u.id,
+                    name: u.name,
+                    phone: u.phone,
+                    email: u.email,
+                    role: u.role,
+                    status: u.status,
+                }
+                : null,
+        };
+    }
+    async adjustWallet(dto, adminId) {
+        let targetUserId = dto.userId;
+        if (!targetUserId && dto.vendorId) {
+            const [v] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, dto.vendorId)).limit(1);
+            if (!v)
+                throw new common_1.NotFoundException('Vendor not found');
+            targetUserId = v.userId;
+        }
+        if (!targetUserId) {
+            throw new common_1.BadRequestException('Either userId or vendorId must be provided');
+        }
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, targetUserId)).limit(1);
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        const amount = Math.round(Number(dto.amount) * 100) / 100;
+        if (isNaN(amount) || amount <= 0) {
+            throw new common_1.BadRequestException('Adjustment amount must be a positive number greater than 0');
+        }
+        const description = (dto.description || '').trim();
+        if (!description) {
+            throw new common_1.BadRequestException('Reason or description is required for wallet adjustment');
+        }
+        const wallet = await this.getOrCreateWallet(targetUserId);
+        if (dto.action === 'debit') {
+            const currentBalance = Math.round(wallet.balance * 100) / 100;
+            if (currentBalance < amount) {
+                throw new common_1.BadRequestException(`Insufficient wallet balance. Current balance is ₹${currentBalance}, cannot deduct ₹${amount}`);
+            }
+            await this.db
+                .update(schema_1.wallets)
+                .set({
+                balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} - ${amount}`,
+                updatedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+            const [tx] = await this.db
+                .insert(schema_1.walletTransactions)
+                .values({
+                walletId: wallet.id,
+                userId: targetUserId,
+                amount: -amount,
+                type: 'adjustment',
+                status: 'completed',
+                description,
+                metadata: {
+                    action: 'debit',
+                    adminId: adminId ?? null,
+                    adjustedAt: new Date().toISOString(),
+                },
+            })
+                .returning();
+            const updatedSummary = await this.getWalletSummary(targetUserId);
+            return {
+                success: true,
+                message: `Successfully debited ₹${amount} from wallet`,
+                transaction: tx,
+                summary: updatedSummary,
+            };
+        }
+        else {
+            await this.db
+                .update(schema_1.wallets)
+                .set({
+                balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${amount}`,
+                totalEarned: (0, drizzle_orm_1.sql) `${schema_1.wallets.totalEarned} + ${amount}`,
+                updatedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+            const [tx] = await this.db
+                .insert(schema_1.walletTransactions)
+                .values({
+                walletId: wallet.id,
+                userId: targetUserId,
+                amount,
+                type: 'adjustment',
+                status: 'completed',
+                description,
+                metadata: {
+                    action: 'credit',
+                    adminId: adminId ?? null,
+                    adjustedAt: new Date().toISOString(),
+                },
+            })
+                .returning();
+            const updatedSummary = await this.getWalletSummary(targetUserId);
+            return {
+                success: true,
+                message: `Successfully credited ₹${amount} to wallet`,
+                transaction: tx,
+                summary: updatedSummary,
+            };
+        }
+    }
+    async listWallets(params) {
+        const role = params.role && params.role !== 'all' ? params.role : undefined;
+        const conditions = [];
+        if (role) {
+            conditions.push((0, drizzle_orm_1.eq)(schema_1.users.role, role));
+        }
+        else {
+            conditions.push((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.role, 'customer'), (0, drizzle_orm_1.eq)(schema_1.users.role, 'vendor')));
+        }
+        const rows = await this.db
+            .select({
+            walletId: schema_1.wallets.id,
+            userId: schema_1.users.id,
+            userName: schema_1.users.name,
+            userPhone: schema_1.users.phone,
+            userEmail: schema_1.users.email,
+            userRole: schema_1.users.role,
+            userStatus: schema_1.users.status,
+            userCreatedAt: schema_1.users.createdAt,
+            balance: (0, drizzle_orm_1.sql) `coalesce(${schema_1.wallets.balance}, 0)`,
+            totalEarned: (0, drizzle_orm_1.sql) `coalesce(${schema_1.wallets.totalEarned}, 0)`,
+            totalWithdrawn: (0, drizzle_orm_1.sql) `coalesce(${schema_1.wallets.totalWithdrawn}, 0)`,
+            walletUpdatedAt: schema_1.wallets.updatedAt,
+            vendorId: schema_1.vendors.id,
+            businessName: schema_1.vendors.businessName,
+            vendorType: schema_1.vendors.type,
+        })
+            .from(schema_1.users)
+            .leftJoin(schema_1.wallets, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.wallets.userId))
+            .leftJoin(schema_1.vendors, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.vendors.userId))
+            .where((0, drizzle_orm_1.and)(...conditions))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.wallets.balance), (0, drizzle_orm_1.desc)(schema_1.users.createdAt));
+        let filtered = rows;
+        if (params.search && params.search.trim()) {
+            const q = params.search.trim().toLowerCase();
+            filtered = filtered.filter((r) => (r.userName && r.userName.toLowerCase().includes(q)) ||
+                (r.userPhone && r.userPhone.includes(q)) ||
+                (r.userEmail && r.userEmail.toLowerCase().includes(q)) ||
+                (r.businessName && r.businessName.toLowerCase().includes(q)));
+        }
+        return filtered.map((r) => ({
+            walletId: r.walletId,
+            userId: r.userId,
+            userName: r.userName ||
+                (r.userRole === 'customer'
+                    ? `Customer +91 ${r.userPhone ?? ''}`
+                    : `${r.businessName || 'Vendor'}`),
+            userPhone: r.userPhone,
+            userEmail: r.userEmail,
+            userRole: r.userRole,
+            userStatus: r.userStatus,
+            balance: Math.round(Number(r.balance) * 100) / 100,
+            totalEarned: Math.round(Number(r.totalEarned) * 100) / 100,
+            totalWithdrawn: Math.round(Number(r.totalWithdrawn) * 100) / 100,
+            vendorId: r.vendorId ?? null,
+            businessName: r.businessName ?? null,
+            vendorType: r.vendorType ?? null,
+        }));
+    }
+    async listAllTransactions(limit = 100) {
+        const rows = await this.db
+            .select({
+            id: schema_1.walletTransactions.id,
+            walletId: schema_1.walletTransactions.walletId,
+            userId: schema_1.walletTransactions.userId,
+            amount: schema_1.walletTransactions.amount,
+            type: schema_1.walletTransactions.type,
+            status: schema_1.walletTransactions.status,
+            description: schema_1.walletTransactions.description,
+            orderId: schema_1.walletTransactions.orderId,
+            orderType: schema_1.walletTransactions.orderType,
+            couponCode: schema_1.walletTransactions.couponCode,
+            metadata: schema_1.walletTransactions.metadata,
+            createdAt: schema_1.walletTransactions.createdAt,
+            userName: schema_1.users.name,
+            userPhone: schema_1.users.phone,
+            userRole: schema_1.users.role,
+            businessName: schema_1.vendors.businessName,
+            vendorId: schema_1.vendors.id,
+        })
+            .from(schema_1.walletTransactions)
+            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.walletTransactions.userId, schema_1.users.id))
+            .leftJoin(schema_1.vendors, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.vendors.userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.walletTransactions.createdAt))
+            .limit(limit);
+        return rows.map((r) => ({
+            id: r.id,
+            walletId: r.walletId,
+            userId: r.userId,
+            amount: r.amount,
+            type: r.type,
+            status: r.status,
+            description: r.description,
+            orderId: r.orderId,
+            orderType: r.orderType,
+            couponCode: r.couponCode,
+            metadata: r.metadata,
+            createdAt: r.createdAt,
+            userName: r.userName ||
+                (r.userRole === 'customer'
+                    ? `Customer +91 ${r.userPhone ?? ''}`
+                    : `${r.businessName || 'Vendor'}`),
+            userPhone: r.userPhone,
+            userRole: r.userRole,
+            businessName: r.businessName,
+            vendorId: r.vendorId,
+        }));
+    }
 };
 exports.WalletService = WalletService;
 exports.WalletService = WalletService = __decorate([

@@ -99,8 +99,8 @@ let CouponService = class CouponService {
     }
     async listActive(vendorId) {
         const condition = vendorId
-            ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
-            : (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true));
+            ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true), (0, drizzle_orm_1.eq)(schema_1.coupons.discountType, 'free_delivery'), (0, drizzle_orm_1.or)((0, drizzle_orm_1.isNull)(schema_1.coupons.vendorId), (0, drizzle_orm_1.eq)(schema_1.coupons.vendorId, vendorId)))
+            : (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.coupons.isActive, true), (0, drizzle_orm_1.eq)(schema_1.coupons.showInApp, true), (0, drizzle_orm_1.eq)(schema_1.coupons.discountType, 'free_delivery'));
         const rows = await this.db
             .select()
             .from(schema_1.coupons)
@@ -114,7 +114,8 @@ let CouponService = class CouponService {
                 return false;
             return true;
         });
-        return active.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
+        const limited = active.slice(0, 3);
+        return limited.map((c) => ({ id: c.id, ...toPublicCoupon(c) }));
     }
     async create(dto) {
         const cleanCode = dto.code.trim().toUpperCase();

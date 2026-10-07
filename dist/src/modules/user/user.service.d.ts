@@ -17,6 +17,7 @@ export declare class UserService {
         createdAt: Date;
         totalOrders: number;
         totalSpend: number;
+        walletBalance: number;
     }[]>;
     getUser(id: string): Promise<{
         id: string;
@@ -37,6 +38,7 @@ export declare class UserService {
         }[];
         orderCount: number;
         totalSpend: number;
+        walletBalance: number;
         recentOrders: ({
             id: string;
             customerId: string;
