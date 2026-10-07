@@ -6,10 +6,15 @@ import { DRIZZLE } from '../../config/database.module';
 import { users, vendors, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
 import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
+import { NotificationService } from '../notification/notification.service';
+import { walletAdjustedPush } from '../notification/templates/push/wallet-adjustment';
 
 @Injectable()
 export class WalletService {
-  constructor(@Inject(DRIZZLE) private readonly db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Db,
+    private readonly notifications: NotificationService,
+  ) {}
 
   /**
    * Get or create a user's wallet.
@@ -547,6 +552,23 @@ export class WalletService {
 
       const updatedSummary = await this.getWalletSummary(targetUserId);
 
+      // Dispatch push notification to user device
+      try {
+        this.notifications.notifyPush(
+          targetUserId,
+          'wallet_adjustment',
+          walletAdjustedPush({
+            action: 'debit',
+            amount,
+            newBalance: updatedSummary.wallet.balance,
+            reason: description,
+            role: user.role,
+          }),
+        );
+      } catch {
+        // Non-blocking
+      }
+
       return {
         success: true,
         message: `Successfully debited ₹${amount} from wallet`,
@@ -582,6 +604,23 @@ export class WalletService {
         .returning();
 
       const updatedSummary = await this.getWalletSummary(targetUserId);
+
+      // Dispatch push notification to user device
+      try {
+        this.notifications.notifyPush(
+          targetUserId,
+          'wallet_adjustment',
+          walletAdjustedPush({
+            action: 'credit',
+            amount,
+            newBalance: updatedSummary.wallet.balance,
+            reason: description,
+            role: user.role,
+          }),
+        );
+      } catch {
+        // Non-blocking
+      }
 
       return {
         success: true,

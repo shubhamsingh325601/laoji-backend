@@ -11,7 +11,11 @@ describe('WalletService Admin Operations', () => {
       insert: jest.fn(),
       update: jest.fn(),
     };
-    service = new WalletService(mockDb);
+    const mockNotifications = {
+      notifyPush: jest.fn(),
+      notifyEmail: jest.fn(),
+    };
+    service = new WalletService(mockDb, mockNotifications as any);
   });
 
   describe('adjustWallet validation', () => {

@@ -1,9 +1,11 @@
 import type { Db } from '../../config/database.module';
 import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
+import { NotificationService } from '../notification/notification.service';
 export declare class WalletService {
     private readonly db;
-    constructor(db: Db);
+    private readonly notifications;
+    constructor(db: Db, notifications: NotificationService);
     getOrCreateWallet(userId: string): Promise<{
         id: string;
         createdAt: Date;
@@ -52,6 +54,7 @@ export declare class WalletService {
         orderType: 'grocery' | 'food';
         couponCode: string;
     }): Promise<{
+        amount: number;
         id: string;
         status: string;
         createdAt: Date;
@@ -59,7 +62,6 @@ export declare class WalletService {
         description: string;
         type: string;
         walletId: string;
-        amount: number;
         orderId: string | null;
         orderType: string | null;
         couponCode: string | null;
@@ -72,12 +74,12 @@ export declare class WalletService {
         success: boolean;
         message: string;
         request: {
+            amount: number;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
             walletId: string;
-            amount: number;
             payoutMethod: string;
             upiId: string | null;
             bankAccount: string | null;
@@ -104,7 +106,7 @@ export declare class WalletService {
         userName: string | null;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin" | null;
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin" | null;
     }[]>;
     approveWithdrawal(requestId: string, adminNotes?: string): Promise<{
         id: string;
@@ -142,7 +144,7 @@ export declare class WalletService {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            role: "vendor" | "customer" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         };
         vendor: {
@@ -196,7 +198,7 @@ export declare class WalletService {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            role: "vendor" | "customer" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         } | null;
         wallet: {
@@ -234,6 +236,7 @@ export declare class WalletService {
         success: boolean;
         message: string;
         transaction: {
+            amount: number;
             id: string;
             status: string;
             createdAt: Date;
@@ -241,7 +244,6 @@ export declare class WalletService {
             description: string;
             type: string;
             walletId: string;
-            amount: number;
             orderId: string | null;
             orderType: string | null;
             couponCode: string | null;
@@ -289,7 +291,7 @@ export declare class WalletService {
         userName: string;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
         userStatus: "active" | "suspended";
         balance: number;
         totalEarned: number;
@@ -313,7 +315,7 @@ export declare class WalletService {
         createdAt: Date;
         userName: string;
         userPhone: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
         businessName: string | null;
         vendorId: string | null;
     }[]>;

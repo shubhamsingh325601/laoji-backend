@@ -326,7 +326,7 @@ export declare class DeliveryService {
         kycDocuments: {
             id: string;
             userId: string;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            role: "vendor" | "customer" | "delivery_partner" | "admin";
             docType: string;
             secureUrl: string;
             publicId: string;

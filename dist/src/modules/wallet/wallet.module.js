@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const wallet_service_1 = require("./wallet.service");
 const wallet_controller_1 = require("./wallet.controller");
 const admin_wallet_controller_1 = require("./admin-wallet.controller");
+const notification_module_1 = require("../notification/notification.module");
 let WalletModule = class WalletModule {
 };
 exports.WalletModule = WalletModule;
 exports.WalletModule = WalletModule = __decorate([
     (0, common_1.Module)({
+        imports: [notification_module_1.NotificationModule],
         controllers: [wallet_controller_1.WalletController, admin_wallet_controller_1.AdminWalletController],
         providers: [wallet_service_1.WalletService],
         exports: [wallet_service_1.WalletService],

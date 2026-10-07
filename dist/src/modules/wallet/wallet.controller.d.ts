@@ -40,12 +40,12 @@ export declare class WalletController {
         success: boolean;
         message: string;
         request: {
+            amount: number;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
             walletId: string;
-            amount: number;
             payoutMethod: string;
             upiId: string | null;
             bankAccount: string | null;

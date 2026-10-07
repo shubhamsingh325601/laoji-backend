@@ -111,7 +111,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -167,7 +167,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -335,7 +335,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -390,7 +390,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -685,7 +685,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -741,7 +741,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -792,7 +792,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -952,7 +952,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1013,7 +1013,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1074,7 +1074,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1135,7 +1135,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1245,7 +1245,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1296,7 +1296,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1356,7 +1356,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1407,7 +1407,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1467,7 +1467,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1518,7 +1518,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1578,7 +1578,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1629,7 +1629,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1689,7 +1689,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1740,7 +1740,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1800,7 +1800,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1851,7 +1851,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1911,7 +1911,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -1962,7 +1962,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -2022,7 +2022,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -2082,7 +2082,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];
@@ -2133,7 +2133,7 @@ export declare class OrderService {
             status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
             groceryOrderId: string | null;
             foodOrderId: string | null;
-            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            actorRole: "vendor" | "customer" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
         }[];

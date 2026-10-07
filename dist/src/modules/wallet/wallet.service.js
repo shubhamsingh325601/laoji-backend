@@ -17,10 +17,14 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const notification_service_1 = require("../notification/notification.service");
+const wallet_adjustment_1 = require("../notification/templates/push/wallet-adjustment");
 let WalletService = class WalletService {
     db;
-    constructor(db) {
+    notifications;
+    constructor(db, notifications) {
         this.db = db;
+        this.notifications = notifications;
     }
     async getOrCreateWallet(userId) {
         const [existing] = await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.eq)(schema_1.wallets.userId, userId)).limit(1);
@@ -406,6 +410,17 @@ let WalletService = class WalletService {
             })
                 .returning();
             const updatedSummary = await this.getWalletSummary(targetUserId);
+            try {
+                this.notifications.notifyPush(targetUserId, 'wallet_adjustment', (0, wallet_adjustment_1.walletAdjustedPush)({
+                    action: 'debit',
+                    amount,
+                    newBalance: updatedSummary.wallet.balance,
+                    reason: description,
+                    role: user.role,
+                }));
+            }
+            catch {
+            }
             return {
                 success: true,
                 message: `Successfully debited ₹${amount} from wallet`,
@@ -439,6 +454,17 @@ let WalletService = class WalletService {
             })
                 .returning();
             const updatedSummary = await this.getWalletSummary(targetUserId);
+            try {
+                this.notifications.notifyPush(targetUserId, 'wallet_adjustment', (0, wallet_adjustment_1.walletAdjustedPush)({
+                    action: 'credit',
+                    amount,
+                    newBalance: updatedSummary.wallet.balance,
+                    reason: description,
+                    role: user.role,
+                }));
+            }
+            catch {
+            }
             return {
                 success: true,
                 message: `Successfully credited ₹${amount} to wallet`,
@@ -560,6 +586,6 @@ exports.WalletService = WalletService;
 exports.WalletService = WalletService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [Object, notification_service_1.NotificationService])
 ], WalletService);
 //# sourceMappingURL=wallet.service.js.map

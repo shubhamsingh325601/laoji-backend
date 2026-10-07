@@ -11,7 +11,7 @@ export declare class AdminWalletController {
         userName: string;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
         userStatus: "active" | "suspended";
         balance: number;
         totalEarned: number;
@@ -35,7 +35,7 @@ export declare class AdminWalletController {
         createdAt: Date;
         userName: string;
         userPhone: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
         businessName: string | null;
         vendorId: string | null;
     }[]>;
@@ -45,7 +45,7 @@ export declare class AdminWalletController {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            role: "vendor" | "customer" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         };
         vendor: {
@@ -99,7 +99,7 @@ export declare class AdminWalletController {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
+            role: "vendor" | "customer" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         } | null;
         wallet: {
@@ -137,6 +137,7 @@ export declare class AdminWalletController {
         success: boolean;
         message: string;
         transaction: {
+            amount: number;
             id: string;
             status: string;
             createdAt: Date;
@@ -144,7 +145,6 @@ export declare class AdminWalletController {
             description: string;
             type: string;
             walletId: string;
-            amount: number;
             orderId: string | null;
             orderType: string | null;
             couponCode: string | null;
@@ -200,7 +200,7 @@ export declare class AdminWalletController {
         userName: string | null;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "customer" | "vendor" | "delivery_partner" | "admin" | null;
+        userRole: "vendor" | "customer" | "delivery_partner" | "admin" | null;
     }[]>;
     approveRequest(id: string, dto: ProcessWithdrawalDto): Promise<{
         id: string;
