@@ -563,12 +563,12 @@ export declare class AdminCatalogController {
         id: string;
         brand: string | null;
         name: string;
-        description: string | null;
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
         ownerVendorId: string | null;
         categoryId: string;
+        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -899,12 +899,12 @@ export declare class AdminCatalogController {
             id: string;
             brand: string | null;
             name: string;
-            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
             ownerVendorId: string | null;
             categoryId: string;
+            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

@@ -48,9 +48,9 @@ export declare class WalletController {
             bankIfsc: string | null;
             upiId: string | null;
             amount: number;
-            walletId: string;
             payoutMethod: string;
             processedAt: Date | null;
+            walletId: string;
             accountHolderName: string | null;
             adminNotes: string | null;
         };

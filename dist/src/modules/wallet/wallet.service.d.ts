@@ -52,14 +52,14 @@ export declare class WalletService {
         couponCode: string;
     }): Promise<{
         id: string;
-        description: string;
         status: string;
         createdAt: Date;
         userId: string;
         type: string;
+        description: string;
         couponCode: string | null;
-        orderId: string | null;
         amount: number;
+        orderId: string | null;
         walletId: string;
         orderType: string | null;
         metadata: unknown;
@@ -79,9 +79,9 @@ export declare class WalletService {
             bankIfsc: string | null;
             upiId: string | null;
             amount: number;
-            walletId: string;
             payoutMethod: string;
             processedAt: Date | null;
+            walletId: string;
             accountHolderName: string | null;
             adminNotes: string | null;
         };

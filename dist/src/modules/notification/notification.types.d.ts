@@ -12,6 +12,7 @@ export interface PushSendResult {
     ok: boolean;
     stubbed: boolean;
     error?: string;
+    invalidToken?: boolean;
 }
 export interface EmailSendResult {
     ok: boolean;

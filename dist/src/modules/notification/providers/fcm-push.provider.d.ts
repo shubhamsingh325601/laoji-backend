@@ -7,4 +7,5 @@ export declare class FcmPushProvider {
     private readonly configured;
     constructor(config: ConfigService);
     send(token: string, message: PushMessage): Promise<PushSendResult>;
+    private sendWithRetry;
 }

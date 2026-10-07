@@ -47,18 +47,19 @@ export declare class AdminCouponController {
     }[]>;
     create(dto: CreateCouponDto): Promise<{
         id: string;
+        createdAt: Date;
+        expiresAt: Date | null;
+        showInApp: boolean;
+        description: string | null;
+        vendorId: string | null;
+        minOrderValue: number;
+        isActive: boolean;
         code: string;
         discountType: string;
         discountValue: number;
-        minOrderValue: number;
         maxDiscount: number | null;
-        description: string | null;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
-        isActive: boolean;
-        createdAt: Date;
-        showInApp: boolean;
-        vendorId: string | null;
         beneficiaryUserId: string | null;
         affiliateCommissionType: string | null;
         affiliateCommissionValue: number | null;
@@ -66,7 +67,6 @@ export declare class AdminCouponController {
         maxTotalUses: number | null;
         totalRedemptions: number;
         startsAt: Date | null;
-        expiresAt: Date | null;
     }>;
     update(id: string, dto: UpdateCouponDto): Promise<{
         id: string;

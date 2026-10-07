@@ -18,12 +18,15 @@ const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const wallet_service_1 = require("../wallet/wallet.service");
+const rider_payout_service_1 = require("./rider-payout.service");
 let SettlementService = class SettlementService {
     db;
     wallet;
-    constructor(db, wallet) {
+    riderPayouts;
+    constructor(db, wallet, riderPayouts) {
         this.db = db;
         this.wallet = wallet;
+        this.riderPayouts = riderPayouts;
     }
     async vendorIdForUser(userId) {
         const [row] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
@@ -42,12 +45,13 @@ let SettlementService = class SettlementService {
         const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
         if (!order)
             return null;
+        const riderPayout = await this.riderPayouts.forOrder(type, orderId);
         const [settlement] = await this.db
             .insert(schema_1.settlements)
             .values({
             ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
             vendorPayout: order.subtotal - order.platformCommission,
-            deliveryPayout: order.deliveryFee > 0 ? order.deliveryFee : 15,
+            deliveryPayout: riderPayout,
             platformShare: order.platformCommission,
             commissionPctSnapshot: order.commissionPct,
         })
@@ -189,6 +193,7 @@ exports.SettlementService = SettlementService;
 exports.SettlementService = SettlementService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __metadata("design:paramtypes", [Object, wallet_service_1.WalletService])
+    __metadata("design:paramtypes", [Object, wallet_service_1.WalletService,
+        rider_payout_service_1.RiderPayoutService])
 ], SettlementService);
 //# sourceMappingURL=settlement.service.js.map

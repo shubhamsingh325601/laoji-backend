@@ -107,6 +107,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -127,6 +128,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -148,6 +150,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -207,6 +210,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -267,6 +271,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -287,6 +292,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -308,6 +314,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -378,6 +385,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -437,6 +445,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
@@ -496,6 +505,7 @@ export declare class CustomerOrderController {
         status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
         subtotal: number;
         deliveryFee: number;
+        riderPayout: number | null;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;

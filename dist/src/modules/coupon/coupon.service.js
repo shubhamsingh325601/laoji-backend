@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const catalog_types_1 = require("../catalog/catalog.types");
 const COUNTED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected'];
 function toPublicCoupon(c) {
     return {
@@ -303,6 +304,13 @@ let CouponService = class CouponService {
             discount = Math.min(coupon.discountValue, ctx.subtotal);
         }
         else if (coupon.discountType === 'free_delivery') {
+            if (ctx.noFreeDeliveryVoucher) {
+                return {
+                    valid: false,
+                    message: `Free delivery vouchers apply only within ${catalog_types_1.CORE_DELIVERY_RADIUS_KM} km of Sangod centre`,
+                    discount: 0,
+                };
+            }
             if (ctx.deliveryFee <= 0) {
                 return { valid: false, message: 'Delivery is already free on this order', discount: 0 };
             }

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.vendorWithdrawals = exports.settlements = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = void 0;
+exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.vendorWithdrawals = exports.settlements = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -267,6 +267,7 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
+    riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
@@ -317,6 +318,7 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     status: (0, exports.orderStatusEnum)('status').notNull().default('placed'),
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
+    riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
@@ -484,6 +486,13 @@ exports.categorySuggestions = (0, pg_core_1.pgTable)('category_suggestions', {
     categoryId: (0, pg_core_1.uuid)('category_id').references(() => exports.categories.id, { onDelete: 'set null' }),
     reviewedBy: (0, pg_core_1.uuid)('reviewed_by').references(() => exports.users.id),
     reviewedAt: (0, pg_core_1.timestamp)('reviewed_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.riderPayoutTiers = (0, pg_core_1.pgTable)('rider_payout_tiers', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    fromKm: (0, pg_core_1.doublePrecision)('from_km').notNull(),
+    toKm: (0, pg_core_1.doublePrecision)('to_km'),
+    amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.settlements = (0, pg_core_1.pgTable)('settlements', {

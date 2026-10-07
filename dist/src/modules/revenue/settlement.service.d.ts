@@ -1,10 +1,12 @@
 import type { Db } from '../../config/database.module';
 import { WalletService } from '../wallet/wallet.service';
+import { RiderPayoutService } from './rider-payout.service';
 type OrderType = 'grocery' | 'food';
 export declare class SettlementService {
     private readonly db;
     private readonly wallet;
-    constructor(db: Db, wallet: WalletService);
+    private readonly riderPayouts;
+    constructor(db: Db, wallet: WalletService, riderPayouts: RiderPayoutService);
     vendorIdForUser(userId: string): Promise<string>;
     partnerIdForUser(userId: string): Promise<string>;
     generateForDeliveredOrder(type: OrderType, orderId: string): Promise<{

@@ -20,6 +20,7 @@ const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const order_service_1 = require("./order.service");
 const change_order_vendor_dto_1 = require("./dto/change-order-vendor.dto");
+const admin_order_actions_dto_1 = require("./dto/admin-order-actions.dto");
 const admin_create_order_dto_1 = require("./dto/admin-create-order.dto");
 let AdminOrderController = class AdminOrderController {
     orders;
@@ -48,6 +49,12 @@ let AdminOrderController = class AdminOrderController {
     }
     cancel(user, type, id) {
         return this.orders.cancelOrder(user.sub, type, id);
+    }
+    setStatus(user, type, id, dto) {
+        return this.orders.setOrderStatusByAdmin(user.sub, type, id, dto.status);
+    }
+    assignPartner(user, type, id, dto) {
+        return this.orders.assignPartnerByAdmin(user.sub, type, id, dto.partnerId);
     }
     restore(user, type, id) {
         return this.orders.restoreOrder(user.sub, type, id);
@@ -113,6 +120,26 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/status'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, admin_order_actions_dto_1.AdminSetStatusDto]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "setStatus", null);
+__decorate([
+    (0, common_1.Post)(':type/:id/assign-partner'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('type')),
+    __param(2, (0, common_1.Param)('id')),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, admin_order_actions_dto_1.AdminAssignPartnerDto]),
+    __metadata("design:returntype", void 0)
+], AdminOrderController.prototype, "assignPartner", null);
 __decorate([
     (0, common_1.Post)(':type/:id/restore'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

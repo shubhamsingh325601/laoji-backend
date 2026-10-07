@@ -21,11 +21,11 @@ export declare class PublicCatalogController {
         id: string;
         brand: string | null;
         name: string;
-        description: string | null;
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
         ownerVendorId: string | null;
+        description: string | null;
         unit: string;
         size: string | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -174,11 +174,11 @@ export declare class PublicCatalogController {
             id: string;
             brand: string | null;
             name: string;
-            description: string | null;
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             attributes: Record<string, string | number | boolean> | null;

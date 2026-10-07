@@ -1,23 +1,28 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { RevenueConfigService } from './revenue-config.service';
 import { SettlementService } from './settlement.service';
+import { RiderPayoutService } from './rider-payout.service';
 import { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
+declare class SetRiderPayoutTiersDto {
+    tiers: unknown[];
+}
 export declare class AdminRevenueController {
     private readonly revenueConfig;
     private readonly settlements;
-    constructor(revenueConfig: RevenueConfigService, settlements: SettlementService);
+    private readonly riderPayout;
+    constructor(revenueConfig: RevenueConfigService, settlements: SettlementService, riderPayout: RiderPayoutService);
     create(user: JwtAccessPayload, dto: CreateRevenueConfigDto): Promise<{
         id: string;
-        minOrderValue: number | null;
         createdAt: Date;
-        freeDeliveryThreshold: number | null;
         commissionPct: number;
         scope: "vendor" | "global" | "category";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
+        freeDeliveryThreshold: number | null;
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
+        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -41,6 +46,12 @@ export declare class AdminRevenueController {
         createdBy: string | null;
         createdAt: Date;
     }[]>;
+    listRiderPayoutTiers(): Promise<{
+        tiers: import("./rider-payout.service").RiderPayoutTier[];
+    }>;
+    setRiderPayoutTiers(dto: SetRiderPayoutTiersDto): Promise<{
+        tiers: import("./rider-payout.service").RiderPayoutTier[];
+    }>;
     listSettlements(): Promise<{
         id: string;
         type: "grocery" | "food";
@@ -53,3 +64,4 @@ export declare class AdminRevenueController {
         createdAt: Date;
     }[]>;
 }
+export {};

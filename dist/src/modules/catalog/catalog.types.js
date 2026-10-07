@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_PICKUP = exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
+exports.OUTER_ZONE_DELIVERY_FEE = exports.CORE_DELIVERY_RADIUS_KM = exports.DEFAULT_PICKUP = exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
 exports.haversineKm = haversineKm;
 exports.roundKm = roundKm;
 exports.categoryBusinessType = categoryBusinessType;
 exports.isCategoryVisibleTo = isCategoryVisibleTo;
 exports.isDefaultPickup = isDefaultPickup;
+exports.isOutsideCoreZone = isOutsideCoreZone;
 exports.istDateString = istDateString;
 exports.isVendorOpenNow = isVendorOpenNow;
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -54,6 +55,11 @@ exports.DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 };
 const FALLBACK_PICKUPS = [exports.DEFAULT_PICKUP, { lat: 16.705, lng: 74.2433 }];
 function isDefaultPickup(lat, lng) {
     return FALLBACK_PICKUPS.some((p) => p.lat === lat && p.lng === lng);
+}
+exports.CORE_DELIVERY_RADIUS_KM = 2;
+exports.OUTER_ZONE_DELIVERY_FEE = 15;
+function isOutsideCoreZone(lat, lng) {
+    return haversineKm(exports.DEFAULT_PICKUP.lat, exports.DEFAULT_PICKUP.lng, lat, lng) > exports.CORE_DELIVERY_RADIUS_KM;
 }
 function istDateString(now = new Date()) {
     const parts = new Intl.DateTimeFormat('en-GB', {

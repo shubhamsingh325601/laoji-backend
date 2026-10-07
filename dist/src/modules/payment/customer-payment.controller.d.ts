@@ -11,7 +11,7 @@ export declare class CustomerPaymentController {
         updatedAt: Date;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "cod" | "upi_deeplink" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -22,7 +22,7 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "cod" | "upi_deeplink" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -36,7 +36,7 @@ export declare class CustomerPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "cod" | "upi_deeplink" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;

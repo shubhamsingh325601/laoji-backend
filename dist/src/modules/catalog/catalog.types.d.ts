@@ -14,6 +14,9 @@ export declare const DEFAULT_PICKUP: {
     readonly lng: 76.283;
 };
 export declare function isDefaultPickup(lat: number, lng: number): boolean;
+export declare const CORE_DELIVERY_RADIUS_KM = 2;
+export declare const OUTER_ZONE_DELIVERY_FEE = 15;
+export declare function isOutsideCoreZone(lat: number, lng: number): boolean;
 export declare function istDateString(now?: Date): string;
 export interface BusinessHoursDay {
     day: number;

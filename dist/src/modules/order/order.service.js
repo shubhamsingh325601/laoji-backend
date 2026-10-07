@@ -25,6 +25,8 @@ const notification_service_1 = require("../notification/notification.service");
 const order_placed_1 = require("../notification/templates/push/order-placed");
 const order_confirmed_1 = require("../notification/templates/push/order-confirmed");
 const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
+const picked_up_1 = require("../notification/templates/push/picked-up");
+const out_for_delivery_1 = require("../notification/templates/push/out-for-delivery");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
 const coupon_service_1 = require("../coupon/coupon.service");
 const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
@@ -81,12 +83,14 @@ let OrderService = class OrderService {
         const revenueCategoryId = firstProduct ? await this.catalog.customerCategoryId(firstProduct.categoryId) : null;
         const revenue = await this.revenueConfig.resolve(candidate.vendorId, revenueCategoryId);
         const distanceKm = candidate.distance ?? 1;
-        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId);
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, candidate.vendorId, address);
         return { candidate, revenue, ...pricing };
     }
-    async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode, vendorId) {
-        const deliveryFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-        const ctx = { subtotal, deliveryFee, userId: customerId, vendorId };
+    async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode, vendorId, dropoff) {
+        const outerZone = (0, catalog_types_1.isOutsideCoreZone)(dropoff.lat, dropoff.lng);
+        const baseFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+        const deliveryFee = outerZone && baseFee > 0 ? catalog_types_1.OUTER_ZONE_DELIVERY_FEE : baseFee;
+        const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
         let code = couponCode?.trim().toUpperCase() ?? '';
         let autoApplied = false;
         let coupon = code ? await this.coupons.evaluate(code, ctx) : null;
@@ -301,7 +305,7 @@ let OrderService = class OrderService {
             };
         });
         const revenue = await this.revenueConfig.resolve(restaurant.vendorId, null);
-        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId);
+        const pricing = await this.priceTotals(customerId, subtotal, distanceKm, revenue, dto.couponCode, restaurant.vendorId, address);
         return { revenue, orderItemRows, pricing };
     }
     async createFoodOrder(customerId, dto, actor) {
@@ -928,6 +932,62 @@ let OrderService = class OrderService {
             if (partner)
                 this.notifications.notifyPush(partner.userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledPartnerPush)(orderCode, orderId));
         }
+        return type === 'grocery'
+            ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+            : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+    }
+    async setOrderStatusByAdmin(adminUserId, type, orderId, status) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (['cancelled', 'failed'].includes(order.status)) {
+            throw new common_1.BadRequestException(`Restore this ${order.status} order first, then set its status`);
+        }
+        if (order.status === 'delivered')
+            throw new common_1.BadRequestException('Order is already delivered');
+        if (order.status === status)
+            throw new common_1.BadRequestException(`Order is already "${status}"`);
+        const needsPartner = ['delivery_assigned', 'picked_up', 'out_for_delivery', 'delivered'].includes(status);
+        if (needsPartner && !order.deliveryPartnerId) {
+            throw new common_1.BadRequestException('Assign a delivery partner before setting this status');
+        }
+        const timeline = () => type === 'grocery'
+            ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
+            : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
+        if (order.status === 'placed') {
+            await this.acceptOrderByAdmin(adminUserId, type, orderId);
+            if (status === 'vendor_accepted')
+                return timeline();
+        }
+        if (status === 'delivered') {
+            await this.delivery.adminCompleteDelivery(adminUserId, type, orderId);
+            return timeline();
+        }
+        const [updated] = await this.db.update(table).set({ status }).where((0, drizzle_orm_1.eq)(table.id, orderId)).returning();
+        await this.db.insert(schema_1.orderStatusHistory).values({
+            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+            status,
+            actorRole: 'admin',
+            changedBy: adminUserId,
+        });
+        const orderCode = this.orderCode(orderId);
+        if (status === 'picked_up') {
+            this.notifications.notifyPush(updated.customerId, 'picked_up', (0, picked_up_1.pickedUpCustomerPush)(orderCode, orderId, type));
+            const vendorUserId = await this.vendorUserIdForOrder(type, updated);
+            if (vendorUserId)
+                this.notifications.notifyPush(vendorUserId, 'picked_up', (0, picked_up_1.pickedUpVendorPush)(orderCode, orderId));
+        }
+        else if (status === 'out_for_delivery') {
+            this.notifications.notifyPush(updated.customerId, 'out_for_delivery', (0, out_for_delivery_1.outForDeliveryCustomerPush)(orderCode, orderId, type, updated.deliveryOtp));
+        }
+        else if (['preparing', 'ready', 'handed_over'].includes(status) && !updated.deliveryPartnerId) {
+            await this.delivery.triggerAssignment(type, orderId);
+        }
+        return timeline();
+    }
+    async assignPartnerByAdmin(adminUserId, type, orderId, partnerId) {
+        await this.delivery.adminAssignPartner(adminUserId, type, orderId, partnerId);
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
             : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });

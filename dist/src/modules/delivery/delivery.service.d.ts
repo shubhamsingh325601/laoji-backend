@@ -3,6 +3,7 @@ import { JobQueueService } from '../allocation/job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { SettlementService } from '../revenue/settlement.service';
+import { RiderPayoutService } from '../revenue/rider-payout.service';
 import { AreaManagerService } from '../area-manager/area-manager.service';
 type OrderType = 'grocery' | 'food';
 export declare class DeliveryService {
@@ -12,8 +13,9 @@ export declare class DeliveryService {
     private readonly notifications;
     private readonly settlements;
     private readonly areaManagerService;
+    private readonly riderPayouts;
     private readonly logger;
-    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService, settlements: SettlementService, areaManagerService: AreaManagerService);
+    constructor(db: Db, jobQueue: JobQueueService, payments: PaymentService, notifications: NotificationService, settlements: SettlementService, areaManagerService: AreaManagerService, riderPayouts: RiderPayoutService);
     private orderCode;
     private vendorUserIdForOrder;
     getPartnerByUserId(userId: string): Promise<{
@@ -185,12 +187,12 @@ export declare class DeliveryService {
     }>;
     private assignWaitingOrders;
     private findNearestOnlinePartner;
+    private partnersWithActiveDelivery;
     private pickupPoint;
     triggerAssignment(type: OrderType, orderId: string): Promise<void>;
     private createAssignment;
     handleTimeout(assignmentId: string): Promise<void>;
     private reassign;
-    private markDeliveryFailed;
     private requirePendingAssignment;
     getOrderDetailForPartner(userId: string, type: OrderType, orderId: string): Promise<{
         id: string;
@@ -198,6 +200,7 @@ export declare class DeliveryService {
         status: string;
         orderCode: string;
         itemCount: number;
+        riderPayout: number;
         deliveryFee: number;
         pickupName: string;
         pickupAddress: string;
@@ -242,6 +245,7 @@ export declare class DeliveryService {
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
+            riderPayout: number | null;
             platformCommission: number;
             commissionPct: number;
             couponCode: string | null;
@@ -262,6 +266,7 @@ export declare class DeliveryService {
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
+            riderPayout: number | null;
             platformCommission: number;
             commissionPct: number;
             couponCode: string | null;
@@ -289,6 +294,9 @@ export declare class DeliveryService {
     verifyDelivery(userId: string, type: OrderType, orderId: string, otp: string): Promise<{
         ok: boolean;
     }>;
+    adminCompleteDelivery(adminUserId: string, type: OrderType, orderId: string): Promise<void>;
+    adminAssignPartner(adminUserId: string, type: OrderType, orderId: string, partnerId: string): Promise<void>;
+    private completeDelivery;
     listPartnersAdmin(): Promise<{
         id: string;
         userId: string;

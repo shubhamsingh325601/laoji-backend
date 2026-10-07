@@ -15,6 +15,26 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const app_1 = require("firebase-admin/app");
 const messaging_1 = require("firebase-admin/messaging");
+const PUSH_TTL_MS = 120_000;
+const INVALID_TOKEN_CODES = new Set([
+    'messaging/invalid-registration-token',
+    'messaging/registration-token-not-registered',
+]);
+const TRANSIENT_CODES = new Set([
+    'messaging/internal-error',
+    'messaging/server-unavailable',
+    'messaging/unavailable',
+    'messaging/quota-exceeded',
+]);
+function stringifyData(data) {
+    const out = {};
+    for (const [key, value] of Object.entries(data ?? {})) {
+        if (value === undefined || value === null)
+            continue;
+        out[key] = typeof value === 'string' ? value : String(value);
+    }
+    return out;
+}
 let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
     config;
     logger = new common_1.Logger(FcmPushProvider_1.name);
@@ -55,6 +75,8 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
                     ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),
                 },
                 android: {
+                    priority: 'high',
+                    ttl: PUSH_TTL_MS,
                     notification: {
                         sound: 'default',
                         priority: 'high',
@@ -88,21 +110,31 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
                         link: message.data?.url || message.data?.link || '/orders',
                     },
                 },
-                data: message.data || {},
+                data: stringifyData(message.data),
             };
-            await (0, messaging_1.getMessaging)(this.app).send(payload);
+            await this.sendWithRetry(this.app, payload);
             return { ok: true, stubbed: false };
         }
         catch (e) {
             const code = e?.code || e?.errorInfo?.code;
-            if (code === 'messaging/invalid-registration-token' ||
-                code === 'messaging/registration-token-not-registered') {
+            if (INVALID_TOKEN_CODES.has(code)) {
                 this.logger.warn(`Stale or invalid FCM token (${code}): ${token.slice(0, 12)}...`);
+                return { ok: false, stubbed: false, error: e?.message, invalidToken: true };
             }
-            else {
-                this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
-            }
+            this.logger.warn(`FCM send failed: ${e instanceof Error ? e.message : e}`);
             return { ok: false, stubbed: false, error: e?.message };
+        }
+    }
+    async sendWithRetry(app, payload) {
+        try {
+            await (0, messaging_1.getMessaging)(app).send(payload);
+        }
+        catch (e) {
+            const code = e?.code || e?.errorInfo?.code;
+            if (!TRANSIENT_CODES.has(code))
+                throw e;
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            await (0, messaging_1.getMessaging)(app).send(payload);
         }
     }
 };

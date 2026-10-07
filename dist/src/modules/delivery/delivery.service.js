@@ -28,8 +28,8 @@ const delivery_assigned_1 = require("../notification/templates/push/delivery-ass
 const picked_up_1 = require("../notification/templates/push/picked-up");
 const out_for_delivery_1 = require("../notification/templates/push/out-for-delivery");
 const delivered_1 = require("../notification/templates/push/delivered");
-const order_cancelled_1 = require("../notification/templates/push/order-cancelled");
 const settlement_service_1 = require("../revenue/settlement.service");
+const rider_payout_service_1 = require("../revenue/rider-payout.service");
 const settlement_summary_1 = require("../notification/templates/email/settlement-summary");
 const area_manager_service_1 = require("../area-manager/area-manager.service");
 const delivery_constants_1 = require("./delivery.constants");
@@ -41,14 +41,16 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
     notifications;
     settlements;
     areaManagerService;
+    riderPayouts;
     logger = new common_1.Logger(DeliveryService_1.name);
-    constructor(db, jobQueue, payments, notifications, settlements, areaManagerService) {
+    constructor(db, jobQueue, payments, notifications, settlements, areaManagerService, riderPayouts) {
         this.db = db;
         this.jobQueue = jobQueue;
         this.payments = payments;
         this.notifications = notifications;
         this.settlements = settlements;
         this.areaManagerService = areaManagerService;
+        this.riderPayouts = riderPayouts;
     }
     orderCode(orderId) {
         return orderId.slice(0, 8).toUpperCase();
@@ -179,6 +181,14 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const restaurantIds = [...new Set(food.map((o) => o.restaurantId))];
         const restaurantRows = restaurantIds.length ? await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.inArray)(schema_1.restaurants.id, restaurantIds)) : [];
         const restaurantNameById = new Map(restaurantRows.map((r) => [r.id, r.name]));
+        const [grocerySettlements, foodSettlements] = await Promise.all([
+            grocery.length ? this.db.select().from(schema_1.settlements).where((0, drizzle_orm_1.inArray)(schema_1.settlements.groceryOrderId, grocery.map((o) => o.id))) : [],
+            food.length ? this.db.select().from(schema_1.settlements).where((0, drizzle_orm_1.inArray)(schema_1.settlements.foodOrderId, food.map((o) => o.id))) : [],
+        ]);
+        const payoutByOrderId = new Map();
+        for (const s of [...grocerySettlements, ...foodSettlements]) {
+            payoutByOrderId.set((s.groceryOrderId ?? s.foodOrderId), s.deliveryPayout);
+        }
         const rows = [
             ...grocery.map((o) => ({
                 id: o.id,
@@ -186,7 +196,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
                 orderCode: o.id.slice(0, 8).toUpperCase(),
                 type: 'grocery',
                 route: vendorNameById.get(o.vendorId ?? '') ?? 'Pickup',
-                payout: o.deliveryFee > 0 ? o.deliveryFee : 15,
+                payout: payoutByOrderId.get(o.id) ?? o.riderPayout ?? 0,
                 status: (o.status === 'delivered' ? 'delivered' : 'cancelled'),
                 completedAt: o.createdAt,
             })),
@@ -196,7 +206,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
                 orderCode: o.id.slice(0, 8).toUpperCase(),
                 type: 'food',
                 route: restaurantNameById.get(o.restaurantId) ?? 'Pickup',
-                payout: o.deliveryFee > 0 ? o.deliveryFee : 15,
+                payout: payoutByOrderId.get(o.id) ?? o.riderPayout ?? 0,
                 status: (o.status === 'delivered' ? 'delivered' : 'cancelled'),
                 completedAt: o.createdAt,
             })),
@@ -241,9 +251,16 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
     }
     async findNearestOnlinePartner(lat, lng, excludePartnerIds) {
         const online = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.isOnline, true));
-        const candidates = online.filter((p) => !excludePartnerIds.includes(p.id));
-        if (candidates.length === 0)
+        const notExcluded = online.filter((p) => !excludePartnerIds.includes(p.id));
+        if (notExcluded.length === 0)
             return null;
+        const busy = await this.partnersWithActiveDelivery(notExcluded.map((p) => p.id));
+        const available = notExcluded.filter((p) => !busy.has(p.id));
+        if (available.length === 0)
+            return null;
+        const now = Date.now();
+        const fresh = available.filter((p) => now - p.updatedAt.getTime() <= delivery_constants_1.PARTNER_HEARTBEAT_MAX_AGE_MS);
+        const candidates = fresh.length > 0 ? fresh : available;
         const withLocation = candidates.filter((p) => p.currentLat !== null && p.currentLng !== null);
         if (withLocation.length > 0) {
             let best = withLocation[0];
@@ -258,6 +275,22 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             return best;
         }
         return candidates[0];
+    }
+    async partnersWithActiveDelivery(partnerIds) {
+        if (partnerIds.length === 0)
+            return new Set();
+        const inFlight = ['delivery_assigned', 'picked_up', 'out_for_delivery'];
+        const [grocery, food] = await Promise.all([
+            this.db
+                .select({ partnerId: schema_1.groceryOrders.deliveryPartnerId })
+                .from(schema_1.groceryOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.deliveryPartnerId, partnerIds), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.status, [...inFlight]))),
+            this.db
+                .select({ partnerId: schema_1.foodOrders.deliveryPartnerId })
+                .from(schema_1.foodOrders)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.deliveryPartnerId, partnerIds), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.status, [...inFlight]))),
+        ]);
+        return new Set([...grocery, ...food].map((r) => r.partnerId).filter((id) => !!id));
     }
     async pickupPoint(type, orderId) {
         if (type === 'grocery') {
@@ -292,7 +325,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         }
         const partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
         if (!partner) {
-            this.logger.warn(`No delivery partner currently online for ${type} order ${orderId}. Will match automatically when partner comes online.`);
+            this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Will match automatically when a partner comes online or finishes a delivery.`);
             return;
         }
         await this.createAssignment(type, orderId, partner.id, 1);
@@ -314,7 +347,8 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
         const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
         if (partner && order) {
-            this.notifications.notifyPush(partner.userId, 'assignment_offered', (0, ready_for_pickup_1.assignmentOfferedPartnerPush)(this.orderCode(orderId), order.deliveryFee, orderId));
+            const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+            this.notifications.notifyPush(partner.userId, 'assignment_offered', (0, ready_for_pickup_1.assignmentOfferedPartnerPush)(this.orderCode(orderId), riderPayout, orderId, type));
         }
         return assignment;
     }
@@ -333,41 +367,25 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
         if (!order || order.status === 'cancelled' || order.status === 'failed')
             return;
-        if (previous.attemptNo >= delivery_constants_1.MAX_DELIVERY_ASSIGNMENT_ATTEMPTS) {
-            await this.markDeliveryFailed(type, orderId);
-            return;
-        }
-        const previousAttempts = await this.db
+        const allAttempts = await this.db
             .select()
             .from(schema_1.deliveryAssignments)
             .where(type === 'grocery' ? (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.groceryOrderId, orderId) : (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.foodOrderId, orderId));
-        const excludeIds = previousAttempts.map((a) => a.deliveryPartnerId);
+        const roundStart = allAttempts
+            .filter((a) => a.attemptNo === 1 && a.createdAt <= previous.createdAt)
+            .reduce((latest, a) => (!latest || a.createdAt > latest ? a.createdAt : latest), null);
+        const excludeIds = allAttempts
+            .filter((a) => !roundStart || a.createdAt >= roundStart)
+            .map((a) => a.deliveryPartnerId);
         const point = await this.pickupPoint(type, orderId);
-        if (!point) {
-            await this.markDeliveryFailed(type, orderId);
+        if (!point)
             return;
-        }
         const partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
         if (!partner) {
-            await this.markDeliveryFailed(type, orderId);
+            this.logger.warn(`No further delivery partner to offer ${type} order ${orderId}; it stays waiting for one.`);
             return;
         }
         await this.createAssignment(type, orderId, partner.id, previous.attemptNo + 1);
-    }
-    async markDeliveryFailed(type, orderId) {
-        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
-        const [updated] = await this.db.update(table).set({ status: 'failed' }).where((0, drizzle_orm_1.eq)(table.id, orderId)).returning();
-        await this.db.insert(schema_1.orderStatusHistory).values({
-            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
-            status: 'failed',
-            actorRole: 'system',
-        });
-        await this.payments.markRefundPendingIfPaid(type, orderId);
-        const orderCode = this.orderCode(orderId);
-        this.notifications.notifyPush(updated.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(orderCode, orderId, type));
-        const vendorUserId = await this.vendorUserIdForOrder(type, orderId);
-        if (vendorUserId)
-            this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
     }
     async requirePendingAssignment(type, orderId, partnerId) {
         const [assignment] = await this.db
@@ -401,7 +419,8 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             const [vendorUser] = vendor ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, vendor.userId)).limit(1) : [];
             const [address] = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.id, order.deliveryAddressId)).limit(1);
             const [customer] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, order.customerId)).limit(1);
-            return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, undefined, itemsList);
+            const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+            return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, riderPayout, undefined, itemsList);
         }
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, orderId)).limit(1);
         if (!order)
@@ -423,17 +442,13 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const [vendorUser] = vendor ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, vendor.userId)).limit(1) : [];
         const [address] = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.id, order.deliveryAddressId)).limit(1);
         const [customer] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, order.customerId)).limit(1);
-        return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, restaurant?.name, itemsList);
+        const riderPayout = await this.riderPayouts.forOrder(type, orderId);
+        return this.assembleAssignmentView(order, type, items.length, vendor, vendorUser, address, customer, partner.id, riderPayout, restaurant?.name, itemsList);
     }
-    assembleAssignmentView(order, type, itemCount, vendor, vendorUser, address, customer, requestingPartnerId, restaurantName, itemsList = []) {
+    assembleAssignmentView(order, type, itemCount, vendor, vendorUser, address, customer, requestingPartnerId, riderPayout, restaurantName, itemsList = []) {
         if (order.deliveryPartnerId && order.deliveryPartnerId !== requestingPartnerId) {
             throw new common_1.ForbiddenException('Not your delivery');
         }
-        const partnerDeliveryFee = order.deliveryFee > 0
-            ? order.deliveryFee
-            : (vendor?.pickupLat && address?.lat
-                ? ((0, catalog_types_1.haversineKm)(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 3 ? 10 : (0, catalog_types_1.haversineKm)(address.lat, address.lng, vendor.pickupLat, vendor.pickupLng) <= 5 ? 15 : 20)
-                : 15);
         const rawPaymentStatus = (order.paymentStatus ?? 'pending').toLowerCase().trim();
         const isCod = rawPaymentStatus === 'pending_cod' || rawPaymentStatus === 'cod';
         const isPaid = rawPaymentStatus === 'paid' || rawPaymentStatus === 'collected';
@@ -445,7 +460,8 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             status: order.status,
             orderCode: order.id.slice(0, 8).toUpperCase(),
             itemCount,
-            deliveryFee: partnerDeliveryFee,
+            riderPayout,
+            deliveryFee: riderPayout,
             pickupName: restaurantName ?? vendor?.businessName ?? 'Pickup point',
             pickupAddress: vendor?.shopAddress ?? '',
             pickupPhone: vendorUser?.phone ?? '',
@@ -575,7 +591,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
                 this.notifications.notifyPush(vendorUserId, 'picked_up', (0, picked_up_1.pickedUpVendorPush)(orderCode, orderId));
         }
         else {
-            this.notifications.notifyPush(order.customerId, 'out_for_delivery', (0, out_for_delivery_1.outForDeliveryCustomerPush)(orderCode, orderId, type));
+            this.notifications.notifyPush(order.customerId, 'out_for_delivery', (0, out_for_delivery_1.outForDeliveryCustomerPush)(orderCode, orderId, type, order.deliveryOtp));
         }
         return { ok: true };
     }
@@ -588,13 +604,98 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         if (!order.deliveryOtp || order.deliveryOtp !== otp) {
             throw new common_1.BadRequestException('Incorrect OTP');
         }
+        await this.completeDelivery(type, orderId, order, userId, { role: 'delivery_partner', userId });
+        return { ok: true };
+    }
+    async adminCompleteDelivery(adminUserId, type, orderId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (!order.deliveryPartnerId)
+            throw new common_1.BadRequestException('Assign a delivery partner before marking this order delivered');
+        const [partner] = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, order.deliveryPartnerId)).limit(1);
+        if (!partner)
+            throw new common_1.NotFoundException('Delivery partner not found');
+        await this.completeDelivery(type, orderId, order, partner.userId, { role: 'admin', userId: adminUserId });
+    }
+    async adminAssignPartner(adminUserId, type, orderId, partnerId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        const assignable = ['vendor_accepted', 'preparing', 'ready', 'handed_over', 'delivery_assigned', 'picked_up', 'out_for_delivery'];
+        if (!assignable.includes(order.status)) {
+            throw new common_1.BadRequestException(order.status === 'placed'
+                ? 'Accept this order first, then assign a delivery partner'
+                : `Cannot assign a delivery partner while the order is "${order.status}"`);
+        }
+        const [partner] = await this.db.select().from(schema_1.deliveryPartners).where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.id, partnerId)).limit(1);
+        if (!partner)
+            throw new common_1.NotFoundException('Delivery partner not found');
+        if (!partner.isOnline)
+            throw new common_1.BadRequestException('This delivery partner is offline');
+        if (order.deliveryPartnerId === partnerId) {
+            throw new common_1.BadRequestException('This order is already assigned to that delivery partner');
+        }
+        const open = await this.db
+            .select()
+            .from(schema_1.deliveryAssignments)
+            .where((0, drizzle_orm_1.and)(type === 'grocery' ? (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.groceryOrderId, orderId) : (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.foodOrderId, orderId), (0, drizzle_orm_1.inArray)(schema_1.deliveryAssignments.outcome, ['pending', 'accepted'])));
+        for (const a of open) {
+            this.jobQueue.cancel(a.id);
+            await this.db
+                .update(schema_1.deliveryAssignments)
+                .set({ outcome: a.outcome === 'pending' ? 'timeout' : 'rejected' })
+                .where((0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.id, a.id));
+        }
+        const all = await this.db
+            .select()
+            .from(schema_1.deliveryAssignments)
+            .where(type === 'grocery' ? (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.groceryOrderId, orderId) : (0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.foodOrderId, orderId));
+        await this.db.insert(schema_1.deliveryAssignments).values({
+            ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+            deliveryPartnerId: partnerId,
+            outcome: 'accepted',
+            attemptNo: all.reduce((max, a) => Math.max(max, a.attemptNo), 0) + 1,
+            slaDeadline: new Date(),
+        });
+        const inDelivery = ['delivery_assigned', 'picked_up', 'out_for_delivery'].includes(order.status);
+        const [updated] = await this.db
+            .update(table)
+            .set({
+            deliveryPartnerId: partnerId,
+            deliveryOtp: order.deliveryOtp ?? String((0, crypto_1.randomInt)(0, 1_000_000)).padStart(6, '0'),
+            ...(inDelivery ? {} : { status: 'delivery_assigned' }),
+        })
+            .where((0, drizzle_orm_1.eq)(table.id, orderId))
+            .returning();
+        if (!inDelivery) {
+            await this.db.insert(schema_1.orderStatusHistory).values({
+                ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+                status: 'delivery_assigned',
+                actorRole: 'admin',
+                changedBy: adminUserId,
+            });
+        }
+        const orderCode = this.orderCode(orderId);
+        this.notifications.notifyPush(partner.userId, 'assignment_offered', {
+            title: `Delivery assigned to you - #${orderCode}`,
+            body: `Admin assigned order #${orderCode} to you. Open it under your active deliveries.`,
+            data: { type: 'order', id: orderId, orderType: type, status: updated.status },
+        });
+        if (!inDelivery) {
+            this.notifications.notifyPush(updated.customerId, 'delivery_assigned', (0, delivery_assigned_1.deliveryAssignedCustomerPush)(orderCode, orderId, type));
+        }
+    }
+    async completeDelivery(type, orderId, order, partnerUserId, actor) {
         const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
         await this.db.update(table).set({ status: 'delivered' }).where((0, drizzle_orm_1.eq)(table.id, orderId));
         await this.db.insert(schema_1.orderStatusHistory).values({
             ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
             status: 'delivered',
-            actorRole: 'delivery_partner',
-            changedBy: userId,
+            actorRole: actor.role,
+            changedBy: actor.userId,
         });
         await this.payments.markCodCollected(type, orderId);
         const settlement = await this.settlements.generateForDeliveredOrder(type, orderId);
@@ -607,8 +708,8 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
                 this.notifications.notifyEmail(vendorUserId, 'settlement_summary', (0, settlement_summary_1.settlementSummaryEmail)(`Order ${orderCode}`, order.subtotal, settlement.platformShare, settlement.vendorPayout));
             }
         }
-        this.notifications.notifyPush(userId, 'delivered', (0, delivered_1.deliveredPartnerPush)(orderCode, order.deliveryFee, orderId));
-        return { ok: true };
+        this.notifications.notifyPush(partnerUserId, 'delivered', (0, delivered_1.deliveredPartnerPush)(orderCode, settlement?.deliveryPayout ?? 0, orderId));
+        this.assignWaitingOrders().catch((e) => this.logger.error('Failed checking waiting orders after a delivery', e));
     }
     async listPartnersAdmin() {
         const rows = await this.db.select().from(schema_1.deliveryPartners);
@@ -798,6 +899,7 @@ exports.DeliveryService = DeliveryService = DeliveryService_1 = __decorate([
         payment_service_1.PaymentService,
         notification_service_1.NotificationService,
         settlement_service_1.SettlementService,
-        area_manager_service_1.AreaManagerService])
+        area_manager_service_1.AreaManagerService,
+        rider_payout_service_1.RiderPayoutService])
 ], DeliveryService);
 //# sourceMappingURL=delivery.service.js.map

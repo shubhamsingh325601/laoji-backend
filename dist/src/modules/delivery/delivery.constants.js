@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAX_DELIVERY_ASSIGNMENT_ATTEMPTS = exports.DELIVERY_SLA_SECONDS = void 0;
+exports.PARTNER_HEARTBEAT_MAX_AGE_MS = exports.DELIVERY_SLA_SECONDS = void 0;
 exports.DELIVERY_SLA_SECONDS = Number(process.env.DELIVERY_SLA_SECONDS ?? 120);
-exports.MAX_DELIVERY_ASSIGNMENT_ATTEMPTS = Number(process.env.MAX_DELIVERY_ASSIGNMENT_ATTEMPTS ?? 3);
+exports.PARTNER_HEARTBEAT_MAX_AGE_MS = Number(process.env.PARTNER_HEARTBEAT_MAX_AGE_SECONDS ?? 225) * 1000;
 //# sourceMappingURL=delivery.constants.js.map

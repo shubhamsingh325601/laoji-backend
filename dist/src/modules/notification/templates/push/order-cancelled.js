@@ -32,7 +32,7 @@ function orderCancelledPartnerPush(orderCode, orderId) {
         data: {
             event: 'order_cancelled',
             orderCode,
-            ...(orderId ? { orderId, link: `/orders` } : {}),
+            ...(orderId ? { orderId, link: `/(tabs)` } : {}),
         },
     };
 }

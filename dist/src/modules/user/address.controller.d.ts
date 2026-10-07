@@ -260,11 +260,11 @@ export declare class AddressController {
     create(user: JwtAccessPayload, dto: CreateAddressDto): Promise<{
         id: string;
         userId: string;
-        isDefault: boolean;
         label: string | null;
         lat: number;
         lng: number;
         formattedAddress: string;
+        isDefault: boolean;
     }>;
     update(user: JwtAccessPayload, id: string, dto: UpdateAddressDto): Promise<{
         id: string;

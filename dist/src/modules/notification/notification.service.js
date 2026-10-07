@@ -106,6 +106,13 @@ let NotificationService = NotificationService_1 = class NotificationService {
             return;
         }
         const results = await Promise.all(tokens.map((t) => this.push.send(t.fcmToken, message)));
+        const deadTokens = tokens.filter((_, i) => results[i].invalidToken).map((t) => t.fcmToken);
+        if (deadTokens.length) {
+            await this.db
+                .delete(schema_1.deviceTokens)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.deviceTokens.userId, userId), (0, drizzle_orm_1.inArray)(schema_1.deviceTokens.fcmToken, deadTokens)))
+                .catch((err) => this.logger.warn(`Failed to prune dead device tokens for ${userId}: ${err instanceof Error ? err.message : err}`));
+        }
         await this.log(userId, 'push', template, message, results.some((r) => r.ok) ? 'sent' : 'failed');
     }
     async dispatchEmail(userId, template, message) {

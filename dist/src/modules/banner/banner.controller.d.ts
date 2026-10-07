@@ -590,11 +590,11 @@ export declare class AdminBannerController {
     create(dto: CreateBannerDto): Promise<{
         id: string;
         link: string | null;
-        isActive: boolean;
         createdAt: Date;
         imageUrl: string;
-        startsAt: Date | null;
         sortOrder: number;
+        isActive: boolean;
+        startsAt: Date | null;
         title: string;
         subtitle: string | null;
         placement: string;
