@@ -101,7 +101,7 @@
   },
   "overrides": {
     "multer": "^2.3.0",
-    "nanoid": "^3.3.18",
+    "nanoid": "^3.3.20",
     "fast-uri": "^3.1.6",
     "esbuild": "^0.28.1",
     "uuid": "^11.1.1",
