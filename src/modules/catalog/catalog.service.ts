@@ -3075,6 +3075,22 @@ export class CatalogService {
     };
   }
 
+  // Admin sets a new password for a vendor. The vendor must choose their own on
+  // next login, and existing sessions are revoked.
+  async resetAdminVendorPassword(vendorId: string, newPassword: string) {
+    const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.db
+      .update(users)
+      .set({ passwordHash, mustChangePassword: true })
+      .where(eq(users.id, vendor.userId));
+    await this.db.update(authTokens).set({ revokedAt: new Date() }).where(eq(authTokens.userId, vendor.userId));
+
+    return { success: true, message: 'Vendor password updated.' };
+  }
+
   async reorderVendors(dto: ReorderVendorsDto) {
     if (dto.orders && Array.isArray(dto.orders)) {
       for (const item of dto.orders) {
