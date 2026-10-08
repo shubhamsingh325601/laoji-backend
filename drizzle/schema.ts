@@ -672,6 +672,8 @@ export const deviceTokens = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     fcmToken: text('fcm_token').notNull(),
     platform: devicePlatformEnum('platform').notNull(),
+    // Custom push sound chosen in the app (see notification-sound.ts). Null = the app's default channel.
+    notificationSound: varchar('notification_sound', { length: 40 }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('device_tokens_user_platform_idx').on(table.userId, table.platform)],

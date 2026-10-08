@@ -27,7 +27,7 @@ export class NotificationService {
     private readonly email: ResendEmailProvider,
   ) {}
 
-  async registerDeviceToken(userId: string, fcmToken: string, platform: Platform) {
+  async registerDeviceToken(userId: string, fcmToken: string, platform: Platform, notificationSound?: string) {
     // A device push token belongs to one physical device installation.
     // Disassociate this token from any other accounts so previous accounts on this device don't receive pushes.
     await this.db
@@ -43,12 +43,17 @@ export class NotificationService {
     if (existing) {
       const [updated] = await this.db
         .update(deviceTokens)
-        .set({ fcmToken, updatedAt: new Date() })
+        // Only touch the sound when the app sent one, so an older app that doesn't
+        // know about sounds can't wipe a choice made on the same account elsewhere.
+        .set({ fcmToken, ...(notificationSound ? { notificationSound } : {}), updatedAt: new Date() })
         .where(eq(deviceTokens.id, existing.id))
         .returning();
       return updated;
     }
-    const [created] = await this.db.insert(deviceTokens).values({ userId, fcmToken, platform }).returning();
+    const [created] = await this.db
+      .insert(deviceTokens)
+      .values({ userId, fcmToken, platform, notificationSound: notificationSound ?? null })
+      .returning();
     return created;
   }
 
@@ -104,7 +109,14 @@ export class NotificationService {
       await this.log(userId, 'push', template, message, 'failed');
       return;
     }
-    const results = await Promise.all(tokens.map((t) => this.push.send(t.fcmToken, message)));
+    const results = await Promise.all(
+      tokens.map((t) =>
+        this.push.send(t.fcmToken, message, {
+          // Only Android has per-sound channels; null keeps the app's default channel.
+          androidSound: t.platform === 'android' ? t.notificationSound : null,
+        }),
+      ),
+    );
     // Drop tokens FCM says are dead so the next push isn't aimed at an old install.
     const deadTokens = tokens.filter((_, i) => results[i].invalidToken).map((t) => t.fcmToken);
     if (deadTokens.length) {
