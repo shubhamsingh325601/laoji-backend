@@ -20,6 +20,8 @@ class CreateProductDto {
     unit;
     size;
     mrp;
+    wholesalePrice;
+    sellingPrice;
     imageUrl;
 }
 exports.CreateProductDto = CreateProductDto;
@@ -60,6 +62,18 @@ __decorate([
 ], CreateProductDto.prototype, "mrp", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateProductDto.prototype, "wholesalePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateProductDto.prototype, "sellingPrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "imageUrl", void 0);
@@ -71,6 +85,8 @@ class UpdateProductDto {
     unit;
     size;
     mrp;
+    wholesalePrice;
+    sellingPrice;
     imageUrl;
     status;
 }
@@ -113,6 +129,18 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateProductDto.prototype, "mrp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateProductDto.prototype, "wholesalePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateProductDto.prototype, "sellingPrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

@@ -169,6 +169,23 @@ let OrderService = class OrderService {
         this.assertOrderable(priced);
         const { candidate, revenue, subtotal, deliveryFee, discount, total } = priced;
         const commissionPct = revenue.commissionPct;
+        const productIds = dto.items.map((i) => i.productId);
+        const vpRows = productIds.length
+            ? await this.db
+                .select({ productId: schema_1.vendorProducts.productId, commissionPct: schema_1.vendorProducts.commissionPct })
+                .from(schema_1.vendorProducts)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, candidate.vendorId), (0, drizzle_orm_1.inArray)(schema_1.vendorProducts.productId, productIds)))
+            : [];
+        const vpCommMap = new Map(vpRows.map((r) => [r.productId, r.commissionPct]));
+        let calculatedPlatformCommission = 0;
+        for (const line of dto.items) {
+            const lineSubtotal = (candidate.unitPrices.get(line.productId) ?? 0) * line.qty;
+            const customComm = vpCommMap.get(line.productId);
+            const effectiveRate = customComm != null
+                ? (customComm > 1 ? customComm / 100 : customComm)
+                : commissionPct;
+            calculatedPlatformCommission += lineSubtotal * effectiveRate;
+        }
         try {
             const [order] = await this.db
                 .insert(schema_1.groceryOrders)
@@ -178,7 +195,7 @@ let OrderService = class OrderService {
                 status: 'placed',
                 subtotal,
                 deliveryFee,
-                platformCommission: subtotal * commissionPct,
+                platformCommission: Math.round(calculatedPlatformCommission * 100) / 100,
                 commissionPct,
                 couponCode: priced.coupon?.code ?? null,
                 discount,
@@ -336,6 +353,23 @@ let OrderService = class OrderService {
         this.assertOrderable(pricing);
         const { subtotal, deliveryFee, discount, total } = pricing;
         const commissionPct = revenue.commissionPct;
+        const menuItemIds = orderItemRows.map((i) => i.menuItemId);
+        const miRows = menuItemIds.length
+            ? await this.db
+                .select({ id: schema_1.menuItems.id, commissionPct: schema_1.menuItems.commissionPct })
+                .from(schema_1.menuItems)
+                .where((0, drizzle_orm_1.inArray)(schema_1.menuItems.id, menuItemIds))
+            : [];
+        const miCommMap = new Map(miRows.map((r) => [r.id, r.commissionPct]));
+        let calculatedPlatformCommission = 0;
+        for (const row of orderItemRows) {
+            const lineSubtotal = row.unitPrice * row.qty;
+            const customComm = miCommMap.get(row.menuItemId);
+            const effectiveRate = customComm != null
+                ? (customComm > 1 ? customComm / 100 : customComm)
+                : commissionPct;
+            calculatedPlatformCommission += lineSubtotal * effectiveRate;
+        }
         try {
             const [order] = await this.db
                 .insert(schema_1.foodOrders)
@@ -345,7 +379,7 @@ let OrderService = class OrderService {
                 status: 'placed',
                 subtotal,
                 deliveryFee,
-                platformCommission: subtotal * commissionPct,
+                platformCommission: Math.round(calculatedPlatformCommission * 100) / 100,
                 commissionPct,
                 couponCode: pricing.coupon?.code ?? null,
                 discount,

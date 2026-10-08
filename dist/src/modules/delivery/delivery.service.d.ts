@@ -21,7 +21,7 @@ export declare class DeliveryService {
     getPartnerByUserId(userId: string): Promise<{
         id: string;
         userId: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -39,7 +39,7 @@ export declare class DeliveryService {
     requirePartner(userId: string): Promise<{
         id: string;
         userId: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -60,7 +60,7 @@ export declare class DeliveryService {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -80,7 +80,7 @@ export declare class DeliveryService {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -100,7 +100,7 @@ export declare class DeliveryService {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -120,7 +120,7 @@ export declare class DeliveryService {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -242,7 +242,7 @@ export declare class DeliveryService {
             id: string;
             customerId: string;
             idempotencyKey: string | null;
-            status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             riderPayout: number | null;
@@ -263,7 +263,7 @@ export declare class DeliveryService {
             id: string;
             customerId: string;
             idempotencyKey: string | null;
-            status: "cancelled" | "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed";
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
             subtotal: number;
             deliveryFee: number;
             riderPayout: number | null;
@@ -304,7 +304,7 @@ export declare class DeliveryService {
         phone: string;
         email: string;
         vehicleType: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         online: boolean;
         activity: string;
         zone: string;
@@ -319,18 +319,18 @@ export declare class DeliveryService {
         phone: string;
         email: string;
         vehicleType: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         online: boolean;
         activity: string;
         zone: string;
         kycDocuments: {
             id: string;
             userId: string;
-            role: "vendor" | "customer" | "delivery_partner" | "admin";
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
             docType: string;
             secureUrl: string;
             publicId: string;
-            status: "pending" | "rejected" | "verified";
+            status: "pending" | "verified" | "rejected";
             rejectionReason: string | null;
             reviewedBy: string | null;
             reviewedAt: Date | null;
@@ -354,12 +354,11 @@ export declare class DeliveryService {
         id: string;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
-        upiId: string | null;
+        aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
-        aadhaarNumber: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        upiId: string | null;
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -367,6 +366,7 @@ export declare class DeliveryService {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;
@@ -379,7 +379,7 @@ export declare class DeliveryService {
     }): Promise<{
         id: string;
         userId: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -405,7 +405,7 @@ export declare class DeliveryService {
         phone: string;
         email: string;
         vehicleType: string;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         online: boolean;
         activity: string;
         zone: string;

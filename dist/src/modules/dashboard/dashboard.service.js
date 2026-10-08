@@ -181,6 +181,35 @@ let DashboardService = class DashboardService {
                 prep.push((en.getTime() - st.getTime()) / 60000);
         }
         const sum = (xs) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+        const totalPayoutSql = (0, drizzle_orm_1.sql) `coalesce(sum(${schema_1.settlements.vendorPayout}), 0)`;
+        const [[[lifetimeGrocery], [lifetimeFood]], withdrawalRows] = await Promise.all([
+            Promise.all([
+                this.db
+                    .select({ total: totalPayoutSql })
+                    .from(schema_1.settlements)
+                    .innerJoin(schema_1.groceryOrders, (0, drizzle_orm_1.eq)(schema_1.settlements.groceryOrderId, schema_1.groceryOrders.id))
+                    .where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendorId)),
+                this.db
+                    .select({ total: totalPayoutSql })
+                    .from(schema_1.settlements)
+                    .innerJoin(schema_1.foodOrders, (0, drizzle_orm_1.eq)(schema_1.settlements.foodOrderId, schema_1.foodOrders.id))
+                    .innerJoin(schema_1.restaurants, (0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, schema_1.restaurants.id))
+                    .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)),
+            ]),
+            this.db
+                .select({
+                status: schema_1.vendorWithdrawals.status,
+                total: (0, drizzle_orm_1.sql) `coalesce(sum(${schema_1.vendorWithdrawals.amount}), 0)`,
+            })
+                .from(schema_1.vendorWithdrawals)
+                .where((0, drizzle_orm_1.eq)(schema_1.vendorWithdrawals.vendorId, vendorId))
+                .groupBy(schema_1.vendorWithdrawals.status),
+        ]);
+        const lifetimeEarned = Number(lifetimeGrocery?.total ?? 0) + Number(lifetimeFood?.total ?? 0);
+        const sumForStatus = (status) => Number(withdrawalRows.find((r) => r.status === status)?.total ?? 0);
+        const totalWithdrawn = sumForStatus('approved');
+        const pendingWithdrawal = sumForStatus('pending');
+        const remainingBalance = Math.max(0, Math.round((lifetimeEarned - totalWithdrawn - pendingWithdrawal) * 100) / 100);
         return {
             acceptanceRate: accepted + rejected > 0 ? Math.round((accepted / (accepted + rejected)) * 1000) / 10 : null,
             avgPrepMinutes: prep.length ? Math.round((prep.reduce((x, y) => x + y, 0) / prep.length) * 10) / 10 : null,
@@ -190,6 +219,10 @@ let DashboardService = class DashboardService {
             grossSales: sum(delivered.map((o) => o.total)),
             vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
             platformEarnings: sum(rows.map((r) => r.platformShare)),
+            totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
+            pendingWithdrawal: Math.round(pendingWithdrawal * 100) / 100,
+            remainingBalance,
+            availableBalance: remainingBalance,
         };
     }
     async getAttention() {

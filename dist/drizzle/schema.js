@@ -154,6 +154,8 @@ exports.products = (0, pg_core_1.pgTable)('products', {
     unit: (0, pg_core_1.varchar)('unit', { length: 50 }).notNull(),
     size: (0, pg_core_1.varchar)('size', { length: 50 }),
     mrp: (0, pg_core_1.doublePrecision)('mrp'),
+    wholesalePrice: (0, pg_core_1.doublePrecision)('wholesale_price'),
+    sellingPrice: (0, pg_core_1.doublePrecision)('selling_price'),
     imageUrl: (0, pg_core_1.text)('image_url'),
     attributes: (0, pg_core_1.jsonb)('attributes').$type(),
     status: (0, exports.productStatusEnum)('status').notNull().default('active'),
@@ -172,8 +174,10 @@ exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
         .notNull()
         .references(() => exports.products.id, { onDelete: 'cascade' }),
     price: (0, pg_core_1.doublePrecision)('price').notNull(),
+    wholesalePrice: (0, pg_core_1.doublePrecision)('wholesale_price'),
     stockQty: (0, pg_core_1.integer)('stock_qty').notNull().default(0),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    commissionPct: (0, pg_core_1.doublePrecision)('commission_pct'),
     offerTag: (0, pg_core_1.varchar)('offer_tag', { length: 100 }),
     lowStockThreshold: (0, pg_core_1.integer)('low_stock_threshold'),
     restockEta: (0, pg_core_1.date)('restock_eta', { mode: 'string' }),
@@ -212,6 +216,7 @@ exports.menuItems = (0, pg_core_1.pgTable)('menu_items', {
     imageUrl: (0, pg_core_1.text)('image_url'),
     isVeg: (0, pg_core_1.boolean)('is_veg').notNull().default(true),
     isAvailable: (0, pg_core_1.boolean)('is_available').notNull().default(true),
+    commissionPct: (0, pg_core_1.doublePrecision)('commission_pct'),
     mealSlots: (0, pg_core_1.jsonb)('meal_slots').$type(),
 });
 exports.menuItemAddons = (0, pg_core_1.pgTable)('menu_item_addons', {
@@ -570,7 +575,7 @@ exports.coupons = (0, pg_core_1.pgTable)('coupons', {
     isActive: (0, pg_core_1.boolean)('is_active').notNull().default(true),
     vendorId: (0, pg_core_1.uuid)('vendor_id').references(() => exports.vendors.id),
     beneficiaryUserId: (0, pg_core_1.uuid)('beneficiary_user_id').references(() => exports.users.id),
-    showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(true),
+    showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(false),
     affiliateCommissionType: (0, pg_core_1.varchar)('affiliate_commission_type', { length: 20 }),
     affiliateCommissionValue: (0, pg_core_1.doublePrecision)('affiliate_commission_value'),
     maxUsesPerUser: (0, pg_core_1.integer)('max_uses_per_user'),

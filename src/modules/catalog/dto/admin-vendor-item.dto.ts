@@ -27,9 +27,14 @@ export class CreateAdminVendorItemDto {
   price: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
+  @IsOptional()
   @IsString()
   unit?: string;
-
+  
   @IsOptional()
   @IsString()
   imageUrl?: string;
@@ -50,6 +55,11 @@ export class CreateAdminVendorItemDto {
   @IsNumber()
   @Min(0)
   stockQty?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionPct?: number;
 
   @IsOptional()
   @IsString()
@@ -88,6 +98,11 @@ export class UpdateAdminVendorItemDto {
   price?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
+  @IsOptional()
   @IsString()
   unit?: string;
 
@@ -111,6 +126,11 @@ export class UpdateAdminVendorItemDto {
   @IsNumber()
   @Min(0)
   stockQty?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionPct?: number;
 
   @IsOptional()
   @IsBoolean()

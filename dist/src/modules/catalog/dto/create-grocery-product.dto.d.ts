@@ -7,6 +7,7 @@ export declare class CreateGroceryProductDto {
     mrp?: number;
     imageUrl?: string;
     description?: string;
+    wholesalePrice?: number;
     price: number;
     stockQty: number;
     offerTag?: string;

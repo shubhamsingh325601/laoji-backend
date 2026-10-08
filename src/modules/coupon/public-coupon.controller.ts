@@ -20,6 +20,12 @@ export class PublicCouponController {
     return this.couponService.listActive(vendorId);
   }
 
+  @UseInterceptors(ResponseCacheInterceptor)
+  @Get()
+  listCoupons(@Query('vendorId') vendorId?: string) {
+    return this.couponService.listActive(vendorId);
+  }
+
   // Open to guests. "First N orders" is only checked for a caller with a
   // valid access token; `userId` in the body is ignored so nobody can probe
   // another customer's eligibility. Order quote/create re-check it anyway.

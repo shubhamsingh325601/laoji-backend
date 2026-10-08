@@ -256,6 +256,8 @@ export const products = pgTable('products', {
   unit: varchar('unit', { length: 50 }).notNull(),
   size: varchar('size', { length: 50 }),
   mrp: doublePrecision('mrp'),
+  wholesalePrice: doublePrecision('wholesale_price'),
+  sellingPrice: doublePrecision('selling_price'),
   imageUrl: text('image_url'),
   // Business-type-specific details from the vendor's add-product form
   // (e.g. clothing "gender", medical "prescriptionRequired") — the fields
@@ -289,8 +291,10 @@ export const vendorProducts = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: 'cascade' }),
     price: doublePrecision('price').notNull(),
+    wholesalePrice: doublePrecision('wholesale_price'),
     stockQty: integer('stock_qty').notNull().default(0),
     isAvailable: boolean('is_available').notNull().default(true),
+    commissionPct: doublePrecision('commission_pct'),
     offerTag: varchar('offer_tag', { length: 100 }),
     lowStockThreshold: integer('low_stock_threshold'),
     // When an out-of-stock (or paused) listing is expected back, as a plain
@@ -341,6 +345,7 @@ export const menuItems = pgTable('menu_items', {
   imageUrl: text('image_url'),
   isVeg: boolean('is_veg').notNull().default(true),
   isAvailable: boolean('is_available').notNull().default(true),
+  commissionPct: doublePrecision('commission_pct'),
   // Meal slots this item is served in (e.g. ["breakfast"]), checked against
   // the restaurant's meal_timings. Null or empty = served all day.
   mealSlots: jsonb('meal_slots').$type<string[]>(),
@@ -915,7 +920,7 @@ export const coupons = pgTable('coupons', {
   // Creator / Vendor / Affiliate who owns this coupon code and earns commission
   beneficiaryUserId: uuid('beneficiary_user_id').references(() => users.id),
   // If false, coupon is hidden from the customer app's public list (owner shares manually)
-  showInApp: boolean('show_in_app').notNull().default(true),
+  showInApp: boolean('show_in_app').notNull().default(false),
   // How affiliate gets paid from our platform commission: 'percentage' or 'flat'
   affiliateCommissionType: varchar('affiliate_commission_type', { length: 20 }),
   // Percentage of platform commission (e.g. 50 = 50% of platform cut) or flat ₹ amount

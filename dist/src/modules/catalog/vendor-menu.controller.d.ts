@@ -7,10 +7,10 @@ export declare class VendorMenuController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     myRestaurant(user: JwtAccessPayload): Promise<{
-        id: string;
         name: string;
-        isOpen: boolean;
         imageUrl: string | null;
+        id: string;
+        isOpen: boolean;
         vendorId: string;
         cuisineTags: string | null;
         ratingAvg: number;
@@ -53,8 +53,8 @@ export declare class VendorMenuController {
         sortOrder: number;
     }[]>;
     createMenuCategory(user: JwtAccessPayload, dto: CreateMenuCategoryDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         restaurantId: string;
         sortOrder: number;
     }>;
@@ -66,6 +66,7 @@ export declare class VendorMenuController {
     }>;
     deleteMenuCategory(user: JwtAccessPayload, id: string): Promise<void>;
     listMenuItems(user: JwtAccessPayload, categoryId?: string): Promise<{
+        commissionPct: number;
         addons: {
             id: string;
             menuItemId: string;
@@ -92,27 +93,28 @@ export declare class VendorMenuController {
     }[]>;
     createMenuItem(user: JwtAccessPayload, dto: CreateMenuItemDto): Promise<{
         addons: {
-            id: string;
             name: string;
             price: number;
+            id: string;
             menuItemId: string;
             isRequired: boolean;
         }[];
         variants: {
-            id: string;
             name: string;
+            id: string;
             isDefault: boolean;
             menuItemId: string;
             priceDelta: number;
         }[];
-        id: string;
         name: string;
         imageUrl: string | null;
         description: string | null;
         price: number;
         isAvailable: boolean;
+        id: string;
         menuCategoryId: string;
         isVeg: boolean;
+        commissionPct: number | null;
         mealSlots: string[] | null;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -138,6 +140,7 @@ export declare class VendorMenuController {
         imageUrl: string | null;
         isVeg: boolean;
         isAvailable: boolean;
+        commissionPct: number | null;
         mealSlots: string[] | null;
     }>;
     deleteMenuItem(user: JwtAccessPayload, id: string): Promise<void>;

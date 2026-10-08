@@ -51,7 +51,7 @@ export class CouponService implements OnModuleInit {
       await this.db.execute(sql`
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "vendor_id" uuid;
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "beneficiary_user_id" uuid;
-        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT true;
+        ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "show_in_app" boolean NOT NULL DEFAULT false;
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_type" varchar(20);
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "affiliate_commission_value" double precision;
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "max_uses_per_user" integer;
@@ -59,6 +59,16 @@ export class CouponService implements OnModuleInit {
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "total_redemptions" integer NOT NULL DEFAULT 0;
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "starts_at" timestamp with time zone;
         ALTER TABLE "coupons" ADD COLUMN IF NOT EXISTS "expires_at" timestamp with time zone;
+
+        -- Ensure only public platform global coupons (FREEDELIVERY, FREEDEL, FREEDEL3) are visible in app,
+        -- all other vendor / creator / affiliate coupons are hidden from public app listings.
+        UPDATE "coupons"
+        SET "show_in_app" = false
+        WHERE UPPER("code") NOT IN ('FREEDELIVERY', 'FREEDEL', 'FREEDEL3');
+
+        UPDATE "coupons"
+        SET "show_in_app" = true
+        WHERE UPPER("code") IN ('FREEDELIVERY', 'FREEDEL', 'FREEDEL3');
       `);
     } catch (err) {
       console.warn('[CouponService] Auto-migration notice:', err);
@@ -158,7 +168,7 @@ export class CouponService implements OnModuleInit {
         isActive: dto.isActive ?? true,
         vendorId: dto.vendorId ?? null,
         beneficiaryUserId: dto.beneficiaryUserId ?? null,
-        showInApp: dto.showInApp ?? true,
+        showInApp: dto.showInApp ?? false,
         affiliateCommissionType: dto.affiliateCommissionType ?? null,
         affiliateCommissionValue: dto.affiliateCommissionValue ?? null,
         maxUsesPerUser: dto.maxUsesPerUser ?? null,

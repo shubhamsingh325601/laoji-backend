@@ -28,12 +28,14 @@ class CreateAdminVendorItemDto {
     name;
     description;
     price;
+    wholesalePrice;
     unit;
     imageUrl;
     isAvailable;
     isVeg;
     categoryId;
     stockQty;
+    commissionPct;
     productId;
     isCustomisable;
     variants;
@@ -60,6 +62,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateAdminVendorItemDto.prototype, "price", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateAdminVendorItemDto.prototype, "wholesalePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -93,6 +101,12 @@ __decorate([
 ], CreateAdminVendorItemDto.prototype, "stockQty", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateAdminVendorItemDto.prototype, "commissionPct", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateAdminVendorItemDto.prototype, "productId", void 0);
@@ -119,12 +133,14 @@ class UpdateAdminVendorItemDto {
     name;
     description;
     price;
+    wholesalePrice;
     unit;
     imageUrl;
     isAvailable;
     isVeg;
     categoryId;
     stockQty;
+    commissionPct;
     isCustomisable;
     variants;
     addons;
@@ -147,6 +163,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateAdminVendorItemDto.prototype, "price", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateAdminVendorItemDto.prototype, "wholesalePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -178,6 +200,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateAdminVendorItemDto.prototype, "stockQty", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateAdminVendorItemDto.prototype, "commissionPct", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

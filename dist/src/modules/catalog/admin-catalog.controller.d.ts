@@ -24,9 +24,9 @@ export declare class AdminCatalogController {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
-        id: string;
         name: string;
         imageUrl: string | null;
+        id: string;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -190,6 +190,40 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        wholesalePrice: import("drizzle-orm/pg-core").PgColumn<{
+            name: "wholesale_price";
+            tableName: "products";
+            dataType: "number";
+            columnType: "PgDoublePrecision";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        sellingPrice: import("drizzle-orm/pg-core").PgColumn<{
+            name: "selling_price";
+            tableName: "products";
+            dataType: "number";
+            columnType: "PgDoublePrecision";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         imageUrl: import("drizzle-orm/pg-core").PgColumn<{
             name: "image_url";
             tableName: "products";
@@ -303,6 +337,8 @@ export declare class AdminCatalogController {
         unit: string;
         size: string | null;
         mrp: number | null;
+        wholesalePrice: number | null;
+        sellingPrice: number | null;
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
@@ -454,6 +490,40 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        wholesalePrice: import("drizzle-orm/pg-core").PgColumn<{
+            name: "wholesale_price";
+            tableName: "products";
+            dataType: "number";
+            columnType: "PgDoublePrecision";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        sellingPrice: import("drizzle-orm/pg-core").PgColumn<{
+            name: "selling_price";
+            tableName: "products";
+            dataType: "number";
+            columnType: "PgDoublePrecision";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         imageUrl: import("drizzle-orm/pg-core").PgColumn<{
             name: "image_url";
             tableName: "products";
@@ -560,19 +630,21 @@ export declare class AdminCatalogController {
         }, {}, {}>;
     }>, "where">;
     createProduct(dto: CreateProductDto): Promise<{
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
+        brand: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
+        wholesalePrice: number | null;
+        sellingPrice: number | null;
+        imageUrl: string | null;
+        description: string | null;
         attributes: Record<string, string | number | boolean> | null;
+        id: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        ownerVendorId: string | null;
         templateProductId: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
@@ -584,6 +656,8 @@ export declare class AdminCatalogController {
         unit: string;
         size: string | null;
         mrp: number | null;
+        wholesalePrice: number | null;
+        sellingPrice: number | null;
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
@@ -703,6 +777,9 @@ export declare class AdminCatalogController {
         isCustomisable?: boolean;
         variants?: any[];
         addons?: any[];
+        commissionPct?: number;
+        customCommissionPct?: number | null;
+        wholesalePrice?: number | null;
     }[]>;
     createVendor(dto: CreateAdminVendorDto, user?: JwtAccessPayload): Promise<{
         id: string;
@@ -841,6 +918,8 @@ export declare class AdminCatalogController {
         isVeg: boolean;
         categoryId: string;
         isCustomisable: boolean;
+        commissionPct: number;
+        customCommissionPct: number | null;
         productId?: undefined;
         stockQty?: undefined;
     } | {
@@ -855,6 +934,8 @@ export declare class AdminCatalogController {
         imageUrl: string | null;
         categoryId: string;
         stockQty: number;
+        commissionPct: number;
+        customCommissionPct: number | null;
         isVeg?: undefined;
         isCustomisable?: undefined;
     }>;
@@ -896,19 +977,21 @@ export declare class AdminCatalogController {
     }[]>;
     approveProductSuggestion(user: JwtAccessPayload, id: string): Promise<{
         product: {
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
+            brand: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
+            wholesalePrice: number | null;
+            sellingPrice: number | null;
+            imageUrl: string | null;
+            description: string | null;
             attributes: Record<string, string | number | boolean> | null;
+            id: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            ownerVendorId: string | null;
             templateProductId: string | null;
         };
         id: string;

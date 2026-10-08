@@ -7,6 +7,8 @@ export declare class CreateProductDto {
     unit: string;
     size?: string;
     mrp?: number;
+    wholesalePrice?: number;
+    sellingPrice?: number;
     imageUrl?: string;
 }
 export declare class UpdateProductDto {
@@ -17,6 +19,8 @@ export declare class UpdateProductDto {
     unit?: string;
     size?: string;
     mrp?: number;
+    wholesalePrice?: number;
+    sellingPrice?: number;
     imageUrl?: string;
     status?: (typeof STATUSES)[number];
 }

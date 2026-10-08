@@ -32,6 +32,16 @@ export class CreateProductDto {
   mrp?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  sellingPrice?: number;
+
+  @IsOptional()
   @IsString()
   imageUrl?: string;
 }
@@ -67,6 +77,16 @@ export class UpdateProductDto {
   @IsNumber()
   @Min(0)
   mrp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  sellingPrice?: number;
 
   @IsOptional()
   @IsString()

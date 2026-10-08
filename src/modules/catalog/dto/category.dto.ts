@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 import { BUSINESS_TYPES } from '../catalog.types';
 
 export class CreateCategoryDto {
@@ -7,8 +7,9 @@ export class CreateCategoryDto {
   name: string;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null && v !== undefined && v !== '' && v !== 'none')
   @IsUUID()
-  parentId?: string;
+  parentId?: string | null;
 
   @IsOptional()
   @IsString()
@@ -26,8 +27,9 @@ export class UpdateCategoryDto {
   name?: string;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null && v !== undefined && v !== '' && v !== 'none')
   @IsUUID()
-  parentId?: string;
+  parentId?: string | null;
 
   @IsOptional()
   @IsString()

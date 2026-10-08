@@ -83,7 +83,7 @@ async function main() {
       true,
       v.id,
       v.user_id,
-      true,
+      false, // show_in_app: hidden from public app listings (creator/vendor shares code manually)
       'order_percentage',
       2,
       1,

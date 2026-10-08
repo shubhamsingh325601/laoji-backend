@@ -13,6 +13,10 @@ export declare class ReportsController {
         grossSales: number;
         vendorEarnings: number;
         platformEarnings: number;
+        totalWithdrawn: number;
+        pendingWithdrawal: number;
+        remainingBalance: number;
+        availableBalance: number;
     }>;
     cancellations(): Promise<import("./dashboard.service").CancellationRow[]>;
 }

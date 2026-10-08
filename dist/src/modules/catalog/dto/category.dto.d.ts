@@ -1,12 +1,12 @@
 export declare class CreateCategoryDto {
     name: string;
-    parentId?: string;
+    parentId?: string | null;
     imageUrl?: string;
     businessType?: string;
 }
 export declare class UpdateCategoryDto {
     name?: string;
-    parentId?: string;
+    parentId?: string | null;
     imageUrl?: string;
     businessType?: string;
 }

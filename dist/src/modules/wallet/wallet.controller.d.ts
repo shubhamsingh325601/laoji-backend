@@ -40,19 +40,19 @@ export declare class WalletController {
         success: boolean;
         message: string;
         request: {
-            amount: number;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
-            walletId: string;
-            payoutMethod: string;
-            upiId: string | null;
             bankAccount: string | null;
             bankIfsc: string | null;
+            upiId: string | null;
+            amount: number;
+            payoutMethod: string;
+            processedAt: Date | null;
+            walletId: string;
             accountHolderName: string | null;
             adminNotes: string | null;
-            processedAt: Date | null;
         };
     }>;
 }

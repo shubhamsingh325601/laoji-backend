@@ -54,6 +54,10 @@ export declare class DashboardService {
         grossSales: number;
         vendorEarnings: number;
         platformEarnings: number;
+        totalWithdrawn: number;
+        pendingWithdrawal: number;
+        remainingBalance: number;
+        availableBalance: number;
     }>;
     getAttention(): Promise<AttentionItem[]>;
     private pushStuckIfDue;

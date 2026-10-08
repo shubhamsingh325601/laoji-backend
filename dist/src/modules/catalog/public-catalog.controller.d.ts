@@ -18,17 +18,19 @@ export declare class PublicCatalogController {
         offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
-        id: string;
-        brand: string | null;
         name: string;
-        status: "active" | "inactive";
-        createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
-        description: string | null;
+        brand: string | null;
         unit: string;
         size: string | null;
+        wholesalePrice: number | null;
+        sellingPrice: number | null;
+        imageUrl: string | null;
+        description: string | null;
         attributes: Record<string, string | number | boolean> | null;
+        id: string;
+        status: "active" | "inactive";
+        createdAt: Date;
+        ownerVendorId: string | null;
         templateProductId: string | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
@@ -44,6 +46,8 @@ export declare class PublicCatalogController {
         description: string | null;
         unit: string;
         size: string | null;
+        wholesalePrice: number | null;
+        sellingPrice: number | null;
         imageUrl: string | null;
         attributes: Record<string, string | number | boolean> | null;
         status: "active" | "inactive";
@@ -119,6 +123,7 @@ export declare class PublicCatalogController {
                 description: string | null;
                 imageUrl: string | null;
                 isVeg: boolean;
+                commissionPct: number | null;
             }[];
             id: string;
             restaurantId: string;
@@ -162,6 +167,9 @@ export declare class PublicCatalogController {
         isCustomisable?: boolean;
         variants?: any[];
         addons?: any[];
+        commissionPct?: number;
+        customCommissionPct?: number | null;
+        wholesalePrice?: number | null;
     }[]>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: {
@@ -171,24 +179,26 @@ export declare class PublicCatalogController {
             offerTag: string | null;
             inStock: boolean;
             restockEta: string | null;
-            id: string;
-            brand: string | null;
             name: string;
-            status: "active" | "inactive";
-            createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
-            description: string | null;
+            brand: string | null;
             unit: string;
             size: string | null;
+            wholesalePrice: number | null;
+            sellingPrice: number | null;
+            imageUrl: string | null;
+            description: string | null;
             attributes: Record<string, string | number | boolean> | null;
+            id: string;
+            status: "active" | "inactive";
+            createdAt: Date;
+            ownerVendorId: string | null;
             templateProductId: string | null;
         }[];
         restaurants: (Omit<{
-            id: string;
             name: string;
-            isOpen: boolean;
             imageUrl: string | null;
+            id: string;
+            isOpen: boolean;
             vendorId: string;
             cuisineTags: string | null;
             ratingAvg: number;

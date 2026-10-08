@@ -410,7 +410,7 @@ export class CatalogService {
       countByCategory.set(p.categoryId, (countByCategory.get(p.categoryId) ?? 0) + 1);
     }
     const byId = new Map(all.map((c) => [c.id, c]));
-    const roots = all.filter((c) => !c.parentId);
+    const roots = all.filter((c) => !c.parentId || !byId.has(c.parentId));
     return roots.map((root) => ({
       id: root.id,
       name: root.name,
@@ -430,16 +430,52 @@ export class CatalogService {
   }
 
   async createCategory(dto: CreateCategoryDto) {
-    const [row] = await this.db.insert(categories).values(dto).returning();
+    const parentId =
+      dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
+        ? dto.parentId.trim()
+        : null;
+
+    let businessType = dto.businessType;
+    if (!businessType && parentId) {
+      const [parent] = await this.db.select().from(categories).where(eq(categories.id, parentId)).limit(1);
+      if (parent) {
+        const { byId } = await this.categoryIndex();
+        businessType = categoryBusinessType(parent, byId);
+      }
+    }
+
+    const [row] = await this.db
+      .insert(categories)
+      .values({
+        name: dto.name.trim(),
+        parentId,
+        imageUrl: dto.imageUrl?.trim() || null,
+        ...(businessType ? { businessType } : {}),
+      })
+      .returning();
     return row;
   }
 
   async updateCategory(id: string, dto: UpdateCategoryDto) {
-    const updateData = {
-      ...dto,
-      ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
-      ...(dto.parentId !== undefined ? { parentId: dto.parentId || null } : {}),
-    };
+    const updateData: Partial<typeof categories.$inferInsert> = {};
+    if (dto.name !== undefined) updateData.name = dto.name.trim();
+    if (dto.imageUrl !== undefined) updateData.imageUrl = dto.imageUrl?.trim() || null;
+    if (dto.parentId !== undefined) {
+      const parentId =
+        dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
+          ? dto.parentId.trim()
+          : null;
+      updateData.parentId = parentId;
+      if (parentId) {
+        const { byId } = await this.categoryIndex();
+        const parent = byId.get(parentId);
+        if (parent) {
+          updateData.businessType = categoryBusinessType(parent, byId);
+        }
+      }
+    }
+    if (dto.businessType !== undefined) updateData.businessType = dto.businessType || null;
+
     const [row] = await this.db.update(categories).set(updateData).where(eq(categories.id, id)).returning();
     if (!row) throw new NotFoundException('Category not found');
     return row;
@@ -594,6 +630,9 @@ export class CatalogService {
       ...(dto.description !== undefined ? { description: dto.description || null } : {}),
       ...(dto.size !== undefined ? { size: dto.size || null } : {}),
       ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+      ...(dto.mrp !== undefined ? { mrp: dto.mrp ?? null } : {}),
+      ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice ?? null } : {}),
+      ...(dto.sellingPrice !== undefined ? { sellingPrice: dto.sellingPrice ?? null } : {}),
     };
     const [row] = await this.db.update(products).set(updateData).where(eq(products.id, id)).returning();
     if (!row) throw new NotFoundException('Product not found');
@@ -931,27 +970,36 @@ export class CatalogService {
   // products; the others are Laoji's, shared with every store that stocks
   // them until this one changes their details.
   async listVendorProducts(vendorId: string) {
-    const [rows, copies] = await Promise.all([
+    const [rows, copies, vendorCommissionPct] = await Promise.all([
       this.db
         .select({ vendorProduct: vendorProducts, product: products })
         .from(vendorProducts)
         .innerJoin(products, eq(vendorProducts.productId, products.id))
         .where(eq(vendorProducts.vendorId, vendorId)),
       this.ownCategoryCopies(vendorId),
+      this.resolveVendorCommissionPct(vendorId),
     ]);
-    return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies));
+    return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct));
   }
 
-  private listingView(vendorId: string, listing: Listing, product: Product, copies: Map<string, { id: string }>) {
+  private listingView(
+    vendorId: string,
+    listing: Listing,
+    product: Product,
+    copies: Map<string, { id: string }>,
+    vendorCommissionPct?: number,
+  ) {
     return {
       ...listing,
+      commissionPct: (listing as any).commissionPct != null ? (listing as any).commissionPct : vendorCommissionPct,
       product: { ...product, categoryId: shopCategoryId(product.categoryId, copies) },
       isOwnProduct: product.ownerVendorId === vendorId,
     };
   }
 
   private async listingResponse(vendorId: string, listing: Listing, product: Product) {
-    return this.listingView(vendorId, listing, product, await this.ownCategoryCopies(vendorId));
+    const vendorCommissionPct = await this.resolveVendorCommissionPct(vendorId);
+    return this.listingView(vendorId, listing, product, await this.ownCategoryCopies(vendorId), vendorCommissionPct);
   }
 
   // What a vendor may start stocking: a live Laoji product in its business
@@ -1040,6 +1088,8 @@ export class CatalogService {
         unit: template.unit,
         size: template.size,
         mrp: template.mrp,
+        wholesalePrice: template.wholesalePrice,
+        sellingPrice: template.sellingPrice,
         imageUrl: template.imageUrl,
         attributes: template.attributes,
         status: template.status,
@@ -1082,6 +1132,7 @@ export class CatalogService {
         vendorId: vendor.id,
         productId: listed.id,
         price: dto.price,
+        wholesalePrice: dto.wholesalePrice !== undefined ? dto.wholesalePrice : listed.wholesalePrice,
         stockQty: dto.stockQty,
         isAvailable,
         offerTag: dto.offerTag || null,
@@ -1111,6 +1162,8 @@ export class CatalogService {
       unit: dto.unit.trim(),
       size: dto.size?.trim() || undefined,
       mrp: dto.mrp,
+      wholesalePrice: dto.wholesalePrice,
+      sellingPrice: dto.price,
       imageUrl: dto.imageUrl || undefined,
       description: dto.description?.trim() || undefined,
       attributes,
@@ -1124,6 +1177,7 @@ export class CatalogService {
         vendorId: vendor.id,
         productId: product.id,
         price: dto.price,
+        wholesalePrice: dto.wholesalePrice,
         stockQty: dto.stockQty,
         isAvailable,
         offerTag: dto.offerTag || null,
@@ -1160,6 +1214,7 @@ export class CatalogService {
       .set({
         ...(product.id !== existing.productId ? { productId: product.id } : {}),
         ...(dto.price !== undefined ? { price: dto.price } : {}),
+        ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice } : {}),
         stockQty,
         isAvailable,
         ...(dto.offerTag !== undefined ? { offerTag: dto.offerTag || null } : {}),
@@ -1891,15 +1946,18 @@ export class CatalogService {
     const catIds = cats.map((c) => c.id);
     if (catIds.length === 0) return [];
 
-    const items = await this.db
-      .select()
-      .from(menuItems)
-      .where(
-        and(
-          inArray(menuItems.menuCategoryId, catIds),
-          menuCategoryId ? eq(menuItems.menuCategoryId, menuCategoryId) : undefined,
+    const [items, vendorCommissionPct] = await Promise.all([
+      this.db
+        .select()
+        .from(menuItems)
+        .where(
+          and(
+            inArray(menuItems.menuCategoryId, catIds),
+            menuCategoryId ? eq(menuItems.menuCategoryId, menuCategoryId) : undefined,
+          ),
         ),
-      );
+      this.resolveVendorCommissionPct(vendorId),
+    ]);
     const itemIds = items.map((i) => i.id);
     const addons = itemIds.length
       ? await this.db.select().from(menuItemAddons).where(inArray(menuItemAddons.menuItemId, itemIds))
@@ -1909,6 +1967,7 @@ export class CatalogService {
       : [];
     return items.map((item) => ({
       ...item,
+      commissionPct: item.commissionPct != null ? item.commissionPct : vendorCommissionPct,
       addons: addons.filter((a) => a.menuItemId === item.id),
       variants: variants.filter((v) => v.menuItemId === item.id),
     }));
@@ -2427,7 +2486,10 @@ export class CatalogService {
     }
     if (!vendor) throw new NotFoundException('Vendor not found');
 
-    const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(resolvedVendorId);
+    const [discounts, vendorCommissionPct] = await Promise.all([
+      this.vendorDiscounts.getActiveDiscountsForVendor(resolvedVendorId),
+      this.resolveVendorCommissionPct(resolvedVendorId),
+    ]);
 
     const results: {
       id: string;
@@ -2449,6 +2511,9 @@ export class CatalogService {
       isCustomisable?: boolean;
       variants?: any[];
       addons?: any[];
+      commissionPct?: number;
+      customCommissionPct?: number | null;
+      wholesalePrice?: number | null;
     }[] = [];
 
     // 1. Fetch grocery products
@@ -2456,8 +2521,10 @@ export class CatalogService {
       .select({
         id: vendorProducts.id,
         price: vendorProducts.price,
+        wholesalePrice: vendorProducts.wholesalePrice,
         stockQty: vendorProducts.stockQty,
         isAvailable: vendorProducts.isAvailable,
+        customCommissionPct: vendorProducts.commissionPct,
         productId: products.id,
         name: products.name,
         description: products.description,
@@ -2482,6 +2549,7 @@ export class CatalogService {
         category: vp.categoryName,
         categoryId: vp.categoryId,
         price: disc.price,
+        wholesalePrice: vp.wholesalePrice ?? null,
         originalPrice: vp.price,
         discountedPrice: disc.discountApplied ? disc.price : undefined,
         discountLabel: disc.discountLabel ?? null,
@@ -2489,6 +2557,8 @@ export class CatalogService {
         available: vp.isAvailable,
         imageUrl: vp.imageUrl ?? null,
         stockQty: vp.stockQty,
+        commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
+        customCommissionPct: vp.customCommissionPct ?? null,
       });
     }
 
@@ -2504,6 +2574,7 @@ export class CatalogService {
           isAvailable: menuItems.isAvailable,
           imageUrl: menuItems.imageUrl,
           isVeg: menuItems.isVeg,
+          customCommissionPct: menuItems.commissionPct,
           categoryId: menuCategories.id,
           categoryName: menuCategories.name,
         })
@@ -2541,6 +2612,8 @@ export class CatalogService {
           isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
           variants: itemVariants,
           addons: itemAddons,
+          commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
+          customCommissionPct: mi.customCommissionPct ?? null,
         });
       }
     }
@@ -2551,6 +2624,7 @@ export class CatalogService {
   async addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto) {
     const [vendor] = await this.db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
     if (!vendor) throw new NotFoundException('Vendor not found');
+    const vendorCommissionPct = await this.resolveVendorCommissionPct(vendorId);
 
     const isRestaurantItem =
       dto.itemType === 'menu_item' || (vendor.businessType === 'restaurant' && dto.itemType !== 'grocery');
@@ -2599,6 +2673,7 @@ export class CatalogService {
           imageUrl: dto.imageUrl?.trim() || null,
           isVeg: dto.isVeg ?? true,
           isAvailable: dto.isAvailable ?? true,
+          commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : null,
         })
         .returning();
 
@@ -2621,6 +2696,8 @@ export class CatalogService {
         isVeg: item.isVeg,
         categoryId: targetCatId,
         isCustomisable: Boolean((dto.variants && dto.variants.length > 0) || (dto.addons && dto.addons.length > 0)),
+        commissionPct: item.commissionPct != null ? item.commissionPct : vendorCommissionPct,
+        customCommissionPct: item.commissionPct ?? null,
       };
     } else {
       // Grocery item
@@ -2670,6 +2747,7 @@ export class CatalogService {
             price: dto.price,
             stockQty: dto.stockQty ?? existingListing.stockQty,
             isAvailable: dto.isAvailable ?? true,
+            commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : existingListing.commissionPct,
             lastRestockedAt: new Date(),
             updatedAt: new Date(),
           })
@@ -2688,6 +2766,8 @@ export class CatalogService {
           imageUrl: prod.imageUrl,
           categoryId: prod.categoryId,
           stockQty: updated.stockQty,
+          commissionPct: updated.commissionPct != null ? updated.commissionPct : vendorCommissionPct,
+          customCommissionPct: updated.commissionPct ?? null,
         };
       }
 
@@ -2699,6 +2779,7 @@ export class CatalogService {
           price: dto.price,
           stockQty: dto.stockQty ?? 100,
           isAvailable: dto.isAvailable ?? true,
+          commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : null,
           lastRestockedAt: new Date(),
           updatedAt: new Date(),
         })
@@ -2717,6 +2798,8 @@ export class CatalogService {
         imageUrl: prod.imageUrl,
         categoryId: prod.categoryId,
         stockQty: createdListing.stockQty,
+        commissionPct: createdListing.commissionPct != null ? createdListing.commissionPct : vendorCommissionPct,
+        customCommissionPct: createdListing.commissionPct ?? null,
       };
     }
   }
@@ -2735,8 +2818,10 @@ export class CatalogService {
     if (vp) {
       const vpUpdates: any = { updatedAt: new Date() };
       if (dto.price !== undefined) vpUpdates.price = dto.price;
+      if (dto.wholesalePrice !== undefined) vpUpdates.wholesalePrice = dto.wholesalePrice;
       if (dto.isAvailable !== undefined) vpUpdates.isAvailable = dto.isAvailable;
       if (dto.stockQty !== undefined) vpUpdates.stockQty = dto.stockQty;
+      if (dto.commissionPct !== undefined) vpUpdates.commissionPct = dto.commissionPct;
 
       await this.db.update(vendorProducts).set(vpUpdates).where(eq(vendorProducts.id, vp.id));
 
@@ -2772,6 +2857,8 @@ export class CatalogService {
                 unit: dto.unit?.trim() ?? prod.unit,
                 size: prod.size,
                 mrp: prod.mrp,
+                wholesalePrice: prod.wholesalePrice,
+                sellingPrice: prod.sellingPrice,
                 imageUrl: dto.imageUrl !== undefined ? dto.imageUrl?.trim() || null : prod.imageUrl,
                 attributes: prod.attributes,
                 status: 'active',
@@ -2805,6 +2892,7 @@ export class CatalogService {
         if (dto.imageUrl !== undefined) miUpdates.imageUrl = dto.imageUrl?.trim() || null;
         if (dto.isVeg !== undefined) miUpdates.isVeg = dto.isVeg;
         if (dto.isAvailable !== undefined) miUpdates.isAvailable = dto.isAvailable;
+        if (dto.commissionPct !== undefined) miUpdates.commissionPct = dto.commissionPct;
 
         if (dto.categoryId !== undefined) {
           const [validCat] = await this.db

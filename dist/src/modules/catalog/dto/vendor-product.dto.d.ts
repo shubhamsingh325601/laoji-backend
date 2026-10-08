@@ -5,6 +5,8 @@ export declare class VendorProductDetailsDto {
     unit?: string;
     size?: string;
     mrp?: number | null;
+    wholesalePrice?: number | null;
+    sellingPrice?: number | null;
     imageUrl?: string;
     description?: string;
     attributes?: Record<string, unknown>;
@@ -36,6 +38,7 @@ export declare class CreateVendorCustomProductDto {
     unit: string;
     size?: string;
     mrp?: number;
+    wholesalePrice?: number;
     price: number;
     stockQty?: number;
     isAvailable?: boolean;
@@ -49,6 +52,7 @@ export declare class UpdateVendorCustomProductDto {
     unit?: string;
     size?: string;
     mrp?: number;
+    wholesalePrice?: number;
     price?: number;
     stockQty?: number;
     isAvailable?: boolean;

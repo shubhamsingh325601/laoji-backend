@@ -46,6 +46,16 @@ export class VendorProductDetailsDto {
   mrp?: number | null;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  sellingPrice?: number | null;
+
+  @IsOptional()
   @IsString()
   imageUrl?: string;
 
@@ -156,6 +166,11 @@ export class CreateVendorCustomProductDto {
   @Min(0)
   mrp?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
   @IsNumber()
   @Min(0)
   price: number;
@@ -203,6 +218,11 @@ export class UpdateVendorCustomProductDto {
   @IsNumber()
   @Min(0)
   mrp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
 
   @IsOptional()
   @IsNumber()

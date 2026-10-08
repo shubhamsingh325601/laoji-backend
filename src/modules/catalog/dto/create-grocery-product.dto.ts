@@ -34,6 +34,11 @@ export class CreateGroceryProductDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number;
+
   @IsNumber()
   @Min(0)
   price: number;

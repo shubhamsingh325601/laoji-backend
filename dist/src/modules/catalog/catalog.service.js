@@ -311,7 +311,7 @@ let CatalogService = class CatalogService {
             countByCategory.set(p.categoryId, (countByCategory.get(p.categoryId) ?? 0) + 1);
         }
         const byId = new Map(all.map((c) => [c.id, c]));
-        const roots = all.filter((c) => !c.parentId);
+        const roots = all.filter((c) => !c.parentId || !byId.has(c.parentId));
         return roots.map((root) => ({
             id: root.id,
             name: root.name,
@@ -330,15 +330,49 @@ let CatalogService = class CatalogService {
         }));
     }
     async createCategory(dto) {
-        const [row] = await this.db.insert(schema_1.categories).values(dto).returning();
+        const parentId = dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
+            ? dto.parentId.trim()
+            : null;
+        let businessType = dto.businessType;
+        if (!businessType && parentId) {
+            const [parent] = await this.db.select().from(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, parentId)).limit(1);
+            if (parent) {
+                const { byId } = await this.categoryIndex();
+                businessType = (0, catalog_types_1.categoryBusinessType)(parent, byId);
+            }
+        }
+        const [row] = await this.db
+            .insert(schema_1.categories)
+            .values({
+            name: dto.name.trim(),
+            parentId,
+            imageUrl: dto.imageUrl?.trim() || null,
+            ...(businessType ? { businessType } : {}),
+        })
+            .returning();
         return row;
     }
     async updateCategory(id, dto) {
-        const updateData = {
-            ...dto,
-            ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
-            ...(dto.parentId !== undefined ? { parentId: dto.parentId || null } : {}),
-        };
+        const updateData = {};
+        if (dto.name !== undefined)
+            updateData.name = dto.name.trim();
+        if (dto.imageUrl !== undefined)
+            updateData.imageUrl = dto.imageUrl?.trim() || null;
+        if (dto.parentId !== undefined) {
+            const parentId = dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
+                ? dto.parentId.trim()
+                : null;
+            updateData.parentId = parentId;
+            if (parentId) {
+                const { byId } = await this.categoryIndex();
+                const parent = byId.get(parentId);
+                if (parent) {
+                    updateData.businessType = (0, catalog_types_1.categoryBusinessType)(parent, byId);
+                }
+            }
+        }
+        if (dto.businessType !== undefined)
+            updateData.businessType = dto.businessType || null;
         const [row] = await this.db.update(schema_1.categories).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id)).returning();
         if (!row)
             throw new common_1.NotFoundException('Category not found');
@@ -452,6 +486,9 @@ let CatalogService = class CatalogService {
             ...(dto.description !== undefined ? { description: dto.description || null } : {}),
             ...(dto.size !== undefined ? { size: dto.size || null } : {}),
             ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+            ...(dto.mrp !== undefined ? { mrp: dto.mrp ?? null } : {}),
+            ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice ?? null } : {}),
+            ...(dto.sellingPrice !== undefined ? { sellingPrice: dto.sellingPrice ?? null } : {}),
         };
         const [row] = await this.db.update(schema_1.products).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).returning();
         if (!row)
@@ -705,25 +742,28 @@ let CatalogService = class CatalogService {
         }));
     }
     async listVendorProducts(vendorId) {
-        const [rows, copies] = await Promise.all([
+        const [rows, copies, vendorCommissionPct] = await Promise.all([
             this.db
                 .select({ vendorProduct: schema_1.vendorProducts, product: schema_1.products })
                 .from(schema_1.vendorProducts)
                 .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, vendorId)),
             this.ownCategoryCopies(vendorId),
+            this.resolveVendorCommissionPct(vendorId),
         ]);
-        return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies));
+        return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct));
     }
-    listingView(vendorId, listing, product, copies) {
+    listingView(vendorId, listing, product, copies, vendorCommissionPct) {
         return {
             ...listing,
+            commissionPct: listing.commissionPct != null ? listing.commissionPct : vendorCommissionPct,
             product: { ...product, categoryId: (0, catalog_ownership_1.shopCategoryId)(product.categoryId, copies) },
             isOwnProduct: product.ownerVendorId === vendorId,
         };
     }
     async listingResponse(vendorId, listing, product) {
-        return this.listingView(vendorId, listing, product, await this.ownCategoryCopies(vendorId));
+        const vendorCommissionPct = await this.resolveVendorCommissionPct(vendorId);
+        return this.listingView(vendorId, listing, product, await this.ownCategoryCopies(vendorId), vendorCommissionPct);
     }
     async assertListableBy(vendor, product) {
         if (product.ownerVendorId === vendor.id)
@@ -782,6 +822,8 @@ let CatalogService = class CatalogService {
             unit: template.unit,
             size: template.size,
             mrp: template.mrp,
+            wholesalePrice: template.wholesalePrice,
+            sellingPrice: template.sellingPrice,
             imageUrl: template.imageUrl,
             attributes: template.attributes,
             status: template.status,
@@ -815,6 +857,7 @@ let CatalogService = class CatalogService {
             vendorId: vendor.id,
             productId: listed.id,
             price: dto.price,
+            wholesalePrice: dto.wholesalePrice !== undefined ? dto.wholesalePrice : listed.wholesalePrice,
             stockQty: dto.stockQty,
             isAvailable,
             offerTag: dto.offerTag || null,
@@ -839,6 +882,8 @@ let CatalogService = class CatalogService {
             unit: dto.unit.trim(),
             size: dto.size?.trim() || undefined,
             mrp: dto.mrp,
+            wholesalePrice: dto.wholesalePrice,
+            sellingPrice: dto.price,
             imageUrl: dto.imageUrl || undefined,
             description: dto.description?.trim() || undefined,
             attributes,
@@ -851,6 +896,7 @@ let CatalogService = class CatalogService {
             vendorId: vendor.id,
             productId: product.id,
             price: dto.price,
+            wholesalePrice: dto.wholesalePrice,
             stockQty: dto.stockQty,
             isAvailable,
             offerTag: dto.offerTag || null,
@@ -881,6 +927,7 @@ let CatalogService = class CatalogService {
             .set({
             ...(product.id !== existing.productId ? { productId: product.id } : {}),
             ...(dto.price !== undefined ? { price: dto.price } : {}),
+            ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice } : {}),
             stockQty,
             isAvailable,
             ...(dto.offerTag !== undefined ? { offerTag: dto.offerTag || null } : {}),
@@ -1440,10 +1487,13 @@ let CatalogService = class CatalogService {
         const catIds = cats.map((c) => c.id);
         if (catIds.length === 0)
             return [];
-        const items = await this.db
-            .select()
-            .from(schema_1.menuItems)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.menuItems.menuCategoryId, catIds), menuCategoryId ? (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, menuCategoryId) : undefined));
+        const [items, vendorCommissionPct] = await Promise.all([
+            this.db
+                .select()
+                .from(schema_1.menuItems)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.menuItems.menuCategoryId, catIds), menuCategoryId ? (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, menuCategoryId) : undefined)),
+            this.resolveVendorCommissionPct(vendorId),
+        ]);
         const itemIds = items.map((i) => i.id);
         const addons = itemIds.length
             ? await this.db.select().from(schema_1.menuItemAddons).where((0, drizzle_orm_1.inArray)(schema_1.menuItemAddons.menuItemId, itemIds))
@@ -1453,6 +1503,7 @@ let CatalogService = class CatalogService {
             : [];
         return items.map((item) => ({
             ...item,
+            commissionPct: item.commissionPct != null ? item.commissionPct : vendorCommissionPct,
             addons: addons.filter((a) => a.menuItemId === item.id),
             variants: variants.filter((v) => v.menuItemId === item.id),
         }));
@@ -1877,14 +1928,19 @@ let CatalogService = class CatalogService {
         }
         if (!vendor)
             throw new common_1.NotFoundException('Vendor not found');
-        const discounts = await this.vendorDiscounts.getActiveDiscountsForVendor(resolvedVendorId);
+        const [discounts, vendorCommissionPct] = await Promise.all([
+            this.vendorDiscounts.getActiveDiscountsForVendor(resolvedVendorId),
+            this.resolveVendorCommissionPct(resolvedVendorId),
+        ]);
         const results = [];
         const vProds = await this.db
             .select({
             id: schema_1.vendorProducts.id,
             price: schema_1.vendorProducts.price,
+            wholesalePrice: schema_1.vendorProducts.wholesalePrice,
             stockQty: schema_1.vendorProducts.stockQty,
             isAvailable: schema_1.vendorProducts.isAvailable,
+            customCommissionPct: schema_1.vendorProducts.commissionPct,
             productId: schema_1.products.id,
             name: schema_1.products.name,
             description: schema_1.products.description,
@@ -1908,6 +1964,7 @@ let CatalogService = class CatalogService {
                 category: vp.categoryName,
                 categoryId: vp.categoryId,
                 price: disc.price,
+                wholesalePrice: vp.wholesalePrice ?? null,
                 originalPrice: vp.price,
                 discountedPrice: disc.discountApplied ? disc.price : undefined,
                 discountLabel: disc.discountLabel ?? null,
@@ -1915,6 +1972,8 @@ let CatalogService = class CatalogService {
                 available: vp.isAvailable,
                 imageUrl: vp.imageUrl ?? null,
                 stockQty: vp.stockQty,
+                commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
+                customCommissionPct: vp.customCommissionPct ?? null,
             });
         }
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, resolvedVendorId)).limit(1);
@@ -1928,6 +1987,7 @@ let CatalogService = class CatalogService {
                 isAvailable: schema_1.menuItems.isAvailable,
                 imageUrl: schema_1.menuItems.imageUrl,
                 isVeg: schema_1.menuItems.isVeg,
+                customCommissionPct: schema_1.menuItems.commissionPct,
                 categoryId: schema_1.menuCategories.id,
                 categoryName: schema_1.menuCategories.name,
             })
@@ -1963,6 +2023,8 @@ let CatalogService = class CatalogService {
                     isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
                     variants: itemVariants,
                     addons: itemAddons,
+                    commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
+                    customCommissionPct: mi.customCommissionPct ?? null,
                 });
             }
         }
@@ -1972,6 +2034,7 @@ let CatalogService = class CatalogService {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
         if (!vendor)
             throw new common_1.NotFoundException('Vendor not found');
+        const vendorCommissionPct = await this.resolveVendorCommissionPct(vendorId);
         const isRestaurantItem = dto.itemType === 'menu_item' || (vendor.businessType === 'restaurant' && dto.itemType !== 'grocery');
         if (isRestaurantItem) {
             const restaurant = await this.getOrCreateRestaurant(vendorId);
@@ -2016,6 +2079,7 @@ let CatalogService = class CatalogService {
                 imageUrl: dto.imageUrl?.trim() || null,
                 isVeg: dto.isVeg ?? true,
                 isAvailable: dto.isAvailable ?? true,
+                commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : null,
             })
                 .returning();
             if (dto.variants && dto.variants.length > 0) {
@@ -2036,6 +2100,8 @@ let CatalogService = class CatalogService {
                 isVeg: item.isVeg,
                 categoryId: targetCatId,
                 isCustomisable: Boolean((dto.variants && dto.variants.length > 0) || (dto.addons && dto.addons.length > 0)),
+                commissionPct: item.commissionPct != null ? item.commissionPct : vendorCommissionPct,
+                customCommissionPct: item.commissionPct ?? null,
             };
         }
         else {
@@ -2084,6 +2150,7 @@ let CatalogService = class CatalogService {
                     price: dto.price,
                     stockQty: dto.stockQty ?? existingListing.stockQty,
                     isAvailable: dto.isAvailable ?? true,
+                    commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : existingListing.commissionPct,
                     lastRestockedAt: new Date(),
                     updatedAt: new Date(),
                 })
@@ -2102,6 +2169,8 @@ let CatalogService = class CatalogService {
                     imageUrl: prod.imageUrl,
                     categoryId: prod.categoryId,
                     stockQty: updated.stockQty,
+                    commissionPct: updated.commissionPct != null ? updated.commissionPct : vendorCommissionPct,
+                    customCommissionPct: updated.commissionPct ?? null,
                 };
             }
             const [createdListing] = await this.db
@@ -2112,6 +2181,7 @@ let CatalogService = class CatalogService {
                 price: dto.price,
                 stockQty: dto.stockQty ?? 100,
                 isAvailable: dto.isAvailable ?? true,
+                commissionPct: dto.commissionPct !== undefined ? dto.commissionPct : null,
                 lastRestockedAt: new Date(),
                 updatedAt: new Date(),
             })
@@ -2129,6 +2199,8 @@ let CatalogService = class CatalogService {
                 imageUrl: prod.imageUrl,
                 categoryId: prod.categoryId,
                 stockQty: createdListing.stockQty,
+                commissionPct: createdListing.commissionPct != null ? createdListing.commissionPct : vendorCommissionPct,
+                customCommissionPct: createdListing.commissionPct ?? null,
             };
         }
     }
@@ -2145,10 +2217,14 @@ let CatalogService = class CatalogService {
             const vpUpdates = { updatedAt: new Date() };
             if (dto.price !== undefined)
                 vpUpdates.price = dto.price;
+            if (dto.wholesalePrice !== undefined)
+                vpUpdates.wholesalePrice = dto.wholesalePrice;
             if (dto.isAvailable !== undefined)
                 vpUpdates.isAvailable = dto.isAvailable;
             if (dto.stockQty !== undefined)
                 vpUpdates.stockQty = dto.stockQty;
+            if (dto.commissionPct !== undefined)
+                vpUpdates.commissionPct = dto.commissionPct;
             await this.db.update(schema_1.vendorProducts).set(vpUpdates).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, vp.id));
             const [prod] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, vp.productId)).limit(1);
             if (prod) {
@@ -2185,6 +2261,8 @@ let CatalogService = class CatalogService {
                             unit: dto.unit?.trim() ?? prod.unit,
                             size: prod.size,
                             mrp: prod.mrp,
+                            wholesalePrice: prod.wholesalePrice,
+                            sellingPrice: prod.sellingPrice,
                             imageUrl: dto.imageUrl !== undefined ? dto.imageUrl?.trim() || null : prod.imageUrl,
                             attributes: prod.attributes,
                             status: 'active',
@@ -2220,6 +2298,8 @@ let CatalogService = class CatalogService {
                     miUpdates.isVeg = dto.isVeg;
                 if (dto.isAvailable !== undefined)
                     miUpdates.isAvailable = dto.isAvailable;
+                if (dto.commissionPct !== undefined)
+                    miUpdates.commissionPct = dto.commissionPct;
                 if (dto.categoryId !== undefined) {
                     const [validCat] = await this.db
                         .select()

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import type { PgColumn } from 'drizzle-orm/pg-core';
-import { and, eq, gte, inArray, lt, or, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -14,6 +14,7 @@ import {
   productSuggestions,
   restaurants,
   settlements,
+  vendorWithdrawals,
   vendors,
   type orderStatusEnum,
 } from '../../../drizzle/schema';
@@ -277,6 +278,39 @@ export class DashboardService {
     }
 
     const sum = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+
+    // Lifetime balance calculations for withdrawal
+    const totalPayoutSql = sql<number>`coalesce(sum(${settlements.vendorPayout}), 0)`;
+    const [[[lifetimeGrocery], [lifetimeFood]], withdrawalRows] = await Promise.all([
+      Promise.all([
+        this.db
+          .select({ total: totalPayoutSql })
+          .from(settlements)
+          .innerJoin(groceryOrders, eq(settlements.groceryOrderId, groceryOrders.id))
+          .where(eq(groceryOrders.vendorId, vendorId)),
+        this.db
+          .select({ total: totalPayoutSql })
+          .from(settlements)
+          .innerJoin(foodOrders, eq(settlements.foodOrderId, foodOrders.id))
+          .innerJoin(restaurants, eq(foodOrders.restaurantId, restaurants.id))
+          .where(eq(restaurants.vendorId, vendorId)),
+      ]),
+      this.db
+        .select({
+          status: vendorWithdrawals.status,
+          total: sql<number>`coalesce(sum(${vendorWithdrawals.amount}), 0)`,
+        })
+        .from(vendorWithdrawals)
+        .where(eq(vendorWithdrawals.vendorId, vendorId))
+        .groupBy(vendorWithdrawals.status),
+    ]);
+
+    const lifetimeEarned = Number(lifetimeGrocery?.total ?? 0) + Number(lifetimeFood?.total ?? 0);
+    const sumForStatus = (status: string) => Number(withdrawalRows.find((r) => r.status === status)?.total ?? 0);
+    const totalWithdrawn = sumForStatus('approved');
+    const pendingWithdrawal = sumForStatus('pending');
+    const remainingBalance = Math.max(0, Math.round((lifetimeEarned - totalWithdrawn - pendingWithdrawal) * 100) / 100);
+
     return {
       acceptanceRate: accepted + rejected > 0 ? Math.round((accepted / (accepted + rejected)) * 1000) / 10 : null,
       avgPrepMinutes: prep.length ? Math.round((prep.reduce((x, y) => x + y, 0) / prep.length) * 10) / 10 : null,
@@ -286,6 +320,10 @@ export class DashboardService {
       grossSales: sum(delivered.map((o) => o.total)),
       vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
       platformEarnings: sum(rows.map((r) => r.platformShare)),
+      totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
+      pendingWithdrawal: Math.round(pendingWithdrawal * 100) / 100,
+      remainingBalance,
+      availableBalance: remainingBalance,
     };
   }
 

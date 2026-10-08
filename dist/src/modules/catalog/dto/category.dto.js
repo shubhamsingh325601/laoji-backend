@@ -26,8 +26,9 @@ __decorate([
 ], CreateCategoryDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((_o, v) => v !== null && v !== undefined && v !== '' && v !== 'none'),
     (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], CreateCategoryDto.prototype, "parentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -54,8 +55,9 @@ __decorate([
 ], UpdateCategoryDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((_o, v) => v !== null && v !== undefined && v !== '' && v !== 'none'),
     (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateCategoryDto.prototype, "parentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

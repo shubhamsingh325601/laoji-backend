@@ -19,6 +19,8 @@ class VendorProductDetailsDto {
     unit;
     size;
     mrp;
+    wholesalePrice;
+    sellingPrice;
     imageUrl;
     description;
     attributes;
@@ -55,6 +57,18 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Object)
 ], VendorProductDetailsDto.prototype, "mrp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], VendorProductDetailsDto.prototype, "wholesalePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], VendorProductDetailsDto.prototype, "sellingPrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -178,6 +192,7 @@ class CreateVendorCustomProductDto {
     unit;
     size;
     mrp;
+    wholesalePrice;
     price;
     stockQty;
     isAvailable;
@@ -214,6 +229,12 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateVendorCustomProductDto.prototype, "mrp", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateVendorCustomProductDto.prototype, "wholesalePrice", void 0);
+__decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
@@ -246,6 +267,7 @@ class UpdateVendorCustomProductDto {
     unit;
     size;
     mrp;
+    wholesalePrice;
     price;
     stockQty;
     isAvailable;
@@ -284,6 +306,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateVendorCustomProductDto.prototype, "mrp", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateVendorCustomProductDto.prototype, "wholesalePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),

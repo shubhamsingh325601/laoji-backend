@@ -31,6 +31,9 @@ let PublicCouponController = class PublicCouponController {
     listActive(vendorId) {
         return this.couponService.listActive(vendorId);
     }
+    listCoupons(vendorId) {
+        return this.couponService.listActive(vendorId);
+    }
     async validate(dto, req) {
         const vendorId = dto.vendorId;
         return this.couponService.validate(dto.code, dto.subtotal, await this.userIdFrom(req), vendorId);
@@ -59,6 +62,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PublicCouponController.prototype, "listActive", null);
+__decorate([
+    (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('vendorId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PublicCouponController.prototype, "listCoupons", null);
 __decorate([
     (0, common_1.Post)('validate'),
     __param(0, (0, common_1.Body)()),
