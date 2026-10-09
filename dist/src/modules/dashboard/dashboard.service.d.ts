@@ -36,6 +36,7 @@ export interface VendorPerformanceRow {
     gmv: number;
     acceptanceRate: number;
     avgPrepMinutes: number;
+    rank?: number;
 }
 export interface CancellationRow {
     cause: 'customer' | 'vendor' | 'no_fulfillment';
@@ -65,6 +66,6 @@ export declare class DashboardService {
     private vendorNameMap;
     private restaurantNameMap;
     getSeries(days: number): Promise<ReportSeriesPoint[]>;
-    getVendorPerformance(): Promise<VendorPerformanceRow[]>;
+    getVendorPerformance(monthStr?: string): Promise<VendorPerformanceRow[]>;
     getCancellations(): Promise<CancellationRow[]>;
 }

@@ -39,7 +39,7 @@ let NotificationService = NotificationService_1 = class NotificationService {
         this.push = push;
         this.email = email;
     }
-    async registerDeviceToken(userId, fcmToken, platform) {
+    async registerDeviceToken(userId, fcmToken, platform, notificationSound) {
         await this.db
             .delete(schema_1.deviceTokens)
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.deviceTokens.fcmToken, fcmToken), (0, drizzle_orm_1.ne)(schema_1.deviceTokens.userId, userId)));
@@ -51,12 +51,15 @@ let NotificationService = NotificationService_1 = class NotificationService {
         if (existing) {
             const [updated] = await this.db
                 .update(schema_1.deviceTokens)
-                .set({ fcmToken, updatedAt: new Date() })
+                .set({ fcmToken, ...(notificationSound ? { notificationSound } : {}), updatedAt: new Date() })
                 .where((0, drizzle_orm_1.eq)(schema_1.deviceTokens.id, existing.id))
                 .returning();
             return updated;
         }
-        const [created] = await this.db.insert(schema_1.deviceTokens).values({ userId, fcmToken, platform }).returning();
+        const [created] = await this.db
+            .insert(schema_1.deviceTokens)
+            .values({ userId, fcmToken, platform, notificationSound: notificationSound ?? null })
+            .returning();
         return created;
     }
     async unregisterDeviceToken(userId, fcmToken) {
@@ -105,7 +108,9 @@ let NotificationService = NotificationService_1 = class NotificationService {
             await this.log(userId, 'push', template, message, 'failed');
             return;
         }
-        const results = await Promise.all(tokens.map((t) => this.push.send(t.fcmToken, message)));
+        const results = await Promise.all(tokens.map((t) => this.push.send(t.fcmToken, message, {
+            androidSound: t.platform === 'android' ? t.notificationSound : null,
+        })));
         const deadTokens = tokens.filter((_, i) => results[i].invalidToken).map((t) => t.fcmToken);
         if (deadTokens.length) {
             await this.db

@@ -34,6 +34,7 @@ import {
   isDefaultPickup,
   istDateString,
   isVendorOpenNow,
+  isWithinSchedule,
   roundKm,
 } from './catalog.types';
 import { productFormFor, readProductAttributes } from './product-forms';
@@ -247,9 +248,17 @@ export class CatalogService {
   // the weekly schedule together, since that screen saves both at once.
   async updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto) {
     const vendor = await this.requireVendor(userId);
-    const updateData: { isOpen: boolean; businessHours?: any } = { isOpen: dto.isOpen };
+    const updateData: { isOpen: boolean; businessHours?: any; scheduleState?: boolean } = { isOpen: dto.isOpen };
     if (dto.schedule !== undefined) {
       updateData.businessHours = dto.schedule;
+      // Saving a schedule re-baselines the auto open/close switcher: the
+      // toggle reflects the window the shop is in right now, and the next
+      // opening/closing boundary flips it (VendorScheduleService).
+      if (dto.schedule.length > 0) {
+        const inWindow = isWithinSchedule(dto.schedule);
+        updateData.scheduleState = inWindow;
+        updateData.isOpen = dto.isOpen && inWindow;
+      }
     }
     const [updated] = await this.db
       .update(vendors)
@@ -260,7 +269,7 @@ export class CatalogService {
     // Keep restaurants table in sync if this vendor operates a restaurant
     await this.db
       .update(restaurants)
-      .set({ isOpen: dto.isOpen })
+      .set({ isOpen: updated.isOpen })
       .where(eq(restaurants.vendorId, vendor.id));
 
     return {

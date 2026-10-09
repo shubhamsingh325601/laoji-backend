@@ -7,11 +7,12 @@ import { AdminCatalogController } from './admin-catalog.controller';
 import { VendorCatalogController } from './vendor-catalog.controller';
 import { VendorMenuController } from './vendor-menu.controller';
 import { PublicCatalogController } from './public-catalog.controller';
+import { VendorScheduleService } from './vendor-schedule.service';
 
 @Module({
   imports: [NotificationModule, VendorDiscountsModule, RevenueModule],
   controllers: [AdminCatalogController, VendorCatalogController, VendorMenuController, PublicCatalogController],
-  providers: [CatalogService],
+  providers: [CatalogService, VendorScheduleService],
   exports: [CatalogService],
 })
 export class CatalogModule {}

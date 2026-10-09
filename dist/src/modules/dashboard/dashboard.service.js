@@ -408,7 +408,19 @@ let DashboardService = class DashboardService {
         }
         return [...buckets.entries()].map(([date, v]) => ({ date, ...v }));
     }
-    async getVendorPerformance() {
+    async getVendorPerformance(monthStr) {
+        const now = new Date();
+        let startOfMonth;
+        let endOfMonth;
+        if (monthStr && /^\d{4}-\d{2}$/.test(monthStr)) {
+            const [year, month] = monthStr.split('-').map(Number);
+            startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+            endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+        }
+        else {
+            startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        }
         const [allVendors, allRestaurants, allGrocery, allFood, attempts, history] = await Promise.all([
             this.db.select().from(schema_1.vendors),
             this.db.select().from(schema_1.restaurants),
@@ -429,6 +441,7 @@ let DashboardService = class DashboardService {
         };
         const acceptedAt = new Map();
         const readyAt = new Map();
+        const deliveredAt = new Map();
         for (const h of history) {
             const orderId = h.groceryOrderId ?? h.foodOrderId;
             if (!orderId)
@@ -437,44 +450,56 @@ let DashboardService = class DashboardService {
                 acceptedAt.set(orderId, h.changedAt);
             if (h.status === 'ready')
                 readyAt.set(orderId, h.changedAt);
+            if (h.status === 'delivered')
+                deliveredAt.set(orderId, h.changedAt);
         }
         for (const o of allGrocery) {
             if (!o.vendorId)
                 continue;
-            const a = ensure(o.vendorId);
             if (o.status === 'delivered') {
-                a.orders += 1;
-                a.gmv += o.total;
+                const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
+                if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
+                    const a = ensure(o.vendorId);
+                    a.orders += 1;
+                    a.gmv += o.total;
+                    const start = acceptedAt.get(o.id);
+                    const end = readyAt.get(o.id);
+                    if (start && end && end > start)
+                        a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
+                }
             }
-            const start = acceptedAt.get(o.id);
-            const end = readyAt.get(o.id);
-            if (start && end && end > start)
-                a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
         }
         for (const o of allFood) {
             const vendorId = restaurantVendorId.get(o.restaurantId);
             if (!vendorId)
                 continue;
-            const a = ensure(vendorId);
             if (o.status === 'delivered') {
-                a.orders += 1;
-                a.gmv += o.total;
+                const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
+                if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
+                    const a = ensure(vendorId);
+                    a.orders += 1;
+                    a.gmv += o.total;
+                    const start = acceptedAt.get(o.id);
+                    const end = readyAt.get(o.id);
+                    if (start && end && end > start)
+                        a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
+                }
             }
-            const start = acceptedAt.get(o.id);
-            const end = readyAt.get(o.id);
-            if (start && end && end > start)
-                a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
-            if (acceptedAt.has(o.id))
-                ensure(vendorId).accepted += 1;
-            else if (o.status === 'failed')
-                ensure(vendorId).rejected += 1;
+            if (o.createdAt >= startOfMonth && o.createdAt <= endOfMonth) {
+                if (acceptedAt.has(o.id))
+                    ensure(vendorId).accepted += 1;
+                else if (o.status === 'failed')
+                    ensure(vendorId).rejected += 1;
+            }
         }
         for (const at of attempts) {
-            const a = ensure(at.vendorId);
-            if (at.outcome === 'accepted')
-                a.accepted += 1;
-            else if (at.outcome === 'rejected' || at.outcome === 'timeout')
-                a.rejected += 1;
+            if (at.createdAt >= startOfMonth && at.createdAt <= endOfMonth) {
+                const a = ensure(at.vendorId);
+                if (at.outcome === 'accepted')
+                    a.accepted += 1;
+                else if (at.outcome === 'rejected' || at.outcome === 'timeout')
+                    a.rejected += 1;
+            }
         }
         const rows = [...agg.entries()]
             .map(([vendorId, a]) => {
@@ -492,7 +517,11 @@ let DashboardService = class DashboardService {
             };
         })
             .filter((r) => r.orders > 0)
-            .sort((a, b) => b.gmv - a.gmv);
+            .sort((a, b) => b.orders - a.orders || b.gmv - a.gmv)
+            .map((r, index) => ({
+            ...r,
+            rank: index + 1,
+        }));
         return rows;
     }
     async getCancellations() {

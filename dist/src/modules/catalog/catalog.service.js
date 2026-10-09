@@ -198,6 +198,11 @@ let CatalogService = class CatalogService {
         const updateData = { isOpen: dto.isOpen };
         if (dto.schedule !== undefined) {
             updateData.businessHours = dto.schedule;
+            if (dto.schedule.length > 0) {
+                const inWindow = (0, catalog_types_1.isWithinSchedule)(dto.schedule);
+                updateData.scheduleState = inWindow;
+                updateData.isOpen = dto.isOpen && inWindow;
+            }
         }
         const [updated] = await this.db
             .update(schema_1.vendors)
@@ -206,7 +211,7 @@ let CatalogService = class CatalogService {
             .returning();
         await this.db
             .update(schema_1.restaurants)
-            .set({ isOpen: dto.isOpen })
+            .set({ isOpen: updated.isOpen })
             .where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendor.id));
         return {
             ...updated,

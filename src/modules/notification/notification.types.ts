@@ -5,6 +5,11 @@ export interface PushMessage {
   data?: Record<string, string>;
 }
 
+export interface PushSendOptions {
+  // Id of the custom sound this device picked (see notification-sound.ts). Null/absent = default channel.
+  androidSound?: string | null;
+}
+
 export interface EmailMessage {
   subject: string;
   html: string;

@@ -11,10 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RegisterDeviceTokenDto = exports.DEVICE_PLATFORMS = void 0;
 const class_validator_1 = require("class-validator");
+const notification_sound_1 = require("../notification-sound");
 exports.DEVICE_PLATFORMS = ['ios', 'android', 'web'];
 class RegisterDeviceTokenDto {
     fcmToken;
     platform;
+    notificationSound;
 }
 exports.RegisterDeviceTokenDto = RegisterDeviceTokenDto;
 __decorate([
@@ -26,4 +28,10 @@ __decorate([
     (0, class_validator_1.IsIn)(exports.DEVICE_PLATFORMS),
     __metadata("design:type", Object)
 ], RegisterDeviceTokenDto.prototype, "platform", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(notification_sound_1.NOTIFICATION_SOUND_PATTERN, { message: 'notificationSound must be 1-40 lowercase letters, digits or underscores' }),
+    __metadata("design:type", String)
+], RegisterDeviceTokenDto.prototype, "notificationSound", void 0);
 //# sourceMappingURL=register-device-token.dto.js.map

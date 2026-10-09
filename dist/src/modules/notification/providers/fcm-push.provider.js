@@ -15,6 +15,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const app_1 = require("firebase-admin/app");
 const messaging_1 = require("firebase-admin/messaging");
+const notification_sound_1 = require("../notification-sound");
 const PUSH_TTL_MS = 120_000;
 const INVALID_TOKEN_CODES = new Set([
     'messaging/invalid-registration-token',
@@ -61,11 +62,12 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
             this.logger.warn('FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY not set — FcmPushProvider running in DEV STUB mode.');
         }
     }
-    async send(token, message) {
+    async send(token, message, options = {}) {
         if (!this.configured || !this.app) {
             this.logger.log(`[DEV STUB] push -> token=${token.slice(0, 12)}... title="${message.title}" body="${message.body}"`);
             return { ok: true, stubbed: true };
         }
+        const customSound = (0, notification_sound_1.isValidNotificationSound)(options.androidSound) ? options.androidSound : null;
         try {
             const payload = {
                 token,
@@ -78,9 +80,9 @@ let FcmPushProvider = FcmPushProvider_1 = class FcmPushProvider {
                     priority: 'high',
                     ttl: PUSH_TTL_MS,
                     notification: {
-                        sound: 'default',
+                        sound: customSound ?? 'default',
                         priority: 'high',
-                        channelId: 'default',
+                        channelId: customSound ? (0, notification_sound_1.soundChannelId)(customSound) : 'default',
                         icon: 'notification_icon',
                         color: '#0A1938',
                         ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),

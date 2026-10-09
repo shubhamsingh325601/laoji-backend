@@ -28,3 +28,4 @@ export declare function isVendorOpenNow(vendor: {
     isOpen: boolean;
     businessHours: BusinessHoursDay[] | null;
 }, now?: Date): boolean;
+export declare function isWithinSchedule(businessHours: BusinessHoursDay[], now?: Date): boolean;

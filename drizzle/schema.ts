@@ -186,6 +186,11 @@ export const vendors = pgTable('vendors', {
   businessHours: jsonb('business_hours').$type<
     { day: number; isOpen: boolean; openTime: string; closeTime: string }[]
   >(),
+  // Last open/closed state the schedule auto-switcher applied to `isOpen`
+  // (see `VendorScheduleService`). The switcher only acts when the scheduled
+  // state differs from this, so a manual toggle inside a window sticks until
+  // the next opening/closing boundary. Null = never applied.
+  scheduleState: boolean('schedule_state'),
   imageUrl: text('image_url'),
   businessType: varchar('business_type', { length: 50 }).notNull().default('grocery'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -677,6 +682,8 @@ export const deviceTokens = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     fcmToken: text('fcm_token').notNull(),
     platform: devicePlatformEnum('platform').notNull(),
+    // Custom push sound chosen in the app (see notification-sound.ts). Null = the app's default channel.
+    notificationSound: varchar('notification_sound', { length: 40 }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('device_tokens_user_platform_idx').on(table.userId, table.platform)],

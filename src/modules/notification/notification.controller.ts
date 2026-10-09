@@ -35,7 +35,7 @@ export class NotificationController {
 
   @Post('device-token')
   registerDeviceToken(@CurrentUser() user: JwtAccessPayload, @Body() dto: RegisterDeviceTokenDto) {
-    return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform);
+    return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform, dto.notificationSound);
   }
 
   @Delete('device-token')

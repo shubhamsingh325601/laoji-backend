@@ -1211,6 +1211,23 @@ export declare const vendors: import("drizzle-orm/pg-core").PgTableWithColumns<{
                 closeTime: string;
             }[];
         }>;
+        scheduleState: import("drizzle-orm/pg-core").PgColumn<{
+            name: "schedule_state";
+            tableName: "vendors";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         imageUrl: import("drizzle-orm/pg-core").PgColumn<{
             name: "image_url";
             tableName: "vendors";
@@ -4377,6 +4394,25 @@ export declare const deviceTokens: import("drizzle-orm/pg-core").PgTableWithColu
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        notificationSound: import("drizzle-orm/pg-core").PgColumn<{
+            name: "notification_sound";
+            tableName: "device_tokens";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 40;
+        }>;
         updatedAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "updated_at";
             tableName: "device_tokens";

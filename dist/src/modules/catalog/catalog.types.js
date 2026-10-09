@@ -9,6 +9,7 @@ exports.isDefaultPickup = isDefaultPickup;
 exports.isOutsideCoreZone = isOutsideCoreZone;
 exports.istDateString = istDateString;
 exports.isVendorOpenNow = isVendorOpenNow;
+exports.isWithinSchedule = isWithinSchedule;
 function haversineKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
     const dLat = toRad(lat2 - lat1);
@@ -76,6 +77,9 @@ function isVendorOpenNow(vendor, now = new Date()) {
         return false;
     if (!vendor.businessHours || vendor.businessHours.length === 0)
         return true;
+    return isWithinSchedule(vendor.businessHours, now);
+}
+function isWithinSchedule(businessHours, now = new Date()) {
     const parts = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Asia/Kolkata',
         weekday: 'short',
@@ -88,7 +92,7 @@ function isVendorOpenNow(vendor, now = new Date()) {
     const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
     const dayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayShort);
     const nowMinutes = Number(hour) * 60 + Number(minute);
-    const today = vendor.businessHours.find((d) => d.day === dayIndex);
+    const today = businessHours.find((d) => d.day === dayIndex);
     if (!today || !today.isOpen)
         return false;
     const [openH, openM] = today.openTime.split(':').map(Number);

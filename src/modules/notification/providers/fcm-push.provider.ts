@@ -2,7 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { cert, initializeApp, type App } from 'firebase-admin/app';
 import { getMessaging, type Message } from 'firebase-admin/messaging';
-import type { PushMessage, PushSendResult } from '../notification.types';
+import type { PushMessage, PushSendOptions, PushSendResult } from '../notification.types';
+import { isValidNotificationSound, soundChannelId } from '../notification-sound';
 
 // A new-order or delivery-offer push is useless once the 120s allocation window
 // has passed, so FCM may drop it after 2 minutes instead of queueing it.
@@ -60,11 +61,15 @@ export class FcmPushProvider {
     }
   }
 
-  async send(token: string, message: PushMessage): Promise<PushSendResult> {
+  async send(token: string, message: PushMessage, options: PushSendOptions = {}): Promise<PushSendResult> {
     if (!this.configured || !this.app) {
       this.logger.log(`[DEV STUB] push -> token=${token.slice(0, 12)}... title="${message.title}" body="${message.body}"`);
       return { ok: true, stubbed: true };
     }
+
+    // A custom sound lives in its own channel on the device. Fall back to the
+    // shared channel if the id is missing or malformed.
+    const customSound = isValidNotificationSound(options.androidSound) ? options.androidSound : null;
 
     try {
       const payload: Message = {
@@ -82,9 +87,10 @@ export class FcmPushProvider {
           priority: 'high',
           ttl: PUSH_TTL_MS,
           notification: {
-            sound: 'default',
+            // Android 8+ plays the channel's sound; `sound` covers older versions.
+            sound: customSound ?? 'default',
             priority: 'high',
-            channelId: 'default',
+            channelId: customSound ? soundChannelId(customSound) : 'default',
             icon: 'notification_icon',
             color: '#0A1938',
             ...(message.imageUrl ? { imageUrl: message.imageUrl } : {}),

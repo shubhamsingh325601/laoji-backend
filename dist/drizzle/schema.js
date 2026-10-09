@@ -106,6 +106,7 @@ exports.vendors = (0, pg_core_1.pgTable)('vendors', {
     showInApp: (0, pg_core_1.boolean)('show_in_app').notNull().default(true),
     displayOrder: (0, pg_core_1.integer)('display_order').notNull().default(0),
     businessHours: (0, pg_core_1.jsonb)('business_hours').$type(),
+    scheduleState: (0, pg_core_1.boolean)('schedule_state'),
     imageUrl: (0, pg_core_1.text)('image_url'),
     businessType: (0, pg_core_1.varchar)('business_type', { length: 50 }).notNull().default('grocery'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -420,6 +421,7 @@ exports.deviceTokens = (0, pg_core_1.pgTable)('device_tokens', {
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     fcmToken: (0, pg_core_1.text)('fcm_token').notNull(),
     platform: (0, exports.devicePlatformEnum)('platform').notNull(),
+    notificationSound: (0, pg_core_1.varchar)('notification_sound', { length: 40 }),
     updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.uniqueIndex)('device_tokens_user_platform_idx').on(table.userId, table.platform)]);
 exports.notificationChannelEnum = (0, pg_core_1.pgEnum)('notification_channel', ['push', 'email', 'sms']);
