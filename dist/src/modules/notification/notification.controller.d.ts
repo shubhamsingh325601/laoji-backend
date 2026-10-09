@@ -28,6 +28,7 @@ export declare class NotificationController {
         updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
+        notificationSound: string | null;
     }>;
     unregisterDeviceToken(user: JwtAccessPayload, queryToken?: string, body?: {
         fcmToken?: string;

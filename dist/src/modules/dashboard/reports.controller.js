@@ -29,8 +29,8 @@ let ReportsController = class ReportsController {
         const days = ALLOWED_DAYS.includes(parsed) ? parsed : 30;
         return this.dashboard.getSeries(days);
     }
-    vendorPerformance() {
-        return this.dashboard.getVendorPerformance();
+    vendorPerformance(month) {
+        return this.dashboard.getVendorPerformance(month);
     }
     vendorSummary(id, from, to) {
         return this.dashboard.getVendorSummary(id, from, to);
@@ -49,8 +49,9 @@ __decorate([
 ], ReportsController.prototype, "series", null);
 __decorate([
     (0, common_1.Get)('vendor-performance'),
+    __param(0, (0, common_1.Query)('month')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "vendorPerformance", null);
 __decorate([

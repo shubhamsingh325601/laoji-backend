@@ -3,7 +3,7 @@ export declare class ReportsController {
     private readonly dashboard;
     constructor(dashboard: DashboardService);
     series(daysRaw?: string): Promise<import("./dashboard.service").ReportSeriesPoint[]>;
-    vendorPerformance(): Promise<import("./dashboard.service").VendorPerformanceRow[]>;
+    vendorPerformance(month?: string): Promise<import("./dashboard.service").VendorPerformanceRow[]>;
     vendorSummary(id: string, from?: string, to?: string): Promise<{
         acceptanceRate: number | null;
         avgPrepMinutes: number | null;

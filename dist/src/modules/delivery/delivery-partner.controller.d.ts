@@ -9,7 +9,7 @@ export declare class DeliveryPartnerController {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -29,7 +29,7 @@ export declare class DeliveryPartnerController {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -49,7 +49,7 @@ export declare class DeliveryPartnerController {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -69,7 +69,7 @@ export declare class DeliveryPartnerController {
         userId: string;
         name: string | null;
         phone: string | null;
-        kycStatus: "pending" | "rejected" | "verified";
+        kycStatus: "pending" | "verified" | "rejected";
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;

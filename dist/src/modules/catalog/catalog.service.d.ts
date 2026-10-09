@@ -102,32 +102,32 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
-        id: string;
-        createdAt: Date;
-        userId: string;
         businessName: string;
         ownerName: string;
         type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
+        pickupLat: number;
+        pickupLng: number;
+        kycStatus: "pending" | "verified" | "rejected";
         gstNumber: string | null;
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
-        kycStatus: "pending" | "verified" | "rejected";
-        pickupLat: number;
-        pickupLng: number;
-        radiusKm: number;
-        isOpen: boolean;
         showInApp: boolean;
         displayOrder: number;
+        imageUrl: string | null;
+        isOpen: boolean;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        radiusKm: number;
         businessHours: {
             day: number;
             isOpen: boolean;
             openTime: string;
             closeTime: string;
         }[] | null;
-        imageUrl: string | null;
         businessType: string;
     }>;
     updateBusinessHours(userId: string, dto: UpdateBusinessHoursDto): Promise<{
@@ -489,9 +489,9 @@ export declare class CatalogService {
         }[];
     }[]>;
     createCategory(dto: CreateCategoryDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -1045,15 +1045,15 @@ export declare class CatalogService {
         attributes?: Record<string, string | number | boolean> | null;
         ownerVendorId?: string | null;
     }): Promise<{
+        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -1087,9 +1087,9 @@ export declare class CatalogService {
         isOwn: boolean;
         inShop: boolean;
         productCount: number;
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -1100,9 +1100,9 @@ export declare class CatalogService {
         name?: string;
         templateCategoryId?: string;
     }): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -1110,9 +1110,9 @@ export declare class CatalogService {
     }>;
     private moveOwnProducts;
     renameVendorCategory(vendor: VendorRef, id: string, name: string): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         businessType: string | null;
         parentId: string | null;
         ownerVendorId: string | null;
@@ -1143,14 +1143,14 @@ export declare class CatalogService {
     listVendorProducts(vendorId: string): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1159,16 +1159,16 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }[]>;
     private listingView;
     private listingResponse;
@@ -1181,14 +1181,14 @@ export declare class CatalogService {
     upsertVendorProduct(vendor: VendorRef, dto: UpsertVendorProductDto): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1197,28 +1197,28 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1227,29 +1227,29 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private requireOwnVendorProduct;
     updateVendorProduct(vendor: VendorRef, id: string, dto: UpdateVendorProductDto): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1258,28 +1258,28 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     restockVendorProduct(vendorId: string, id: string, qty: number): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1288,16 +1288,16 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorProduct(vendorId: string, id: string): Promise<{
         success: boolean;
@@ -1305,14 +1305,14 @@ export declare class CatalogService {
     createVendorCustomProduct(vendor: VendorRef, dto: CreateVendorCustomProductDto): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1321,29 +1321,29 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private requireListingOfProduct;
     updateVendorCustomProduct(vendor: VendorRef, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
         product: {
             categoryId: string;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1352,16 +1352,16 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorCustomProduct(vendorId: string, productId: string): Promise<{
         success: boolean;
@@ -1374,14 +1374,14 @@ export declare class CatalogService {
         offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
+        imageUrl: string | null;
         id: string;
         brand: string | null;
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
+        ownerVendorId: string | null;
         unit: string;
         size: string | null;
         attributes: Record<string, string | number | boolean> | null;
@@ -1511,24 +1511,24 @@ export declare class CatalogService {
             offerTag: string | null;
             inStock: boolean;
             restockEta: string | null;
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
         }[];
         restaurants: (Omit<{
+            imageUrl: string | null;
+            isOpen: boolean;
             id: string;
             name: string;
-            isOpen: boolean;
-            imageUrl: string | null;
             vendorId: string;
             cuisineTags: string | null;
             ratingAvg: number;
@@ -1544,10 +1544,10 @@ export declare class CatalogService {
         dishes: any[];
     }>;
     getOrCreateRestaurant(vendorId: string): Promise<{
+        imageUrl: string | null;
+        isOpen: boolean;
         id: string;
         name: string;
-        isOpen: boolean;
-        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
         ratingAvg: number;
@@ -1644,14 +1644,14 @@ export declare class CatalogService {
             menuItemId: string;
             priceDelta: number;
         }[];
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
         mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
@@ -1684,19 +1684,19 @@ export declare class CatalogService {
     private replaceAddons;
     private replaceVariants;
     createProductSuggestion(vendor: VendorRef, dto: CreateProductSuggestionDto): Promise<{
+        imageUrl: string | null;
         id: string;
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
-        imageUrl: string | null;
+        vendorId: string;
         categoryId: string;
         unit: string;
         size: string | null;
-        vendorId: string;
         productId: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -2189,15 +2189,15 @@ export declare class CatalogService {
     private requirePendingSuggestion;
     approveProductSuggestion(adminUserId: string, id: string): Promise<{
         product: {
+            imageUrl: string | null;
             id: string;
             brand: string | null;
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -2238,12 +2238,12 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
+        businessType: string;
+        vendorId: string;
+        categoryId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        businessType: string;
-        categoryId: string | null;
-        vendorId: string;
         note: string | null;
     }>;
     listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {

@@ -10,10 +10,10 @@ export declare class WalletService {
         id: string;
         createdAt: Date;
         userId: string;
+        updatedAt: Date;
         balance: number;
         totalEarned: number;
         totalWithdrawn: number;
-        updatedAt: Date;
     }>;
     getWalletSummary(userId: string): Promise<{
         wallet: {
@@ -54,17 +54,17 @@ export declare class WalletService {
         orderType: 'grocery' | 'food';
         couponCode: string;
     }): Promise<{
-        amount: number;
+        type: string;
         id: string;
         status: string;
         createdAt: Date;
         userId: string;
         description: string;
-        type: string;
-        walletId: string;
-        orderId: string | null;
-        orderType: string | null;
         couponCode: string | null;
+        orderId: string | null;
+        amount: number;
+        walletId: string;
+        orderType: string | null;
         metadata: unknown;
     } | null>;
     confirmCommissionOnDelivery(orderType: 'grocery' | 'food', orderId: string): Promise<void>;
@@ -74,19 +74,19 @@ export declare class WalletService {
         success: boolean;
         message: string;
         request: {
-            amount: number;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
+            amount: number;
             walletId: string;
             payoutMethod: string;
-            upiId: string | null;
-            bankAccount: string | null;
-            bankIfsc: string | null;
+            processedAt: Date | null;
             accountHolderName: string | null;
             adminNotes: string | null;
-            processedAt: Date | null;
         };
     }>;
     listAllWithdrawalRequests(status?: string): Promise<{
@@ -106,7 +106,7 @@ export declare class WalletService {
         userName: string | null;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "vendor" | "customer" | "delivery_partner" | "admin" | null;
+        userRole: "customer" | "vendor" | "delivery_partner" | "admin" | null;
     }[]>;
     approveWithdrawal(requestId: string, adminNotes?: string): Promise<{
         id: string;
@@ -144,7 +144,7 @@ export declare class WalletService {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "vendor" | "customer" | "delivery_partner" | "admin";
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         };
         vendor: {
@@ -198,7 +198,7 @@ export declare class WalletService {
             name: string | null;
             phone: string | null;
             email: string | null;
-            role: "vendor" | "customer" | "delivery_partner" | "admin";
+            role: "customer" | "vendor" | "delivery_partner" | "admin";
             status: "active" | "suspended";
         } | null;
         wallet: {
@@ -236,17 +236,17 @@ export declare class WalletService {
         success: boolean;
         message: string;
         transaction: {
-            amount: number;
+            type: string;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
             description: string;
-            type: string;
-            walletId: string;
-            orderId: string | null;
-            orderType: string | null;
             couponCode: string | null;
+            orderId: string | null;
+            amount: number;
+            walletId: string;
+            orderType: string | null;
             metadata: unknown;
         };
         summary: {
@@ -291,7 +291,7 @@ export declare class WalletService {
         userName: string;
         userPhone: string | null;
         userEmail: string | null;
-        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
+        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
         userStatus: "active" | "suspended";
         balance: number;
         totalEarned: number;
@@ -315,7 +315,7 @@ export declare class WalletService {
         createdAt: Date;
         userName: string;
         userPhone: string | null;
-        userRole: "vendor" | "customer" | "delivery_partner" | "admin";
+        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
         businessName: string | null;
         vendorId: string | null;
     }[]>;

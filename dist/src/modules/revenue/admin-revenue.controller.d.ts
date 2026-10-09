@@ -12,11 +12,11 @@ export declare class AdminRevenueController {
     private readonly riderPayout;
     constructor(revenueConfig: RevenueConfigService, settlements: SettlementService, riderPayout: RiderPayoutService);
     create(user: JwtAccessPayload, dto: CreateRevenueConfigDto): Promise<{
-        id: string;
-        createdAt: Date;
         commissionPct: number;
         minOrderValue: number | null;
-        scope: "vendor" | "global" | "category";
+        id: string;
+        createdAt: Date;
+        scope: "vendor" | "category" | "global";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
         freeDeliveryThreshold: number | null;
@@ -31,7 +31,7 @@ export declare class AdminRevenueController {
     listAll(): Promise<{
         createdByLabel: string;
         id: string;
-        scope: "vendor" | "global" | "category";
+        scope: "vendor" | "category" | "global";
         scopeRefId: string | null;
         commissionPct: number;
         deliveryFeeFlat: number;

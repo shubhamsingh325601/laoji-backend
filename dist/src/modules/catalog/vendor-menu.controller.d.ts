@@ -7,10 +7,10 @@ export declare class VendorMenuController {
     private readonly catalog;
     constructor(catalog: CatalogService);
     myRestaurant(user: JwtAccessPayload): Promise<{
+        imageUrl: string | null;
+        isOpen: boolean;
         id: string;
         name: string;
-        isOpen: boolean;
-        imageUrl: string | null;
         vendorId: string;
         cuisineTags: string | null;
         ratingAvg: number;
@@ -105,14 +105,14 @@ export declare class VendorMenuController {
             menuItemId: string;
             priceDelta: number;
         }[];
+        imageUrl: string | null;
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
         mealSlots: string[] | null;
     }>;
     updateMenuItem(user: JwtAccessPayload, id: string, dto: UpdateMenuItemDto): Promise<{

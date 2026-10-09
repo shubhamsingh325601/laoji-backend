@@ -11,12 +11,13 @@ export declare class NotificationService {
     private readonly email;
     private readonly logger;
     constructor(db: Db, jobQueue: JobQueueService, push: FcmPushProvider, email: ResendEmailProvider);
-    registerDeviceToken(userId: string, fcmToken: string, platform: Platform): Promise<{
+    registerDeviceToken(userId: string, fcmToken: string, platform: Platform, notificationSound?: string): Promise<{
         id: string;
         userId: string;
         updatedAt: Date;
         fcmToken: string;
         platform: "ios" | "android" | "web";
+        notificationSound: string | null;
     }>;
     unregisterDeviceToken(userId: string, fcmToken?: string): Promise<void>;
     notifyPush(userId: string, template: string, message: PushMessage): void;
@@ -69,7 +70,7 @@ export declare class NotificationService {
         link?: string;
     }): Promise<{
         sentCount: number;
-        target: "customer" | "vendor" | "delivery_partner" | "restaurant" | "all" | "user";
+        target: "restaurant" | "customer" | "vendor" | "delivery_partner" | "all" | "user";
         channels: ("email" | "push" | "sms")[];
         message: string;
     }>;

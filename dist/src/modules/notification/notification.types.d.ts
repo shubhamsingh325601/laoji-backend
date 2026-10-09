@@ -4,6 +4,9 @@ export interface PushMessage {
     imageUrl?: string;
     data?: Record<string, string>;
 }
+export interface PushSendOptions {
+    androidSound?: string | null;
+}
 export interface EmailMessage {
     subject: string;
     html: string;

@@ -415,6 +415,7 @@ exports.deviceTokens = (0, pg_core_1.pgTable)('device_tokens', {
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     fcmToken: (0, pg_core_1.text)('fcm_token').notNull(),
     platform: (0, exports.devicePlatformEnum)('platform').notNull(),
+    notificationSound: (0, pg_core_1.varchar)('notification_sound', { length: 40 }),
     updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [(0, pg_core_1.uniqueIndex)('device_tokens_user_platform_idx').on(table.userId, table.platform)]);
 exports.notificationChannelEnum = (0, pg_core_1.pgEnum)('notification_channel', ['push', 'email', 'sms']);

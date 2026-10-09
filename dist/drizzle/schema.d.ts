@@ -4066,7 +4066,7 @@ export declare const payments: import("drizzle-orm/pg-core").PgTableWithColumns<
             tableName: "payments";
             dataType: "string";
             columnType: "PgEnumColumn";
-            data: "upi_deeplink" | "cod" | "razorpay";
+            data: "cod" | "upi_deeplink" | "razorpay";
             driverParam: string;
             notNull: true;
             hasDefault: false;
@@ -4292,6 +4292,25 @@ export declare const deviceTokens: import("drizzle-orm/pg-core").PgTableWithColu
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        notificationSound: import("drizzle-orm/pg-core").PgColumn<{
+            name: "notification_sound";
+            tableName: "device_tokens";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 40;
+        }>;
         updatedAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "updated_at";
             tableName: "device_tokens";
@@ -4486,7 +4505,7 @@ export declare const revenueConfig: import("drizzle-orm/pg-core").PgTableWithCol
             tableName: "revenue_config";
             dataType: "string";
             columnType: "PgEnumColumn";
-            data: "vendor" | "global" | "category";
+            data: "vendor" | "category" | "global";
             driverParam: string;
             notNull: true;
             hasDefault: false;

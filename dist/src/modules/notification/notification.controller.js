@@ -38,7 +38,7 @@ let NotificationController = class NotificationController {
         return { ok: true };
     }
     registerDeviceToken(user, dto) {
-        return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform);
+        return this.notifications.registerDeviceToken(user.sub, dto.fcmToken, dto.platform, dto.notificationSound);
     }
     async unregisterDeviceToken(user, queryToken, body) {
         const fcmToken = queryToken || body?.fcmToken;

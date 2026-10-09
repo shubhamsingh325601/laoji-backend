@@ -83,10 +83,10 @@ export declare class UserService {
         createdAt: Date;
     }>;
     createUser(dto: CreateAdminUserDto): Promise<{
-        id: string;
-        name: string | null;
         phone: string | null;
         email: string | null;
+        id: string;
+        name: string | null;
         passwordHash: string | null;
         role: "customer" | "vendor" | "delivery_partner" | "admin";
         status: "active" | "suspended";

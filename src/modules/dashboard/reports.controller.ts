@@ -20,8 +20,8 @@ export class ReportsController {
   }
 
   @Get('vendor-performance')
-  vendorPerformance() {
-    return this.dashboard.getVendorPerformance();
+  vendorPerformance(@Query('month') month?: string) {
+    return this.dashboard.getVendorPerformance(month);
   }
 
   @Get('vendors/:id/summary')

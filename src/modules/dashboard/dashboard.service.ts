@@ -81,6 +81,7 @@ export interface VendorPerformanceRow {
   gmv: number;
   acceptanceRate: number;
   avgPrepMinutes: number;
+  rank?: number;
 }
 
 export interface CancellationRow {
@@ -506,7 +507,19 @@ export class DashboardService {
     return [...buckets.entries()].map(([date, v]) => ({ date, ...v }));
   }
 
-  async getVendorPerformance(): Promise<VendorPerformanceRow[]> {
+  async getVendorPerformance(monthStr?: string): Promise<VendorPerformanceRow[]> {
+    const now = new Date();
+    let startOfMonth: Date;
+    let endOfMonth: Date;
+    if (monthStr && /^\d{4}-\d{2}$/.test(monthStr)) {
+      const [year, month] = monthStr.split('-').map(Number);
+      startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+    } else {
+      startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
     const [allVendors, allRestaurants, allGrocery, allFood, attempts, history] = await Promise.all([
       this.db.select().from(vendors),
       this.db.select().from(restaurants),
@@ -529,57 +542,63 @@ export class DashboardService {
       return a;
     };
 
-    // Prep time: gap between vendor_accepted and ready per order, from
-    // order_status_history's own timestamps (TRD Section 9.4's vendor
-    // performance visibility, no new tracking needed).
+    // Prep time and delivery timestamps from order_status_history
     const acceptedAt = new Map<string, Date>();
     const readyAt = new Map<string, Date>();
+    const deliveredAt = new Map<string, Date>();
     for (const h of history) {
       const orderId = h.groceryOrderId ?? h.foodOrderId;
       if (!orderId) continue;
       if (h.status === 'vendor_accepted') acceptedAt.set(orderId, h.changedAt);
       if (h.status === 'ready') readyAt.set(orderId, h.changedAt);
+      if (h.status === 'delivered') deliveredAt.set(orderId, h.changedAt);
     }
 
+    // Grocery orders: ONLY count delivered orders that were delivered in the current month window
     for (const o of allGrocery) {
       if (!o.vendorId) continue;
-      const a = ensure(o.vendorId);
-      // ONLY delivered orders count towards vendor orders and GMV!
       if (o.status === 'delivered') {
-        a.orders += 1;
-        a.gmv += o.total;
+        const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
+        if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
+          const a = ensure(o.vendorId);
+          a.orders += 1;
+          a.gmv += o.total;
+          const start = acceptedAt.get(o.id);
+          const end = readyAt.get(o.id);
+          if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
+        }
       }
-      const start = acceptedAt.get(o.id);
-      const end = readyAt.get(o.id);
-      if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
     }
+
+    // Food orders: ONLY count delivered orders that were delivered in the current month window
     for (const o of allFood) {
       const vendorId = restaurantVendorId.get(o.restaurantId);
       if (!vendorId) continue;
-      const a = ensure(vendorId);
-      // ONLY delivered orders count towards vendor orders and GMV!
       if (o.status === 'delivered') {
-        a.orders += 1;
-        a.gmv += o.total;
+        const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
+        if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
+          const a = ensure(vendorId);
+          a.orders += 1;
+          a.gmv += o.total;
+          const start = acceptedAt.get(o.id);
+          const end = readyAt.get(o.id);
+          if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
+        }
       }
-      const start = acceptedAt.get(o.id);
-      const end = readyAt.get(o.id);
-      if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
-      // Food has no allocation_attempts row (no allocation waterfall) — its
-      // accept/reject signal is the order's own status history instead.
-      if (acceptedAt.has(o.id)) ensure(vendorId).accepted += 1;
-      else if (o.status === 'failed') ensure(vendorId).rejected += 1;
+      // Food acceptance rate in current month
+      if (o.createdAt >= startOfMonth && o.createdAt <= endOfMonth) {
+        if (acceptedAt.has(o.id)) ensure(vendorId).accepted += 1;
+        else if (o.status === 'failed') ensure(vendorId).rejected += 1;
+      }
     }
 
-    // Grocery acceptance comes from allocation_attempts (captures every
-    // vendor offered the order, including ones who rejected/timed out
-    // before a different vendor accepted) — a more precise signal than
-    // order_status_history alone, which only ever sees the vendor who
-    // eventually accepted.
+    // Grocery allocation attempts in current month
     for (const at of attempts) {
-      const a = ensure(at.vendorId);
-      if (at.outcome === 'accepted') a.accepted += 1;
-      else if (at.outcome === 'rejected' || at.outcome === 'timeout') a.rejected += 1;
+      if (at.createdAt >= startOfMonth && at.createdAt <= endOfMonth) {
+        const a = ensure(at.vendorId);
+        if (at.outcome === 'accepted') a.accepted += 1;
+        else if (at.outcome === 'rejected' || at.outcome === 'timeout') a.rejected += 1;
+      }
     }
 
     const rows: VendorPerformanceRow[] = [...agg.entries()]
@@ -599,7 +618,11 @@ export class DashboardService {
         };
       })
       .filter((r) => r.orders > 0)
-      .sort((a, b) => b.gmv - a.gmv);
+      .sort((a, b) => b.orders - a.orders || b.gmv - a.gmv)
+      .map((r, index) => ({
+        ...r,
+        rank: index + 1,
+      }));
 
     return rows;
   }

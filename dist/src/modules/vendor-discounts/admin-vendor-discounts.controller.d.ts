@@ -28,19 +28,18 @@ export declare class AdminVendorDiscountsController {
         updatedAt: Date;
     }[]>;
     create(vendorId: string, dto: CreateVendorDiscountDto): Promise<{
+        minOrderValue: number;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         vendorId: string;
         productId: string | null;
-        menuItemId: string | null;
+        updatedAt: Date;
+        title: string;
         scope: string;
-        minOrderValue: number;
-        isActive: boolean;
+        menuItemId: string | null;
         discountType: string;
         discountValue: number;
         maxDiscount: number | null;
-        title: string;
         totalUsageLimit: number | null;
         usageCount: number;
         perUserLimit: number;
@@ -48,21 +47,21 @@ export declare class AdminVendorDiscountsController {
         endTime: string | null;
         startDate: string | null;
         endDate: string | null;
+        isActive: boolean;
     }>;
     update(id: string, dto: UpdateVendorDiscountDto): Promise<{
+        minOrderValue: number;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         vendorId: string;
         productId: string | null;
-        menuItemId: string | null;
+        updatedAt: Date;
+        title: string;
         scope: string;
-        minOrderValue: number;
-        isActive: boolean;
+        menuItemId: string | null;
         discountType: string;
         discountValue: number;
         maxDiscount: number | null;
-        title: string;
         totalUsageLimit: number | null;
         usageCount: number;
         perUserLimit: number;
@@ -70,21 +69,21 @@ export declare class AdminVendorDiscountsController {
         endTime: string | null;
         startDate: string | null;
         endDate: string | null;
+        isActive: boolean;
     }>;
     toggleActive(id: string): Promise<{
+        minOrderValue: number;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         vendorId: string;
         productId: string | null;
-        menuItemId: string | null;
+        updatedAt: Date;
+        title: string;
         scope: string;
-        minOrderValue: number;
-        isActive: boolean;
+        menuItemId: string | null;
         discountType: string;
         discountValue: number;
         maxDiscount: number | null;
-        title: string;
         totalUsageLimit: number | null;
         usageCount: number;
         perUserLimit: number;
@@ -92,6 +91,7 @@ export declare class AdminVendorDiscountsController {
         endTime: string | null;
         startDate: string | null;
         endDate: string | null;
+        isActive: boolean;
     }>;
     delete(id: string): Promise<{
         success: boolean;

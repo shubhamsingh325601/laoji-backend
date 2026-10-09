@@ -14,17 +14,17 @@ export declare class RevenueConfigService {
     private readonly db;
     constructor(db: Db);
     create(adminUserId: string, dto: CreateRevenueConfigDto): Promise<{
+        commissionPct: number;
+        minOrderValue: number | null;
         id: string;
         createdAt: Date;
-        commissionPct: number;
-        scope: "vendor" | "global" | "category";
+        scope: "vendor" | "category" | "global";
         scopeRefId: string | null;
         deliveryFeeFlat: number;
         freeDeliveryThreshold: number | null;
         deliveryFeeTier1: number | null;
         deliveryFeeTier2: number | null;
         deliveryFeeTier3: number | null;
-        minOrderValue: number | null;
         codThreshold: number | null;
         notes: string | null;
         effectiveFrom: Date;
@@ -33,7 +33,7 @@ export declare class RevenueConfigService {
     listAll(): Promise<{
         createdByLabel: string;
         id: string;
-        scope: "vendor" | "global" | "category";
+        scope: "vendor" | "category" | "global";
         scopeRefId: string | null;
         commissionPct: number;
         deliveryFeeFlat: number;
