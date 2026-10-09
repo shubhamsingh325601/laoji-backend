@@ -5,9 +5,8 @@ import { getMessaging, type Message } from 'firebase-admin/messaging';
 import type { PushMessage, PushSendOptions, PushSendResult } from '../notification.types';
 import { isValidNotificationSound, soundChannelId } from '../notification-sound';
 
-// A new-order or delivery-offer push is useless once the 120s allocation window
-// has passed, so FCM may drop it after 2 minutes instead of queueing it.
-const PUSH_TTL_MS = 120_000;
+// Allow push notification delivery window of up to 10 minutes to survive Android Doze mode
+const PUSH_TTL_MS = 600_000;
 
 const INVALID_TOKEN_CODES = new Set([
   'messaging/invalid-registration-token',

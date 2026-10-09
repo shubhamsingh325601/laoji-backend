@@ -1740,6 +1740,7 @@ export class OrderService {
         }
       }
 
+      return this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
     }
   }
 

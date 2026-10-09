@@ -2,10 +2,9 @@
 // open questions) — same defaults, independently configurable since a
 // delivery-partner assignment window doesn't have to match the vendor
 // allocation window in practice, even though they start out equal.
-export const DELIVERY_SLA_SECONDS = Number(process.env.DELIVERY_SLA_SECONDS ?? 120);
+// Re-assignment SLA timeout: 5 minutes (300 seconds)
+export const DELIVERY_SLA_SECONDS = Number(process.env.DELIVERY_SLA_SECONDS ?? 300);
 
-// The partner app pings its location every ~75s while it is open and online.
-// A partner who is still flagged online but hasn't been heard from for this
-// long (3 missed pings) most likely closed the app or lost signal; offering
-// them an order first just burns a whole SLA window before the next partner.
-export const PARTNER_HEARTBEAT_MAX_AGE_MS = Number(process.env.PARTNER_HEARTBEAT_MAX_AGE_SECONDS ?? 225) * 1000;
+// Heartbeat / Doze mode / GPS location staleness window: 10 minutes (600 seconds)
+export const PARTNER_HEARTBEAT_MAX_AGE_MS = Number(process.env.PARTNER_HEARTBEAT_MAX_AGE_SECONDS ?? 600) * 1000;
+

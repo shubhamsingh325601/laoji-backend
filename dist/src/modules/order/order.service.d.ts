@@ -442,8 +442,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        restaurantId: string;
         customerId: string;
+        restaurantId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;
@@ -2058,7 +2058,67 @@ export declare class OrderService {
         deliveryPartnerId: string | null;
         deliveryOtp: string | null;
         createdAt: Date;
-    } | undefined>;
+    } | {
+        items: {
+            id: string;
+            foodOrderId: string;
+            menuItemId: string;
+            qty: number;
+            unitPrice: number;
+            addonsJson: unknown;
+        }[];
+        history: {
+            actorName: string;
+            id: string;
+            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+            groceryOrderId: string | null;
+            foodOrderId: string | null;
+            actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
+            changedBy: string | null;
+            changedAt: Date;
+        }[];
+        customer: {
+            name: string;
+            phone: string;
+            line1: string;
+            area: string;
+            city: string;
+        };
+        deliveryPartner: {
+            id: string;
+            name: string;
+            phone: string;
+            vehicleType: string;
+        } | null;
+        myRating: {
+            id: string;
+            foodOrderId: string;
+            customerId: string;
+            restaurantId: string;
+            rating: number;
+            comment: string | null;
+            createdAt: Date;
+        };
+        id: string;
+        customerId: string;
+        idempotencyKey: string | null;
+        status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+        subtotal: number;
+        deliveryFee: number;
+        riderPayout: number | null;
+        platformCommission: number;
+        commissionPct: number;
+        couponCode: string | null;
+        discount: number;
+        total: number;
+        paymentStatus: string;
+        instructions: string | null;
+        restaurantId: string;
+        deliveryAddressId: string;
+        deliveryPartnerId: string | null;
+        deliveryOtp: string | null;
+        createdAt: Date;
+    }>;
     listCustomerAddressesForAdmin(customerId: string): Promise<{
         id: string;
         userId: string;

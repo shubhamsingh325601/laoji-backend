@@ -374,6 +374,13 @@ export class DeliveryService {
 
   /** Triggered by OrderService once an order is accepted/ready/handed_over. */
   async triggerAssignment(type: OrderType, orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order || order.status === 'cancelled' || order.status === 'failed' || order.deliveryPartnerId) {
+      this.jobQueue.cancel(`retry-assignment:${orderId}`);
+      return;
+    }
+
     // Check if there is already an active or accepted or pending assignment
     const existing = await this.db
       .select()
@@ -395,9 +402,11 @@ export class DeliveryService {
     }
     const partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
     if (!partner) {
-      this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Will match automatically when a partner comes online or finishes a delivery.`);
+      this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Retrying matching in 30s.`);
+      this.jobQueue.schedule(`retry-assignment:${orderId}`, 30_000, () => this.triggerAssignment(type, orderId));
       return;
     }
+    this.jobQueue.cancel(`retry-assignment:${orderId}`);
     await this.createAssignment(type, orderId, partner.id, 1);
   }
 
@@ -450,11 +459,14 @@ export class DeliveryService {
     const table = type === 'grocery' ? groceryOrders : foodOrders;
     const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
     if (!order || order.status === 'cancelled' || order.status === 'failed') return;
+    if (order.deliveryPartnerId || ['delivery_assigned', 'picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
+      this.jobQueue.cancel(`retry-assignment:${orderId}`);
+      return;
+    }
 
     // A timeout or rejection never cancels the order. It is offered to the next
     // partner not yet tried in this round; once every online partner has been
-    // tried it waits, and assignWaitingOrders offers it again the next time a
-    // partner comes online or reports a location.
+    // tried, we cycle and keep offering until accepted.
     const allAttempts = await this.db
       .select()
       .from(deliveryAssignments)
@@ -469,11 +481,23 @@ export class DeliveryService {
 
     const point = await this.pickupPoint(type, orderId);
     if (!point) return;
-    const partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
+    let partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
     if (!partner) {
-      this.logger.warn(`No further delivery partner to offer ${type} order ${orderId}; it stays waiting for one.`);
+      this.logger.log(`All available delivery partners tried in current cycle for ${type} order ${orderId}. Cycling to keep offering until accepted.`);
+      // Start a new cycle: alternate to other partner excluding the one who just timed out
+      partner = await this.findNearestOnlinePartner(point.lat, point.lng, [previous.deliveryPartnerId]);
+      if (!partner) {
+        // If only 1 online partner exists, re-offer to them directly
+        partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
+      }
+    }
+
+    if (!partner) {
+      this.logger.warn(`No online delivery partners found for ${type} order ${orderId}; retrying in 30s.`);
+      this.jobQueue.schedule(`retry-assignment:${orderId}`, 30_000, () => this.triggerAssignment(type, orderId));
       return;
     }
+    this.jobQueue.cancel(`retry-assignment:${orderId}`);
     await this.createAssignment(type, orderId, partner.id, previous.attemptNo + 1);
   }
 
@@ -649,6 +673,7 @@ export class DeliveryService {
     const partner = await this.requirePartner(userId);
     const assignment = await this.requirePendingAssignment(type, orderId, partner.id);
     this.jobQueue.cancel(assignment.id);
+    this.jobQueue.cancel(`retry-assignment:${orderId}`);
     await this.db.update(deliveryAssignments).set({ outcome: 'accepted' }).where(eq(deliveryAssignments.id, assignment.id));
 
     const otp = String(randomInt(0, 1_000_000)).padStart(6, '0');
@@ -822,6 +847,7 @@ export class DeliveryService {
         .set({ outcome: a.outcome === 'pending' ? 'timeout' : 'rejected' })
         .where(eq(deliveryAssignments.id, a.id));
     }
+    this.jobQueue.cancel(`retry-assignment:${orderId}`);
     const all = await this.db
       .select()
       .from(deliveryAssignments)

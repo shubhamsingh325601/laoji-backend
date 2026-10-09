@@ -1291,6 +1291,7 @@ let OrderService = class OrderService {
                     this.notifications.notifyPush(newVend.userId, 'order_placed', (0, order_placed_1.orderPlacedVendorPush)(orderCode, 1, orderId, 'food'));
                 }
             }
+            return this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
         }
     }
     async listCustomerAddressesForAdmin(customerId) {

@@ -16,7 +16,7 @@ const config_1 = require("@nestjs/config");
 const app_1 = require("firebase-admin/app");
 const messaging_1 = require("firebase-admin/messaging");
 const notification_sound_1 = require("../notification-sound");
-const PUSH_TTL_MS = 120_000;
+const PUSH_TTL_MS = 600_000;
 const INVALID_TOKEN_CODES = new Set([
     'messaging/invalid-registration-token',
     'messaging/registration-token-not-registered',

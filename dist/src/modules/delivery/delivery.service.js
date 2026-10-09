@@ -310,6 +310,12 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         return vendor ? { lat: vendor.pickupLat, lng: vendor.pickupLng } : null;
     }
     async triggerAssignment(type, orderId) {
+        const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
+        const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+        if (!order || order.status === 'cancelled' || order.status === 'failed' || order.deliveryPartnerId) {
+            this.jobQueue.cancel(`retry-assignment:${orderId}`);
+            return;
+        }
         const existing = await this.db
             .select()
             .from(schema_1.deliveryAssignments)
@@ -325,9 +331,11 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         }
         const partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
         if (!partner) {
-            this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Will match automatically when a partner comes online or finishes a delivery.`);
+            this.logger.warn(`No delivery partner currently available for ${type} order ${orderId}. Retrying matching in 30s.`);
+            this.jobQueue.schedule(`retry-assignment:${orderId}`, 30_000, () => this.triggerAssignment(type, orderId));
             return;
         }
+        this.jobQueue.cancel(`retry-assignment:${orderId}`);
         await this.createAssignment(type, orderId, partner.id, 1);
     }
     async createAssignment(type, orderId, partnerId, attemptNo) {
@@ -367,6 +375,10 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
         if (!order || order.status === 'cancelled' || order.status === 'failed')
             return;
+        if (order.deliveryPartnerId || ['delivery_assigned', 'picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
+            this.jobQueue.cancel(`retry-assignment:${orderId}`);
+            return;
+        }
         const allAttempts = await this.db
             .select()
             .from(schema_1.deliveryAssignments)
@@ -380,11 +392,20 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const point = await this.pickupPoint(type, orderId);
         if (!point)
             return;
-        const partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
+        let partner = await this.findNearestOnlinePartner(point.lat, point.lng, excludeIds);
         if (!partner) {
-            this.logger.warn(`No further delivery partner to offer ${type} order ${orderId}; it stays waiting for one.`);
+            this.logger.log(`All available delivery partners tried in current cycle for ${type} order ${orderId}. Cycling to keep offering until accepted.`);
+            partner = await this.findNearestOnlinePartner(point.lat, point.lng, [previous.deliveryPartnerId]);
+            if (!partner) {
+                partner = await this.findNearestOnlinePartner(point.lat, point.lng, []);
+            }
+        }
+        if (!partner) {
+            this.logger.warn(`No online delivery partners found for ${type} order ${orderId}; retrying in 30s.`);
+            this.jobQueue.schedule(`retry-assignment:${orderId}`, 30_000, () => this.triggerAssignment(type, orderId));
             return;
         }
+        this.jobQueue.cancel(`retry-assignment:${orderId}`);
         await this.createAssignment(type, orderId, partner.id, previous.attemptNo + 1);
     }
     async requirePendingAssignment(type, orderId, partnerId) {
@@ -506,6 +527,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const partner = await this.requirePartner(userId);
         const assignment = await this.requirePendingAssignment(type, orderId, partner.id);
         this.jobQueue.cancel(assignment.id);
+        this.jobQueue.cancel(`retry-assignment:${orderId}`);
         await this.db.update(schema_1.deliveryAssignments).set({ outcome: 'accepted' }).where((0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.id, assignment.id));
         const otp = String((0, crypto_1.randomInt)(0, 1_000_000)).padStart(6, '0');
         const table = type === 'grocery' ? schema_1.groceryOrders : schema_1.foodOrders;
@@ -649,6 +671,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
                 .set({ outcome: a.outcome === 'pending' ? 'timeout' : 'rejected' })
                 .where((0, drizzle_orm_1.eq)(schema_1.deliveryAssignments.id, a.id));
         }
+        this.jobQueue.cancel(`retry-assignment:${orderId}`);
         const all = await this.db
             .select()
             .from(schema_1.deliveryAssignments)
