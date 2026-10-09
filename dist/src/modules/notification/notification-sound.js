@@ -8,6 +8,6 @@ function isValidNotificationSound(value) {
     return typeof value === 'string' && exports.NOTIFICATION_SOUND_PATTERN.test(value);
 }
 function soundChannelId(sound) {
-    return `laoji_${sound}`;
+    return `laoji_${sound}_v2`;
 }
 //# sourceMappingURL=notification-sound.js.map

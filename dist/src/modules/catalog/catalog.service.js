@@ -1952,100 +1952,110 @@ let CatalogService = class CatalogService {
             this.resolveVendorCommissionPct(resolvedVendorId),
         ]);
         const results = [];
-        const vProds = await this.db
-            .select({
-            id: schema_1.vendorProducts.id,
-            price: schema_1.vendorProducts.price,
-            wholesalePrice: schema_1.vendorProducts.wholesalePrice,
-            stockQty: schema_1.vendorProducts.stockQty,
-            isAvailable: schema_1.vendorProducts.isAvailable,
-            customCommissionPct: schema_1.vendorProducts.commissionPct,
-            productId: schema_1.products.id,
-            name: schema_1.products.name,
-            description: schema_1.products.description,
-            unit: schema_1.products.unit,
-            imageUrl: schema_1.products.imageUrl,
-            categoryId: schema_1.categories.id,
-            categoryName: schema_1.categories.name,
-        })
-            .from(schema_1.vendorProducts)
-            .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
-            .innerJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
-            .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, resolvedVendorId));
-        for (const vp of vProds) {
-            const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
-            results.push({
-                id: vp.id,
-                itemType: 'grocery',
-                productId: vp.productId,
-                name: vp.name,
-                description: vp.description ?? null,
-                category: vp.categoryName,
-                categoryId: vp.categoryId,
-                price: disc.price,
-                wholesalePrice: vp.wholesalePrice ?? null,
-                originalPrice: vp.price,
-                discountedPrice: disc.discountApplied ? disc.price : undefined,
-                discountLabel: disc.discountLabel ?? null,
-                unit: vp.unit,
-                available: vp.isAvailable,
-                imageUrl: vp.imageUrl ?? null,
-                stockQty: vp.stockQty,
-                commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
-                customCommissionPct: vp.customCommissionPct ?? null,
-            });
-        }
-        const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, resolvedVendorId)).limit(1);
-        if (restaurant) {
-            const mItems = await this.db
+        try {
+            const vProds = await this.db
                 .select({
-                id: schema_1.menuItems.id,
-                name: schema_1.menuItems.name,
-                description: schema_1.menuItems.description,
-                price: schema_1.menuItems.price,
-                isAvailable: schema_1.menuItems.isAvailable,
-                imageUrl: schema_1.menuItems.imageUrl,
-                isVeg: schema_1.menuItems.isVeg,
-                customCommissionPct: schema_1.menuItems.commissionPct,
-                categoryId: schema_1.menuCategories.id,
-                categoryName: schema_1.menuCategories.name,
+                id: schema_1.vendorProducts.id,
+                price: schema_1.vendorProducts.price,
+                wholesalePrice: schema_1.vendorProducts.wholesalePrice,
+                stockQty: schema_1.vendorProducts.stockQty,
+                isAvailable: schema_1.vendorProducts.isAvailable,
+                customCommissionPct: schema_1.vendorProducts.commissionPct,
+                productId: schema_1.products.id,
+                name: schema_1.products.name,
+                description: schema_1.products.description,
+                unit: schema_1.products.unit,
+                imageUrl: schema_1.products.imageUrl,
+                categoryId: schema_1.categories.id,
+                categoryName: schema_1.categories.name,
             })
-                .from(schema_1.menuItems)
-                .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
-                .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
-            const mItemIds = mItems.map((i) => i.id);
-            const allVariants = mItemIds.length
-                ? await this.db.select().from(schema_1.menuItemVariants).where((0, drizzle_orm_1.inArray)(schema_1.menuItemVariants.menuItemId, mItemIds))
-                : [];
-            const allAddons = mItemIds.length
-                ? await this.db.select().from(schema_1.menuItemAddons).where((0, drizzle_orm_1.inArray)(schema_1.menuItemAddons.menuItemId, mItemIds))
-                : [];
-            for (const mi of mItems) {
-                const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
-                const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
-                const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
+                .from(schema_1.vendorProducts)
+                .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
+                .leftJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.products.categoryId, schema_1.categories.id))
+                .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, resolvedVendorId));
+            for (const vp of vProds) {
+                const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
                 results.push({
-                    id: mi.id,
-                    itemType: 'menu_item',
-                    name: mi.name,
-                    description: mi.description ?? null,
-                    category: mi.categoryName,
-                    categoryId: mi.categoryId,
+                    id: vp.id,
+                    itemType: 'grocery',
+                    productId: vp.productId,
+                    name: vp.name,
+                    description: vp.description ?? null,
+                    category: vp.categoryName ?? 'General',
+                    categoryId: vp.categoryId,
                     price: disc.price,
-                    originalPrice: mi.price,
+                    wholesalePrice: vp.wholesalePrice ?? null,
+                    originalPrice: vp.price,
                     discountedPrice: disc.discountApplied ? disc.price : undefined,
                     discountLabel: disc.discountLabel ?? null,
-                    unit: 'portion',
-                    available: mi.isAvailable,
-                    imageUrl: mi.imageUrl ?? null,
-                    isVeg: mi.isVeg,
-                    isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
-                    variants: itemVariants,
-                    addons: itemAddons,
-                    commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
-                    customCommissionPct: mi.customCommissionPct ?? null,
+                    unit: vp.unit,
+                    available: vp.isAvailable,
+                    imageUrl: vp.imageUrl ?? null,
+                    stockQty: vp.stockQty,
+                    commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
+                    customCommissionPct: vp.customCommissionPct ?? null,
                 });
             }
+        }
+        catch (err) {
+            console.warn('[getAdminVendorListings] grocery listings query failed:', err);
+        }
+        try {
+            const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, resolvedVendorId)).limit(1);
+            if (restaurant) {
+                const mItems = await this.db
+                    .select({
+                    id: schema_1.menuItems.id,
+                    name: schema_1.menuItems.name,
+                    description: schema_1.menuItems.description,
+                    price: schema_1.menuItems.price,
+                    isAvailable: schema_1.menuItems.isAvailable,
+                    imageUrl: schema_1.menuItems.imageUrl,
+                    isVeg: schema_1.menuItems.isVeg,
+                    customCommissionPct: schema_1.menuItems.commissionPct,
+                    categoryId: schema_1.menuCategories.id,
+                    categoryName: schema_1.menuCategories.name,
+                })
+                    .from(schema_1.menuItems)
+                    .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
+                    .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
+                const mItemIds = mItems.map((i) => i.id);
+                const allVariants = mItemIds.length
+                    ? await this.db.select().from(schema_1.menuItemVariants).where((0, drizzle_orm_1.inArray)(schema_1.menuItemVariants.menuItemId, mItemIds))
+                    : [];
+                const allAddons = mItemIds.length
+                    ? await this.db.select().from(schema_1.menuItemAddons).where((0, drizzle_orm_1.inArray)(schema_1.menuItemAddons.menuItemId, mItemIds))
+                    : [];
+                for (const mi of mItems) {
+                    const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
+                    const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
+                    const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
+                    results.push({
+                        id: mi.id,
+                        itemType: 'menu_item',
+                        name: mi.name,
+                        description: mi.description,
+                        category: mi.categoryName,
+                        categoryId: mi.categoryId,
+                        price: disc.price,
+                        originalPrice: mi.price,
+                        discountedPrice: disc.discountApplied ? disc.price : undefined,
+                        discountLabel: disc.discountLabel ?? null,
+                        unit: 'piece',
+                        available: mi.isAvailable,
+                        imageUrl: mi.imageUrl,
+                        isVeg: mi.isVeg,
+                        isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
+                        variants: itemVariants,
+                        addons: itemAddons,
+                        commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
+                        customCommissionPct: mi.customCommissionPct ?? null,
+                    });
+                }
+            }
+        }
+        catch (err) {
+            console.warn('[getAdminVendorListings] restaurant items query failed:', err);
         }
         return results;
     }

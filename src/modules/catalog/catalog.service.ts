@@ -2539,105 +2539,113 @@ export class CatalogService {
     }[] = [];
 
     // 1. Fetch grocery products
-    const vProds = await this.db
-      .select({
-        id: vendorProducts.id,
-        price: vendorProducts.price,
-        wholesalePrice: vendorProducts.wholesalePrice,
-        stockQty: vendorProducts.stockQty,
-        isAvailable: vendorProducts.isAvailable,
-        customCommissionPct: vendorProducts.commissionPct,
-        productId: products.id,
-        name: products.name,
-        description: products.description,
-        unit: products.unit,
-        imageUrl: products.imageUrl,
-        categoryId: categories.id,
-        categoryName: categories.name,
-      })
-      .from(vendorProducts)
-      .innerJoin(products, eq(vendorProducts.productId, products.id))
-      .innerJoin(categories, eq(products.categoryId, categories.id))
-      .where(eq(vendorProducts.vendorId, resolvedVendorId));
+    try {
+      const vProds = await this.db
+        .select({
+          id: vendorProducts.id,
+          price: vendorProducts.price,
+          wholesalePrice: vendorProducts.wholesalePrice,
+          stockQty: vendorProducts.stockQty,
+          isAvailable: vendorProducts.isAvailable,
+          customCommissionPct: vendorProducts.commissionPct,
+          productId: products.id,
+          name: products.name,
+          description: products.description,
+          unit: products.unit,
+          imageUrl: products.imageUrl,
+          categoryId: categories.id,
+          categoryName: categories.name,
+        })
+        .from(vendorProducts)
+        .innerJoin(products, eq(vendorProducts.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .where(eq(vendorProducts.vendorId, resolvedVendorId));
 
-    for (const vp of vProds) {
-      const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
-      results.push({
-        id: vp.id,
-        itemType: 'grocery',
-        productId: vp.productId,
-        name: vp.name,
-        description: vp.description ?? null,
-        category: vp.categoryName,
-        categoryId: vp.categoryId,
-        price: disc.price,
-        wholesalePrice: vp.wholesalePrice ?? null,
-        originalPrice: vp.price,
-        discountedPrice: disc.discountApplied ? disc.price : undefined,
-        discountLabel: disc.discountLabel ?? null,
-        unit: vp.unit,
-        available: vp.isAvailable,
-        imageUrl: vp.imageUrl ?? null,
-        stockQty: vp.stockQty,
-        commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
-        customCommissionPct: vp.customCommissionPct ?? null,
-      });
+      for (const vp of vProds) {
+        const disc = this.vendorDiscounts.calculateItemDiscount(vp.price, discounts, { productId: vp.productId });
+        results.push({
+          id: vp.id,
+          itemType: 'grocery',
+          productId: vp.productId,
+          name: vp.name,
+          description: vp.description ?? null,
+          category: vp.categoryName ?? 'General',
+          categoryId: vp.categoryId,
+          price: disc.price,
+          wholesalePrice: vp.wholesalePrice ?? null,
+          originalPrice: vp.price,
+          discountedPrice: disc.discountApplied ? disc.price : undefined,
+          discountLabel: disc.discountLabel ?? null,
+          unit: vp.unit,
+          available: vp.isAvailable,
+          imageUrl: vp.imageUrl ?? null,
+          stockQty: vp.stockQty,
+          commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
+          customCommissionPct: vp.customCommissionPct ?? null,
+        });
+      }
+    } catch (err) {
+      console.warn('[getAdminVendorListings] grocery listings query failed:', err);
     }
 
     // 2. Fetch restaurant menu items
-    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, resolvedVendorId)).limit(1);
-    if (restaurant) {
-      const mItems = await this.db
-        .select({
-          id: menuItems.id,
-          name: menuItems.name,
-          description: menuItems.description,
-          price: menuItems.price,
-          isAvailable: menuItems.isAvailable,
-          imageUrl: menuItems.imageUrl,
-          isVeg: menuItems.isVeg,
-          customCommissionPct: menuItems.commissionPct,
-          categoryId: menuCategories.id,
-          categoryName: menuCategories.name,
-        })
-        .from(menuItems)
-        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
-        .where(eq(menuCategories.restaurantId, restaurant.id));
+    try {
+      const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, resolvedVendorId)).limit(1);
+      if (restaurant) {
+        const mItems = await this.db
+          .select({
+            id: menuItems.id,
+            name: menuItems.name,
+            description: menuItems.description,
+            price: menuItems.price,
+            isAvailable: menuItems.isAvailable,
+            imageUrl: menuItems.imageUrl,
+            isVeg: menuItems.isVeg,
+            customCommissionPct: menuItems.commissionPct,
+            categoryId: menuCategories.id,
+            categoryName: menuCategories.name,
+          })
+          .from(menuItems)
+          .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+          .where(eq(menuCategories.restaurantId, restaurant.id));
 
-      const mItemIds = mItems.map((i) => i.id);
-      const allVariants = mItemIds.length
-        ? await this.db.select().from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, mItemIds))
-        : [];
-      const allAddons = mItemIds.length
-        ? await this.db.select().from(menuItemAddons).where(inArray(menuItemAddons.menuItemId, mItemIds))
-        : [];
+        const mItemIds = mItems.map((i) => i.id);
+        const allVariants = mItemIds.length
+          ? await this.db.select().from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, mItemIds))
+          : [];
+        const allAddons = mItemIds.length
+          ? await this.db.select().from(menuItemAddons).where(inArray(menuItemAddons.menuItemId, mItemIds))
+          : [];
 
-      for (const mi of mItems) {
-        const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
-        const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
-        const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
-        results.push({
-          id: mi.id,
-          itemType: 'menu_item',
-          name: mi.name,
-          description: mi.description ?? null,
-          category: mi.categoryName,
-          categoryId: mi.categoryId,
-          price: disc.price,
-          originalPrice: mi.price,
-          discountedPrice: disc.discountApplied ? disc.price : undefined,
-          discountLabel: disc.discountLabel ?? null,
-          unit: 'portion',
-          available: mi.isAvailable,
-          imageUrl: mi.imageUrl ?? null,
-          isVeg: mi.isVeg,
-          isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
-          variants: itemVariants,
-          addons: itemAddons,
-          commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
-          customCommissionPct: mi.customCommissionPct ?? null,
-        });
+        for (const mi of mItems) {
+          const itemVariants = allVariants.filter((v) => v.menuItemId === mi.id);
+          const itemAddons = allAddons.filter((a) => a.menuItemId === mi.id);
+          const disc = this.vendorDiscounts.calculateItemDiscount(mi.price, discounts, { menuItemId: mi.id });
+          results.push({
+            id: mi.id,
+            itemType: 'menu_item',
+            name: mi.name,
+            description: mi.description,
+            category: mi.categoryName,
+            categoryId: mi.categoryId,
+            price: disc.price,
+            originalPrice: mi.price,
+            discountedPrice: disc.discountApplied ? disc.price : undefined,
+            discountLabel: disc.discountLabel ?? null,
+            unit: 'piece',
+            available: mi.isAvailable,
+            imageUrl: mi.imageUrl,
+            isVeg: mi.isVeg,
+            isCustomisable: itemVariants.length > 0 || itemAddons.length > 0,
+            variants: itemVariants,
+            addons: itemAddons,
+            commissionPct: mi.customCommissionPct != null ? mi.customCommissionPct : vendorCommissionPct,
+            customCommissionPct: mi.customCommissionPct ?? null,
+          });
+        }
       }
+    } catch (err) {
+      console.warn('[getAdminVendorListings] restaurant items query failed:', err);
     }
 
     return results;
