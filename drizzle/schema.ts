@@ -186,6 +186,11 @@ export const vendors = pgTable('vendors', {
   businessHours: jsonb('business_hours').$type<
     { day: number; isOpen: boolean; openTime: string; closeTime: string }[]
   >(),
+  // Last open/closed state the schedule auto-switcher applied to `isOpen`
+  // (see `VendorScheduleService`). The switcher only acts when the scheduled
+  // state differs from this, so a manual toggle inside a window sticks until
+  // the next opening/closing boundary. Null = never applied.
+  scheduleState: boolean('schedule_state'),
   imageUrl: text('image_url'),
   businessType: varchar('business_type', { length: 50 }).notNull().default('grocery'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -130,7 +130,16 @@ export function isVendorOpenNow(
 ): boolean {
   if (!vendor.isOpen) return false;
   if (!vendor.businessHours || vendor.businessHours.length === 0) return true;
+  return isWithinSchedule(vendor.businessHours, now);
+}
 
+/**
+ * Whether `now` (IST) falls inside today's configured window of a weekly
+ * schedule, ignoring the manual `isOpen` switch. Used by
+ * `isVendorOpenNow` and by the scheduler that flips `vendors.is_open` at
+ * opening/closing time.
+ */
+export function isWithinSchedule(businessHours: BusinessHoursDay[], now: Date = new Date()): boolean {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Kolkata',
     weekday: 'short',
@@ -145,7 +154,7 @@ export function isVendorOpenNow(
   const dayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayShort);
   const nowMinutes = Number(hour) * 60 + Number(minute);
 
-  const today = vendor.businessHours.find((d) => d.day === dayIndex);
+  const today = businessHours.find((d) => d.day === dayIndex);
   if (!today || !today.isOpen) return false;
 
   const [openH, openM] = today.openTime.split(':').map(Number);
