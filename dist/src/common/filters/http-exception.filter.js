@@ -37,6 +37,13 @@ let HttpExceptionFilter = class HttpExceptionFilter {
                     message: detail || 'A record with this unique information already exists.',
                 };
             }
+            else {
+                body = {
+                    error: 'Internal Server Error',
+                    message: anyErr.message || 'Internal server error',
+                    details: { code, detail },
+                };
+            }
         }
         const { code, message, details } = normalize(status, body);
         response.status(status).json({ error: { code, message, details } });

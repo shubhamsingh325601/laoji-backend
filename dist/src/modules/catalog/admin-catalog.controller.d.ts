@@ -720,19 +720,7 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        kycDocuments: {
-            id: string;
-            userId: string;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
-            docType: string;
-            secureUrl: string;
-            publicId: string;
-            status: "pending" | "verified" | "rejected";
-            rejectionReason: string | null;
-            reviewedBy: string | null;
-            reviewedAt: Date | null;
-            uploadedAt: Date;
-        }[];
+        kycDocuments: any[];
         activity: string;
         isOpen: boolean;
         isOpenNow: boolean;
@@ -859,19 +847,7 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        kycDocuments: {
-            id: string;
-            userId: string;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
-            docType: string;
-            secureUrl: string;
-            publicId: string;
-            status: "pending" | "verified" | "rejected";
-            rejectionReason: string | null;
-            reviewedBy: string | null;
-            reviewedAt: Date | null;
-            uploadedAt: Date;
-        }[];
+        kycDocuments: any[];
         activity: string;
         isOpen: boolean;
         isOpenNow: boolean;

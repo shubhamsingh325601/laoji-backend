@@ -74,11 +74,11 @@ let CatalogService = class CatalogService {
         this.revenueConfig = revenueConfig;
     }
     async resolveVendorCommissionPct(vendorId) {
-        if (this.revenueConfig) {
-            const resolved = await this.revenueConfig.resolve(vendorId, null);
-            return Math.round(resolved.commissionPct * 100 * 10) / 10;
-        }
         try {
+            if (this.revenueConfig) {
+                const resolved = await this.revenueConfig.resolve(vendorId, null);
+                return Math.round(resolved.commissionPct * 100 * 10) / 10;
+            }
             const rows = await this.db.select().from(schema_1.revenueConfig).where((0, drizzle_orm_1.lte)(schema_1.revenueConfig.effectiveFrom, new Date()));
             const latest = (candidates) => candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
             const vendorRule = latest(rows.filter((r) => r.scope === 'vendor' && r.scopeRefId === vendorId));
@@ -1855,34 +1855,48 @@ let CatalogService = class CatalogService {
             throw new common_1.NotFoundException('Vendor not found');
         const { vendor, user } = row;
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id)).limit(1);
-        const vendorProds = await this.db.select().from(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, id));
-        let productCount = vendorProds.length;
-        if (restaurant) {
-            const [menuCountRes] = await this.db
-                .select({ count: (0, drizzle_orm_1.sql) `count(*)::int` })
-                .from(schema_1.menuItems)
-                .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
-                .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
-            const restCount = Number(menuCountRes?.count ?? 0);
-            productCount = Math.max(productCount, restCount);
+        let productCount = 0;
+        try {
+            const vendorProds = await this.db.select().from(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.vendorId, id));
+            productCount = vendorProds.length;
         }
-        const kycDocs = await this.db
-            .select({
-            id: schema_1.kycDocuments.id,
-            userId: schema_1.kycDocuments.userId,
-            role: schema_1.kycDocuments.role,
-            docType: schema_1.kycDocuments.docType,
-            secureUrl: schema_1.kycDocuments.secureUrl,
-            publicId: schema_1.kycDocuments.publicId,
-            status: schema_1.kycDocuments.status,
-            rejectionReason: schema_1.kycDocuments.rejectionReason,
-            reviewedBy: schema_1.kycDocuments.reviewedBy,
-            reviewedAt: schema_1.kycDocuments.reviewedAt,
-            uploadedAt: schema_1.kycDocuments.uploadedAt,
-        })
-            .from(schema_1.kycDocuments)
-            .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, vendor.userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
+        catch {
+        }
+        if (restaurant) {
+            try {
+                const [menuCountRes] = await this.db
+                    .select({ count: (0, drizzle_orm_1.sql) `count(*)::int` })
+                    .from(schema_1.menuItems)
+                    .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
+                    .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
+                const restCount = Number(menuCountRes?.count ?? 0);
+                productCount = Math.max(productCount, restCount);
+            }
+            catch {
+            }
+        }
+        let kycDocs = [];
+        try {
+            kycDocs = await this.db
+                .select({
+                id: schema_1.kycDocuments.id,
+                userId: schema_1.kycDocuments.userId,
+                role: schema_1.kycDocuments.role,
+                docType: schema_1.kycDocuments.docType,
+                secureUrl: schema_1.kycDocuments.secureUrl,
+                publicId: schema_1.kycDocuments.publicId,
+                status: schema_1.kycDocuments.status,
+                rejectionReason: schema_1.kycDocuments.rejectionReason,
+                reviewedBy: schema_1.kycDocuments.reviewedBy,
+                reviewedAt: schema_1.kycDocuments.reviewedAt,
+                uploadedAt: schema_1.kycDocuments.uploadedAt,
+            })
+                .from(schema_1.kycDocuments)
+                .where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, vendor.userId))
+                .orderBy((0, drizzle_orm_1.desc)(schema_1.kycDocuments.uploadedAt));
+        }
+        catch {
+        }
         const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
         return {
             id: vendor.id,

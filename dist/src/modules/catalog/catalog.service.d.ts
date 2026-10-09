@@ -2047,7 +2047,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2289,7 +2289,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2561,7 +2561,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2765,7 +2765,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
@@ -2867,19 +2867,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        kycDocuments: {
-            id: string;
-            userId: string;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
-            docType: string;
-            secureUrl: string;
-            publicId: string;
-            status: "pending" | "verified" | "rejected";
-            rejectionReason: string | null;
-            reviewedBy: string | null;
-            reviewedAt: Date | null;
-            uploadedAt: Date;
-        }[];
+        kycDocuments: any[];
         activity: string;
         isOpen: boolean;
         isOpenNow: boolean;
@@ -3053,19 +3041,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        kycDocuments: {
-            id: string;
-            userId: string;
-            role: "customer" | "vendor" | "delivery_partner" | "admin";
-            docType: string;
-            secureUrl: string;
-            publicId: string;
-            status: "pending" | "verified" | "rejected";
-            rejectionReason: string | null;
-            reviewedBy: string | null;
-            reviewedAt: Date | null;
-            uploadedAt: Date;
-        }[];
+        kycDocuments: any[];
         activity: string;
         isOpen: boolean;
         isOpenNow: boolean;

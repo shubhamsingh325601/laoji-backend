@@ -43,6 +43,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
           error: 'Conflict',
           message: detail || 'A record with this unique information already exists.',
         };
+      } else {
+        body = {
+          error: 'Internal Server Error',
+          message: anyErr.message || 'Internal server error',
+          details: { code, detail },
+        };
       }
     }
 

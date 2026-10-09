@@ -140,6 +140,24 @@ export type Db = NodePgDatabase<typeof schema>;
               ON "vendor_withdrawals" ("vendor_id") WHERE "status" = 'pending';
             CREATE INDEX IF NOT EXISTS "vendor_withdrawals_vendor_idx"
               ON "vendor_withdrawals" ("vendor_id", "created_at");
+
+            ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "wholesale_price" double precision;
+            ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "selling_price" double precision;
+            ALTER TABLE "vendor_products" ADD COLUMN IF NOT EXISTS "wholesale_price" double precision;
+            ALTER TABLE "vendor_products" ADD COLUMN IF NOT EXISTS "commission_pct" double precision;
+            ALTER TABLE "menu_items" ADD COLUMN IF NOT EXISTS "commission_pct" double precision;
+            ALTER TABLE "device_tokens" ADD COLUMN IF NOT EXISTS "notification_sound" varchar(40);
+            ALTER TABLE "vendors" ADD COLUMN IF NOT EXISTS "schedule_state" boolean;
+            ALTER TABLE "grocery_orders" ADD COLUMN IF NOT EXISTS "rider_payout" double precision;
+            ALTER TABLE "food_orders" ADD COLUMN IF NOT EXISTS "rider_payout" double precision;
+
+            CREATE TABLE IF NOT EXISTS "rider_payout_tiers" (
+              "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+              "from_km" double precision NOT NULL,
+              "to_km" double precision,
+              "amount" double precision NOT NULL,
+              "created_at" timestamp with time zone DEFAULT now() NOT NULL
+            );
           `);
         } catch (err) {
           console.warn('[DB Init] Auto-migration notice:', err);

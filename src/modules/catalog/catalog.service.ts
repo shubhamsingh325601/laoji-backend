@@ -108,11 +108,11 @@ export class CatalogService {
   ) {}
 
   private async resolveVendorCommissionPct(vendorId: string): Promise<number> {
-    if (this.revenueConfig) {
-      const resolved = await this.revenueConfig.resolve(vendorId, null);
-      return Math.round(resolved.commissionPct * 100 * 10) / 10;
-    }
     try {
+      if (this.revenueConfig) {
+        const resolved = await this.revenueConfig.resolve(vendorId, null);
+        return Math.round(resolved.commissionPct * 100 * 10) / 10;
+      }
       const rows = await this.db.select().from(revenueConfig).where(lte(revenueConfig.effectiveFrom, new Date()));
       const latest = (candidates: typeof rows) =>
         candidates.length ? candidates.reduce((a, b) => (a.effectiveFrom > b.effectiveFrom ? a : b)) : null;
@@ -2412,36 +2412,49 @@ export class CatalogService {
     const { vendor, user } = row;
 
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, id)).limit(1);
-    const vendorProds = await this.db.select().from(vendorProducts).where(eq(vendorProducts.vendorId, id));
-
-    let productCount = vendorProds.length;
+    let productCount = 0;
+    try {
+      const vendorProds = await this.db.select().from(vendorProducts).where(eq(vendorProducts.vendorId, id));
+      productCount = vendorProds.length;
+    } catch {
+      // ignore
+    }
     if (restaurant) {
-      const [menuCountRes] = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(menuItems)
-        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
-        .where(eq(menuCategories.restaurantId, restaurant.id));
-      const restCount = Number(menuCountRes?.count ?? 0);
-      productCount = Math.max(productCount, restCount);
+      try {
+        const [menuCountRes] = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(menuItems)
+          .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+          .where(eq(menuCategories.restaurantId, restaurant.id));
+        const restCount = Number(menuCountRes?.count ?? 0);
+        productCount = Math.max(productCount, restCount);
+      } catch {
+        // ignore
+      }
     }
 
-    const kycDocs = await this.db
-      .select({
-        id: kycDocuments.id,
-        userId: kycDocuments.userId,
-        role: kycDocuments.role,
-        docType: kycDocuments.docType,
-        secureUrl: kycDocuments.secureUrl,
-        publicId: kycDocuments.publicId,
-        status: kycDocuments.status,
-        rejectionReason: kycDocuments.rejectionReason,
-        reviewedBy: kycDocuments.reviewedBy,
-        reviewedAt: kycDocuments.reviewedAt,
-        uploadedAt: kycDocuments.uploadedAt,
-      })
-      .from(kycDocuments)
-      .where(eq(kycDocuments.userId, vendor.userId))
-      .orderBy(desc(kycDocuments.uploadedAt));
+    let kycDocs: any[] = [];
+    try {
+      kycDocs = await this.db
+        .select({
+          id: kycDocuments.id,
+          userId: kycDocuments.userId,
+          role: kycDocuments.role,
+          docType: kycDocuments.docType,
+          secureUrl: kycDocuments.secureUrl,
+          publicId: kycDocuments.publicId,
+          status: kycDocuments.status,
+          rejectionReason: kycDocuments.rejectionReason,
+          reviewedBy: kycDocuments.reviewedBy,
+          reviewedAt: kycDocuments.reviewedAt,
+          uploadedAt: kycDocuments.uploadedAt,
+        })
+        .from(kycDocuments)
+        .where(eq(kycDocuments.userId, vendor.userId))
+        .orderBy(desc(kycDocuments.uploadedAt));
+    } catch {
+      // ignore
+    }
 
     const commissionPct = await this.resolveVendorCommissionPct(vendor.id);
 
