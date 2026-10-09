@@ -72,6 +72,9 @@ let AdminCatalogController = class AdminCatalogController {
     updateVendor(id, dto, user) {
         return this.catalog.updateAdminVendor(id, dto, user?.sub);
     }
+    resetVendorPassword(id, dto) {
+        return this.catalog.resetAdminVendorPassword(id, dto.newPassword);
+    }
     deleteVendor(id) {
         return this.catalog.deleteAdminVendor(id);
     }
@@ -216,6 +219,14 @@ __decorate([
     __metadata("design:paramtypes", [String, admin_vendor_dto_1.UpdateAdminVendorDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "updateVendor", null);
+__decorate([
+    (0, common_1.Post)('vendors/:id/password'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_vendor_dto_1.ResetAdminVendorPasswordDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "resetVendorPassword", null);
 __decorate([
     (0, common_1.Delete)('vendors/:id'),
     __param(0, (0, common_1.Param)('id')),

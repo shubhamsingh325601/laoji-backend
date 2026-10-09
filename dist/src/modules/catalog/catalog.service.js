@@ -2542,6 +2542,18 @@ let CatalogService = class CatalogService {
             createdAt: vendor.createdAt,
         };
     }
+    async resetAdminVendorPassword(vendorId, newPassword) {
+        const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
+        if (!vendor)
+            throw new common_1.NotFoundException('Vendor not found');
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await this.db
+            .update(schema_1.users)
+            .set({ passwordHash, mustChangePassword: true })
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, vendor.userId));
+        await this.db.update(schema_1.authTokens).set({ revokedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.authTokens.userId, vendor.userId));
+        return { success: true, message: 'Vendor password updated.' };
+    }
     async reorderVendors(dto) {
         if (dto.orders && Array.isArray(dto.orders)) {
             for (const item of dto.orders) {

@@ -2047,7 +2047,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2289,7 +2289,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2561,7 +2561,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2765,7 +2765,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
@@ -2997,6 +2997,10 @@ export declare class CatalogService {
         imageUrl: string | null;
         tempPassword: string;
         createdAt: Date;
+    }>;
+    resetAdminVendorPassword(vendorId: string, newPassword: string): Promise<{
+        success: boolean;
+        message: string;
     }>;
     reorderVendors(dto: ReorderVendorsDto): Promise<{
         id: string;

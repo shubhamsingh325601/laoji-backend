@@ -54,3 +54,6 @@ export declare class ReorderVendorsDto {
     orders?: ReorderVendorItemDto[];
     vendorIds?: string[];
 }
+export declare class ResetAdminVendorPasswordDto {
+    newPassword: string;
+}

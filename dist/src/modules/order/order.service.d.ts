@@ -442,8 +442,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         foodOrderId: string;
         rating: number;
         comment: string | null;

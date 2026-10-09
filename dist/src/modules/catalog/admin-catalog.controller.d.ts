@@ -4,7 +4,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
-import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 export declare class AdminCatalogController {
     private readonly catalog;
@@ -895,6 +895,10 @@ export declare class AdminCatalogController {
         ratingCount: number;
         productCount: number;
         createdAt: Date;
+    }>;
+    resetVendorPassword(id: string, dto: ResetAdminVendorPasswordDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
     deleteVendor(id: string): Promise<{
         success: boolean;
