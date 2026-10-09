@@ -27,7 +27,7 @@ describe('FcmPushProvider custom sound', () => {
   it('routes to the sound channel the vendor picked', async () => {
     await makeProvider().send('t'.repeat(20), message, { androidSound: 'mandir_ghanti' });
     const payload = sendMock.mock.calls[0][0];
-    expect(payload.android.notification.channelId).toBe('laoji_mandir_ghanti');
+    expect(payload.android.notification.channelId).toBe('laoji_mandir_ghanti_v2');
     expect(payload.android.notification.sound).toBe('mandir_ghanti');
     expect(payload.android.priority).toBe('high');
   });

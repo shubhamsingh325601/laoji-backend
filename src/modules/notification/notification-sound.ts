@@ -1,5 +1,5 @@
 // Custom push sounds. A sound id names an audio file bundled in the app
-// (res/raw/<id>.*) and an Android notification channel (`laoji_<id>`) that the
+// (res/raw/<id>.*) and an Android notification channel (`laoji_<id>_v2`) that the
 // app creates for it; the app registers its choice with the device token and
 // pushes are routed to that channel. The backend only checks the shape of the
 // id, so adding a sound to the app needs no backend change.
@@ -10,5 +10,5 @@ export function isValidNotificationSound(value: unknown): value is string {
 }
 
 export function soundChannelId(sound: string): string {
-  return `laoji_${sound}`;
+  return `laoji_${sound}_v2`;
 }
