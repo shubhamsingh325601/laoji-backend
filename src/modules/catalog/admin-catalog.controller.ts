@@ -9,7 +9,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
-import { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
+import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -93,6 +93,11 @@ export class AdminCatalogController {
     @CurrentUser() user?: JwtAccessPayload,
   ) {
     return this.catalog.updateAdminVendor(id, dto, user?.sub);
+  }
+
+  @Post('vendors/:id/password')
+  resetVendorPassword(@Param('id') id: string, @Body() dto: ResetAdminVendorPasswordDto) {
+    return this.catalog.resetAdminVendorPassword(id, dto.newPassword);
   }
 
   @Delete('vendors/:id')

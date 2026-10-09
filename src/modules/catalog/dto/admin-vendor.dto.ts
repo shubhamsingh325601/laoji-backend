@@ -206,3 +206,9 @@ export class ReorderVendorsDto {
   @IsOptional()
   vendorIds?: string[];
 }
+
+export class ResetAdminVendorPasswordDto {
+  @IsString()
+  @Length(6, 100, { message: 'Password must be at least 6 characters' })
+  newPassword: string;
+}
