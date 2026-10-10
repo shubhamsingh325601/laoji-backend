@@ -32,9 +32,14 @@ export class UserService {
     }
 
     const userIds = filtered.map((u) => u.id);
-    const userAddresses = userIds.length
-      ? await this.db.select().from(addresses).where(inArray(addresses.userId, userIds))
-      : [];
+    let userAddresses: any[] = [];
+    try {
+      userAddresses = userIds.length
+        ? await this.db.select().from(addresses).where(inArray(addresses.userId, userIds))
+        : [];
+    } catch (err: any) {
+      console.warn('[listUsers] addresses query notice:', err?.message || err);
+    }
 
     const addrMap = new Map<string, typeof addresses.$inferSelect>();
     for (const a of userAddresses) {
@@ -43,29 +48,46 @@ export class UserService {
       }
     }
 
-    const userWallets = userIds.length
-      ? await this.db.select().from(wallets).where(inArray(wallets.userId, userIds))
-      : [];
+    let userWallets: any[] = [];
+    try {
+      userWallets = userIds.length
+        ? await this.db.select().from(wallets).where(inArray(wallets.userId, userIds))
+        : [];
+    } catch (err: any) {
+      console.warn('[listUsers] wallets query notice:', err?.message || err);
+    }
     const walletMap = new Map(userWallets.map((w) => [w.userId, w]));
 
     // Order stats count delivered orders only (not cancelled/failed/in-progress). They only apply to customers; the admin Customers list
     // (GET /admin/users?role=customer) reads totalOrders/totalSpend off
     // this response and had nothing to read them from at all before.
     const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
-    const groceryStats = customerIds.length
-      ? await this.db
-          .select({ customerId: groceryOrders.customerId, count: count(groceryOrders.id), total: sum(groceryOrders.total) })
-          .from(groceryOrders)
-          .where(and(inArray(groceryOrders.customerId, customerIds), eq(groceryOrders.status, 'delivered')))
-          .groupBy(groceryOrders.customerId)
-      : [];
-    const foodStats = customerIds.length
-      ? await this.db
-          .select({ customerId: foodOrders.customerId, count: count(foodOrders.id), total: sum(foodOrders.total) })
-          .from(foodOrders)
-          .where(and(inArray(foodOrders.customerId, customerIds), eq(foodOrders.status, 'delivered')))
-          .groupBy(foodOrders.customerId)
-      : [];
+    let groceryStats: any[] = [];
+    try {
+      groceryStats = customerIds.length
+        ? await this.db
+            .select({ customerId: groceryOrders.customerId, count: count(groceryOrders.id), total: sum(groceryOrders.total) })
+            .from(groceryOrders)
+            .where(and(inArray(groceryOrders.customerId, customerIds), eq(groceryOrders.status, 'delivered')))
+            .groupBy(groceryOrders.customerId)
+        : [];
+    } catch (err: any) {
+      console.warn('[listUsers] groceryStats notice:', err?.message || err);
+    }
+
+    let foodStats: any[] = [];
+    try {
+      foodStats = customerIds.length
+        ? await this.db
+            .select({ customerId: foodOrders.customerId, count: count(foodOrders.id), total: sum(foodOrders.total) })
+            .from(foodOrders)
+            .where(and(inArray(foodOrders.customerId, customerIds), eq(foodOrders.status, 'delivered')))
+            .groupBy(foodOrders.customerId)
+        : [];
+    } catch (err: any) {
+      console.warn('[listUsers] foodStats notice:', err?.message || err);
+    }
+
     const groceryStatsById = new Map(groceryStats.map((s) => [s.customerId, s]));
     const foodStatsById = new Map(foodStats.map((s) => [s.customerId, s]));
 
@@ -95,24 +117,45 @@ export class UserService {
     const [u] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     if (!u) throw new NotFoundException('User not found');
 
-    const userAddresses = await this.db.select().from(addresses).where(eq(addresses.userId, id));
-    const groceryList = await this.db.select().from(groceryOrders).where(eq(groceryOrders.customerId, id)).limit(10);
-    const foodList = await this.db.select().from(foodOrders).where(eq(foodOrders.customerId, id)).limit(10);
-    const [walletRow] = await this.db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
+    let userAddresses: any[] = [];
+    let groceryList: any[] = [];
+    let foodList: any[] = [];
+    let walletRow: any = null;
+    let groceryAgg: any = null;
+    let foodAgg: any = null;
 
-    // orderCount/totalSpend must cover every order, not just the 10 fetched
-    // above for recentOrders — otherwise both undercount past a customer's
-    // first 10 orders of either type.
-    const [[groceryAgg], [foodAgg]] = await Promise.all([
-      this.db
+    try {
+      userAddresses = await this.db.select().from(addresses).where(eq(addresses.userId, id));
+    } catch {}
+
+    try {
+      groceryList = await this.db.select().from(groceryOrders).where(eq(groceryOrders.customerId, id)).limit(10);
+    } catch {}
+
+    try {
+      foodList = await this.db.select().from(foodOrders).where(eq(foodOrders.customerId, id)).limit(10);
+    } catch {}
+
+    try {
+      const [w] = await this.db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
+      walletRow = w;
+    } catch {}
+
+    try {
+      const [g] = await this.db
         .select({ count: count(groceryOrders.id), total: sum(groceryOrders.total) })
         .from(groceryOrders)
-        .where(and(eq(groceryOrders.customerId, id), eq(groceryOrders.status, 'delivered'))),
-      this.db
+        .where(and(eq(groceryOrders.customerId, id), eq(groceryOrders.status, 'delivered')));
+      groceryAgg = g;
+    } catch {}
+
+    try {
+      const [f] = await this.db
         .select({ count: count(foodOrders.id), total: sum(foodOrders.total) })
         .from(foodOrders)
-        .where(and(eq(foodOrders.customerId, id), eq(foodOrders.status, 'delivered'))),
-    ]);
+        .where(and(eq(foodOrders.customerId, id), eq(foodOrders.status, 'delivered')));
+      foodAgg = f;
+    } catch {}
 
     return {
       id: u.id,

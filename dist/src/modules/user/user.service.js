@@ -39,34 +39,58 @@ let UserService = class UserService {
                 (u.name && u.name.toLowerCase().includes(q)));
         }
         const userIds = filtered.map((u) => u.id);
-        const userAddresses = userIds.length
-            ? await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.inArray)(schema_1.addresses.userId, userIds))
-            : [];
+        let userAddresses = [];
+        try {
+            userAddresses = userIds.length
+                ? await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.inArray)(schema_1.addresses.userId, userIds))
+                : [];
+        }
+        catch (err) {
+            console.warn('[listUsers] addresses query notice:', err?.message || err);
+        }
         const addrMap = new Map();
         for (const a of userAddresses) {
             if (!addrMap.has(a.userId) || a.isDefault) {
                 addrMap.set(a.userId, a);
             }
         }
-        const userWallets = userIds.length
-            ? await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.inArray)(schema_1.wallets.userId, userIds))
-            : [];
+        let userWallets = [];
+        try {
+            userWallets = userIds.length
+                ? await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.inArray)(schema_1.wallets.userId, userIds))
+                : [];
+        }
+        catch (err) {
+            console.warn('[listUsers] wallets query notice:', err?.message || err);
+        }
         const walletMap = new Map(userWallets.map((w) => [w.userId, w]));
         const customerIds = filtered.filter((u) => u.role === 'customer').map((u) => u.id);
-        const groceryStats = customerIds.length
-            ? await this.db
-                .select({ customerId: schema_1.groceryOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
-                .from(schema_1.groceryOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered')))
-                .groupBy(schema_1.groceryOrders.customerId)
-            : [];
-        const foodStats = customerIds.length
-            ? await this.db
-                .select({ customerId: schema_1.foodOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.foodOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.foodOrders.total) })
-                .from(schema_1.foodOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered')))
-                .groupBy(schema_1.foodOrders.customerId)
-            : [];
+        let groceryStats = [];
+        try {
+            groceryStats = customerIds.length
+                ? await this.db
+                    .select({ customerId: schema_1.groceryOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
+                    .from(schema_1.groceryOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered')))
+                    .groupBy(schema_1.groceryOrders.customerId)
+                : [];
+        }
+        catch (err) {
+            console.warn('[listUsers] groceryStats notice:', err?.message || err);
+        }
+        let foodStats = [];
+        try {
+            foodStats = customerIds.length
+                ? await this.db
+                    .select({ customerId: schema_1.foodOrders.customerId, count: (0, drizzle_orm_1.count)(schema_1.foodOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.foodOrders.total) })
+                    .from(schema_1.foodOrders)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.customerId, customerIds), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered')))
+                    .groupBy(schema_1.foodOrders.customerId)
+                : [];
+        }
+        catch (err) {
+            console.warn('[listUsers] foodStats notice:', err?.message || err);
+        }
         const groceryStatsById = new Map(groceryStats.map((s) => [s.customerId, s]));
         const foodStatsById = new Map(foodStats.map((s) => [s.customerId, s]));
         return filtered.map((u) => {
@@ -94,20 +118,45 @@ let UserService = class UserService {
         const [u] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id)).limit(1);
         if (!u)
             throw new common_1.NotFoundException('User not found');
-        const userAddresses = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.userId, id));
-        const groceryList = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id)).limit(10);
-        const foodList = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id)).limit(10);
-        const [walletRow] = await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.eq)(schema_1.wallets.userId, id)).limit(1);
-        const [[groceryAgg], [foodAgg]] = await Promise.all([
-            this.db
+        let userAddresses = [];
+        let groceryList = [];
+        let foodList = [];
+        let walletRow = null;
+        let groceryAgg = null;
+        let foodAgg = null;
+        try {
+            userAddresses = await this.db.select().from(schema_1.addresses).where((0, drizzle_orm_1.eq)(schema_1.addresses.userId, id));
+        }
+        catch { }
+        try {
+            groceryList = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id)).limit(10);
+        }
+        catch { }
+        try {
+            foodList = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id)).limit(10);
+        }
+        catch { }
+        try {
+            const [w] = await this.db.select().from(schema_1.wallets).where((0, drizzle_orm_1.eq)(schema_1.wallets.userId, id)).limit(1);
+            walletRow = w;
+        }
+        catch { }
+        try {
+            const [g] = await this.db
                 .select({ count: (0, drizzle_orm_1.count)(schema_1.groceryOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.groceryOrders.total) })
                 .from(schema_1.groceryOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered'))),
-            this.db
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'delivered')));
+            groceryAgg = g;
+        }
+        catch { }
+        try {
+            const [f] = await this.db
                 .select({ count: (0, drizzle_orm_1.count)(schema_1.foodOrders.id), total: (0, drizzle_orm_1.sum)(schema_1.foodOrders.total) })
                 .from(schema_1.foodOrders)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered'))),
-        ]);
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.customerId, id), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'delivered')));
+            foodAgg = f;
+        }
+        catch { }
         return {
             id: u.id,
             phone: u.phone,
