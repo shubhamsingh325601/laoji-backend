@@ -29,7 +29,8 @@
     "seed:golden-cafe": "ts-node -r tsconfig-paths/register scripts/seed-golden-cafe.ts",
     "seed:new-vendors": "ts-node -r tsconfig-paths/register scripts/seed-new-vendors.ts",
     "verify:new-vendors": "ts-node -r tsconfig-paths/register scripts/verify-new-vendors.ts",
-    "delete:fruits-vegetables": "ts-node -r tsconfig-paths/register scripts/delete-fruits-vegetables.ts"
+    "delete:fruits-vegetables": "ts-node -r tsconfig-paths/register scripts/delete-fruits-vegetables.ts",
+    "migrate:supabase": "ts-node -r tsconfig-paths/register scripts/run-supabase-migration.ts"
   },
   "dependencies": {
     "@nestjs/cli": "^11.0.0",
