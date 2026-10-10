@@ -186,6 +186,7 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
       mockCoupons,
       mockVendorDiscounts,
       mockWallet,
+      { qualifies: jest.fn().mockResolvedValue(false) } as any,
     );
   });
 

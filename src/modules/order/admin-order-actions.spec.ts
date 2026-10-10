@@ -146,6 +146,7 @@ describe('Admin Order Actions (Accept & Restore)', () => {
       mockCoupons,
       mockVendorDiscounts,
       mockWallet,
+      { qualifies: jest.fn().mockResolvedValue(false) } as any,
     );
   });
 

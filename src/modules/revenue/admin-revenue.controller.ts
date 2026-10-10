@@ -8,6 +8,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { RevenueConfigService } from './revenue-config.service';
 import { SettlementService } from './settlement.service';
 import { RiderPayoutService } from './rider-payout.service';
+import { NewCustomerDeliveryService } from './new-customer-delivery.service';
 import { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
 
 class SetRiderPayoutTiersDto {
@@ -24,6 +25,7 @@ export class AdminRevenueController {
     private readonly revenueConfig: RevenueConfigService,
     private readonly settlements: SettlementService,
     private readonly riderPayout: RiderPayoutService,
+    private readonly newCustomerDelivery: NewCustomerDeliveryService,
   ) {}
 
   @Post('revenue-config')
@@ -44,6 +46,16 @@ export class AdminRevenueController {
   @Put('rider-payout-tiers')
   async setRiderPayoutTiers(@Body() dto: SetRiderPayoutTiersDto) {
     return { tiers: await this.riderPayout.replaceTiers(dto.tiers) };
+  }
+
+  @Get('new-customer-delivery')
+  getNewCustomerDelivery() {
+    return this.newCustomerDelivery.get();
+  }
+
+  @Put('new-customer-delivery')
+  setNewCustomerDelivery(@Body() body: unknown) {
+    return this.newCustomerDelivery.save(body);
   }
 
   @Get('settlements')

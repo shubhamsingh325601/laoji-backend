@@ -808,6 +808,16 @@ export const riderPayoutTiers = pgTable('rider_payout_tiers', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Admin-set rule: a customer's first `max_orders` orders pay no delivery fee when
+// the drop is within `max_km` of the pickup. One row, replaced on save.
+export const newCustomerDeliverySettings = pgTable('new_customer_delivery_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  enabled: boolean('enabled').notNull().default(true),
+  maxKm: doublePrecision('max_km').notNull().default(5),
+  maxOrders: integer('max_orders').notNull().default(3),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const settlements = pgTable(
   'settlements',
   {

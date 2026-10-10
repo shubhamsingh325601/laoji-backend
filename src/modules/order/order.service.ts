@@ -42,6 +42,7 @@ import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templa
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
 import type { ADMIN_SETTABLE_STATUSES } from './dto/admin-order-actions.dto';
 import { RevenueConfigService, type ResolvedRevenueConfig } from '../revenue/revenue-config.service';
+import { NewCustomerDeliveryService } from '../revenue/new-customer-delivery.service';
 import { CouponService } from '../coupon/coupon.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -71,6 +72,7 @@ export class OrderService {
     private readonly coupons: CouponService,
     private readonly vendorDiscounts: VendorDiscountsService,
     private readonly wallet: WalletService,
+    private readonly newCustomerDelivery: NewCustomerDeliveryService,
   ) {
     this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
       this.handlePaymentSatisfied(type, orderId).catch((err) => {
@@ -136,8 +138,10 @@ export class OrderService {
     dropoff: { lat: number; lng: number },
   ) {
     const outerZone = isOutsideCoreZone(dropoff.lat, dropoff.lng);
-    const baseFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-    // A fee of 0 means the order reached the free-delivery threshold, which stays free.
+    // A customer's first few orders within the admin-set distance get free delivery.
+    const freeForNewCustomer = await this.newCustomerDelivery.qualifies(customerId, distanceKm);
+    const baseFee = freeForNewCustomer ? 0 : this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    // A fee of 0 (free-delivery threshold or new-customer offer) stays free.
     const deliveryFee = outerZone && baseFee > 0 ? OUTER_ZONE_DELIVERY_FEE : baseFee;
     const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
     let code = couponCode?.trim().toUpperCase() ?? '';
