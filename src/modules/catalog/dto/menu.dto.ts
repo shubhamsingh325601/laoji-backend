@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -49,16 +49,27 @@ export class MenuItemAddonInput {
   isRequired?: boolean;
 }
 
+// Clients sometimes send numbers as strings ("20") or blank/invalid values.
+// Convert what is numeric; treat the rest as not sent so the service can fall
+// back to `price` (see CatalogService#replaceVariants).
+const toFiniteNumberOrUndefined = ({ value }: { value: unknown }) => {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 export class MenuItemVariantInput {
   @IsString()
   @Length(1, 150)
   name: string;
 
   @IsOptional()
+  @Transform(toFiniteNumberOrUndefined)
   @IsNumber()
   priceDelta?: number;
 
   @IsOptional()
+  @Transform(toFiniteNumberOrUndefined)
   @IsNumber()
   price?: number;
 
