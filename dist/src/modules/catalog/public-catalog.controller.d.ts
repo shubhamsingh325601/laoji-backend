@@ -24,8 +24,8 @@ export declare class PublicCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
+        ownerVendorId: string | null;
         unit: string;
         size: string | null;
         wholesalePrice: number | null;
@@ -185,8 +185,8 @@ export declare class PublicCatalogController {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             wholesalePrice: number | null;
