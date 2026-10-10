@@ -818,6 +818,27 @@ export const newCustomerDeliverySettings = pgTable('new_customer_delivery_settin
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Extra free deliveries an admin has granted one customer, on top of the
+// standard number in new_customer_delivery_settings.
+export const customerFreeDeliveryBonus = pgTable('customer_free_delivery_bonus', {
+  customerId: uuid('customer_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  extraOrders: integer('extra_orders').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Admin-defined delivery fee the customer pays, by pickup-to-drop distance.
+// Same shape as rider_payout_tiers: a row covers (from_km, to_km], the first
+// starts at 0 and the last has to_km null. No rows = the revenue_config tiers.
+export const customerDeliveryFeeTiers = pgTable('customer_delivery_fee_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromKm: doublePrecision('from_km').notNull(),
+  toKm: doublePrecision('to_km'),
+  amount: doublePrecision('amount').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const settlements = pgTable(
   'settlements',
   {

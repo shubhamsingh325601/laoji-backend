@@ -139,8 +139,14 @@ export class OrderService {
   ) {
     const outerZone = isOutsideCoreZone(dropoff.lat, dropoff.lng);
     // A customer's first few orders within the admin-set distance get free delivery.
-    const freeForNewCustomer = await this.newCustomerDelivery.qualifies(customerId, distanceKm);
-    const baseFee = freeForNewCustomer ? 0 : this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    // Otherwise the admin's km ranges set the fee (revenue-config fees if none are saved).
+    const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
+    let baseFee = 0;
+    if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {
+      baseFee =
+        (await this.newCustomerDelivery.feeForDistance(distanceKm)) ??
+        this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+    }
     // A fee of 0 (free-delivery threshold or new-customer offer) stays free.
     const deliveryFee = outerZone && baseFee > 0 ? OUTER_ZONE_DELIVERY_FEE : baseFee;
     const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
@@ -162,6 +168,8 @@ export class OrderService {
       deliveryFee,
       discount,
       total: Math.max(0, subtotal + deliveryFee - discount),
+      freeDeliveryApplied: offer.applied,
+      freeDeliveriesLeft: offer.remaining,
       minOrderValue: revenue.minOrderValue,
       freeDeliveryThreshold: revenue.freeDeliveryThreshold,
       coupon: coupon
