@@ -18,3 +18,23 @@ export function productSuggestionRejectedVendorPush(productName: string): PushMe
     data: { event: 'product_suggestion_rejected', screen: '/suggest-product' },
   };
 }
+
+export function productSuggestionCreatedAdminPush(
+  productName: string,
+  categoryName?: string,
+  vendorName?: string,
+): PushMessage {
+  const catPart = categoryName ? ` under ${categoryName}` : '';
+  const vendorPart = vendorName ? ` by ${vendorName}` : '';
+  return {
+    title: '📦 New Product Suggestion',
+    body: `New item "${productName}" suggested${catPart}${vendorPart}. Tap to review.`,
+    data: {
+      event: 'product_suggestion',
+      productName,
+      link: '/product-suggestions',
+      url: '/product-suggestions',
+    },
+  };
+}
+

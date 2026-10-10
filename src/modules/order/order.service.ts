@@ -37,7 +37,12 @@ import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { orderPlacedVendorPush, orderPlacedAdminPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
-import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
+import {
+  orderCancelledAdminPush,
+  orderCancelledCustomerPush,
+  orderCancelledPartnerPush,
+  orderCancelledVendorPush,
+} from '../notification/templates/push/order-cancelled';
 import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
 import type { ADMIN_SETTABLE_STATUSES } from './dto/admin-order-actions.dto';
@@ -1125,6 +1130,10 @@ export class OrderService {
       orderCancelledCustomerPush(this.orderCode(orderId), orderId, 'food'),
     );
     this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId), orderId));
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(this.orderCode(orderId), orderId, 'food', 'vendor'),
+    );
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -1286,6 +1295,10 @@ export class OrderService {
       const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
       if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode, orderId));
     }
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(orderCode, orderId, type, 'admin'),
+    );
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
@@ -1778,6 +1791,10 @@ export class OrderService {
     const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
     const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
     if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(orderCode, orderId, type, 'customer'),
+    );
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })

@@ -4,8 +4,11 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
+import { NotificationService } from '../notification/notification.service';
+import { vendorRegisteredAdminPush } from '../notification/templates/push/vendor-onboarding';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { and, desc, eq, gt, ilike, inArray, isNotNull, isNull, or } from 'drizzle-orm';
@@ -40,6 +43,7 @@ export class AuthService {
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    @Optional() private readonly notifications?: NotificationService,
   ) {}
 
   async requestOtp(phone: string, role: OtpRole): Promise<{ devOtp?: string }> {
@@ -569,6 +573,13 @@ export class AuthService {
         })
         .returning();
       vendorRecord = created;
+
+      if (this.notifications) {
+        this.notifications.notifyAllAdminsPush(
+          'vendor_registered',
+          vendorRegisteredAdminPush(dto.businessName, dto.ownerName, created.id),
+        );
+      }
     }
 
     const tokens = await this.issueTokens(userId, 'vendor');

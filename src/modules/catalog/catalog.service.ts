@@ -85,10 +85,12 @@ import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.ser
 import { RevenueConfigService } from '../revenue/revenue-config.service';
 import {
   productSuggestionApprovedVendorPush,
+  productSuggestionCreatedAdminPush,
   productSuggestionRejectedVendorPush,
 } from '../notification/templates/push/product-suggestion';
 import {
   categorySuggestionApprovedVendorPush,
+  categorySuggestionCreatedAdminPush,
   categorySuggestionRejectedVendorPush,
 } from '../notification/templates/push/category-suggestion';
 
@@ -2123,6 +2125,13 @@ export class CatalogService {
         imageUrl: dto.imageUrl,
       })
       .returning();
+
+    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, vendor.id)).limit(1);
+    this.notifications.notifyAllAdminsPush(
+      'product_suggestion',
+      productSuggestionCreatedAdminPush(dto.name.trim(), category.name, vendorRow?.businessName),
+    );
+
     return row;
   }
 
@@ -2246,6 +2255,13 @@ export class CatalogService {
       .insert(categorySuggestions)
       .values({ vendorId: vendor.id, name, businessType: vendor.businessType, note: dto.note?.trim() || null })
       .returning();
+
+    const [vendorRow] = await this.db.select().from(vendors).where(eq(vendors.id, vendor.id)).limit(1);
+    this.notifications.notifyAllAdminsPush(
+      'category_suggestion',
+      categorySuggestionCreatedAdminPush(name, vendor.businessType, vendorRow?.businessName),
+    );
+
     return row;
   }
 

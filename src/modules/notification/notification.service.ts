@@ -120,10 +120,13 @@ export class NotificationService {
     // Drop tokens FCM says are dead so the next push isn't aimed at an old install.
     const deadTokens = tokens.filter((_, i) => results[i].invalidToken).map((t) => t.fcmToken);
     if (deadTokens.length) {
-      await this.db
-        .delete(deviceTokens)
-        .where(and(eq(deviceTokens.userId, userId), inArray(deviceTokens.fcmToken, deadTokens)))
-        .catch((err) => this.logger.warn(`Failed to prune dead device tokens for ${userId}: ${err instanceof Error ? err.message : err}`));
+      try {
+        await this.db
+          .delete(deviceTokens)
+          .where(and(eq(deviceTokens.userId, userId), inArray(deviceTokens.fcmToken, deadTokens)));
+      } catch (err) {
+        this.logger.warn(`Failed to prune dead device tokens for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
     await this.log(userId, 'push', template, message, results.some((r) => r.ok) ? 'sent' : 'failed');
   }
@@ -221,6 +224,18 @@ export class NotificationService {
         message,
       }),
     );
+    const userLabel = user?.name || (user?.phone ? `+91 ${user.phone}` : user?.email ?? 'User');
+    this.notifyAllAdminsPush('support_message', {
+      title: `💬 Support: ${subject}`,
+      body: `From ${role} (${userLabel}): ${message.slice(0, 120)}`,
+      data: {
+        event: 'support_message',
+        userId,
+        role,
+        link: '/notifications',
+        url: '/notifications',
+      },
+    });
   }
 
   async sendAdminNotification(dto: {

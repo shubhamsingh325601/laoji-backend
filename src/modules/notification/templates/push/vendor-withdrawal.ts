@@ -17,3 +17,20 @@ export function withdrawalRejectedVendorPush(amount: number, reason: string): Pu
     data: { event: 'withdrawal_rejected', screen: '/(tabs)/earnings' },
   };
 }
+
+export function withdrawalRequestedAdminPush(
+  businessName: string,
+  amount: number,
+  withdrawalId?: string,
+): PushMessage {
+  return {
+    title: '💸 New Withdrawal Request',
+    body: `${businessName} requested a payout of ₹${amount}. Tap to review and process.`,
+    data: {
+      event: 'withdrawal_requested',
+      amount: String(amount),
+      ...(withdrawalId ? { withdrawalId, link: `/withdrawals/${withdrawalId}`, url: `/withdrawals/${withdrawalId}` } : {}),
+    },
+  };
+}
+

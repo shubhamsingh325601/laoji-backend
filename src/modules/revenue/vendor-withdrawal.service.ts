@@ -17,6 +17,7 @@ import { NotificationService } from '../notification/notification.service';
 import {
   withdrawalApprovedVendorPush,
   withdrawalRejectedVendorPush,
+  withdrawalRequestedAdminPush,
 } from '../notification/templates/push/vendor-withdrawal';
 
 type OrderType = 'grocery' | 'food';
@@ -185,6 +186,11 @@ export class VendorWithdrawalService {
       }
       throw err;
     }
+
+    this.notifications.notifyAllAdminsPush(
+      'withdrawal_requested',
+      withdrawalRequestedAdminPush(vendor.businessName, amount, created.id),
+    );
 
     const destination = usesUpi
       ? `UPI ID (${vendor.upiId})`

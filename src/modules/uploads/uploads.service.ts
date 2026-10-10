@@ -9,6 +9,7 @@ import type { UserRole } from '../auth/auth.types';
 import type { UploadType } from './dto/signature-request.dto';
 import { NotificationService } from '../notification/notification.service';
 import { kycApprovedEmail, kycRejectedEmail } from '../notification/templates/email/kyc-status';
+import { kycSubmittedAdminPush } from '../notification/templates/push/vendor-onboarding';
 
 export interface SignatureResponse {
   signature: string;
@@ -86,6 +87,16 @@ export class UploadsService {
     }
 
     const rolledUpStatus = await this.rollUpKycStatus(userId, role);
+
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const userName = user?.name || (user?.phone ? `+91 ${user.phone}` : 'User');
+    if (this.notifications?.notifyAllAdminsPush) {
+      this.notifications.notifyAllAdminsPush(
+        'kyc_submitted',
+        kycSubmittedAdminPush(userName, role, input.docType),
+      );
+    }
+
     return { ...row, rolledUpStatus };
   }
 

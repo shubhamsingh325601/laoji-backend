@@ -36,7 +36,7 @@ import { assignmentOfferedPartnerPush } from '../notification/templates/push/rea
 import { deliveryAssignedCustomerPush } from '../notification/templates/push/delivery-assigned';
 import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
-import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
+import { deliveredAdminPush, deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
 import { SettlementService } from '../revenue/settlement.service';
 import { RiderPayoutService } from '../revenue/rider-payout.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
@@ -929,6 +929,10 @@ export class DeliveryService {
       }
     }
     this.notifications.notifyPush(partnerUserId, 'delivered', deliveredPartnerPush(orderCode, settlement?.deliveryPayout ?? 0, orderId));
+    this.notifications.notifyAllAdminsPush(
+      'delivered',
+      deliveredAdminPush(orderCode, orderId, type, order.subtotal + order.deliveryFee),
+    );
 
     // This partner is free again. Orders waiting for a partner (everyone was
     // busy or offline when they were ready) get offered now rather than at
