@@ -29,9 +29,15 @@ export class VendorSettlementController {
     return this.withdrawals.listForVendor(user.sub);
   }
 
+  @Get('withdrawal-limit')
+  async getWithdrawalLimit() {
+    return { minWithdrawalLimit: await this.withdrawals.getMinWithdrawalLimit() };
+  }
+
   // No `amount` = withdraw the whole available balance (what older app builds send).
   @Post('withdraw')
   withdraw(@CurrentUser() user: JwtAccessPayload, @Body() dto: RequestVendorWithdrawalDto) {
     return this.withdrawals.request(user.sub, dto.amount);
   }
+
 }

@@ -18,6 +18,7 @@ export declare class VendorSettlementController {
         createdAt: Date;
     }[]>;
     listWithdrawals(user: JwtAccessPayload): Promise<{
+        minWithdrawalLimit: number;
         hasPending: boolean;
         withdrawals: {
             id: string;
@@ -34,6 +35,9 @@ export declare class VendorSettlementController {
         totalEarned: number;
         totalWithdrawn: number;
         pendingAmount: number;
+    }>;
+    getWithdrawalLimit(): Promise<{
+        minWithdrawalLimit: number;
     }>;
     withdraw(user: JwtAccessPayload, dto: RequestVendorWithdrawalDto): Promise<{
         success: boolean;

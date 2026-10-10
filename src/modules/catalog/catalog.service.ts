@@ -2082,7 +2082,7 @@ export class CatalogService {
       .returning();
   }
 
-  private async replaceVariants(menuItemId: string, variants?: MenuItemVariantInput[]) {
+  private async replaceVariants(menuItemId: string, variants?: MenuItemVariantInput[], basePrice?: number) {
     await this.db.delete(menuItemVariants).where(eq(menuItemVariants.menuItemId, menuItemId));
     if (!variants || variants.length === 0) return [];
     return this.db
@@ -2091,7 +2091,14 @@ export class CatalogService {
         variants.map((v) => ({
           menuItemId,
           name: v.name,
-          priceDelta: v.priceDelta,
+          priceDelta:
+            v.priceDelta !== undefined
+              ? v.priceDelta
+              : typeof v.price === 'number'
+              ? basePrice !== undefined
+                ? v.price - basePrice
+                : v.price
+              : 0,
           isDefault: v.isDefault ?? false,
         })),
       )
@@ -2758,7 +2765,7 @@ export class CatalogService {
         .returning();
 
       if (dto.variants && dto.variants.length > 0) {
-        await this.replaceVariants(item.id, dto.variants);
+        await this.replaceVariants(item.id, dto.variants, dto.price);
       }
       if (dto.addons && dto.addons.length > 0) {
         await this.replaceAddons(item.id, dto.addons);
@@ -2958,7 +2965,7 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
     if (restaurant) {
       const [mi] = await this.db
-        .select({ id: menuItems.id })
+        .select({ id: menuItems.id, price: menuItems.price })
         .from(menuItems)
         .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
         .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
@@ -2988,7 +2995,7 @@ export class CatalogService {
         }
 
         if (dto.variants !== undefined) {
-          await this.replaceVariants(itemId, dto.variants);
+          await this.replaceVariants(itemId, dto.variants, dto.price ?? mi.price);
         }
         if (dto.addons !== undefined) {
           await this.replaceAddons(itemId, dto.addons);

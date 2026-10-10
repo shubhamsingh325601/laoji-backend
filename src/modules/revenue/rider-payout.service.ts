@@ -38,7 +38,7 @@ export function validateRiderPayoutTiers(tiers: unknown): RiderPayoutTier[] {
     if (toKm !== null && (!Number.isFinite(toKm) || toKm <= fromKm)) {
       throw new BadRequestException(`${label}: "to" km must be greater than "from" km`);
     }
-    if (!Number.isFinite(amount) || amount < 0) throw new BadRequestException(`${label}: rider payout must be 0 or more`);
+    if (!Number.isFinite(amount) || amount < 0) throw new BadRequestException(`${label}: amount must be 0 or more`);
     return { fromKm, toKm, amount: Math.round(amount * 100) / 100 };
   });
 

@@ -1594,7 +1594,7 @@ let CatalogService = class CatalogService {
             .values(addons.map((a) => ({ menuItemId, name: a.name, price: a.price, isRequired: a.isRequired ?? false })))
             .returning();
     }
-    async replaceVariants(menuItemId, variants) {
+    async replaceVariants(menuItemId, variants, basePrice) {
         await this.db.delete(schema_1.menuItemVariants).where((0, drizzle_orm_1.eq)(schema_1.menuItemVariants.menuItemId, menuItemId));
         if (!variants || variants.length === 0)
             return [];
@@ -1603,7 +1603,13 @@ let CatalogService = class CatalogService {
             .values(variants.map((v) => ({
             menuItemId,
             name: v.name,
-            priceDelta: v.priceDelta,
+            priceDelta: v.priceDelta !== undefined
+                ? v.priceDelta
+                : typeof v.price === 'number'
+                    ? basePrice !== undefined
+                        ? v.price - basePrice
+                        : v.price
+                    : 0,
             isDefault: v.isDefault ?? false,
         })))
             .returning();
@@ -2134,7 +2140,7 @@ let CatalogService = class CatalogService {
             })
                 .returning();
             if (dto.variants && dto.variants.length > 0) {
-                await this.replaceVariants(item.id, dto.variants);
+                await this.replaceVariants(item.id, dto.variants, dto.price);
             }
             if (dto.addons && dto.addons.length > 0) {
                 await this.replaceAddons(item.id, dto.addons);
@@ -2330,7 +2336,7 @@ let CatalogService = class CatalogService {
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
         if (restaurant) {
             const [mi] = await this.db
-                .select({ id: schema_1.menuItems.id })
+                .select({ id: schema_1.menuItems.id, price: schema_1.menuItems.price })
                 .from(schema_1.menuItems)
                 .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.menuItems.id, itemId), (0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id)))
@@ -2364,7 +2370,7 @@ let CatalogService = class CatalogService {
                     await this.db.update(schema_1.menuItems).set(miUpdates).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, itemId));
                 }
                 if (dto.variants !== undefined) {
-                    await this.replaceVariants(itemId, dto.variants);
+                    await this.replaceVariants(itemId, dto.variants, dto.price ?? mi.price);
                 }
                 if (dto.addons !== undefined) {
                     await this.replaceAddons(itemId, dto.addons);

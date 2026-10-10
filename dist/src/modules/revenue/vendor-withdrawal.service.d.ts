@@ -1,6 +1,8 @@
 import type { Db } from '../../config/database.module';
 import { NotificationService } from '../notification/notification.service';
 type OrderType = 'grocery' | 'food';
+export declare const DEFAULT_VENDOR_MIN_WITHDRAWAL_LIMIT = 500;
+export declare const PLATFORM_KEY_VENDOR_MIN_WITHDRAWAL = "vendor_min_withdrawal_limit";
 export declare class VendorWithdrawalService {
     private readonly db;
     private readonly notifications;
@@ -12,8 +14,17 @@ export declare class VendorWithdrawalService {
         totalWithdrawn: number;
         pendingAmount: number;
     }>;
+    getMinWithdrawalLimit(): Promise<number>;
+    updateMinWithdrawalLimit(limit: number, adminId?: string): Promise<{
+        minWithdrawalLimit: number;
+        message: string;
+    }>;
+    getWithdrawalSettings(): Promise<{
+        minWithdrawalLimit: number;
+    }>;
     private vendorForUser;
     listForVendor(userId: string): Promise<{
+        minWithdrawalLimit: number;
         hasPending: boolean;
         withdrawals: {
             id: string;

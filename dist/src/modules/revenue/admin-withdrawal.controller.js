@@ -25,6 +25,12 @@ let AdminWithdrawalController = class AdminWithdrawalController {
     constructor(withdrawals) {
         this.withdrawals = withdrawals;
     }
+    getSettings() {
+        return this.withdrawals.getWithdrawalSettings();
+    }
+    updateSettings(user, dto) {
+        return this.withdrawals.updateMinWithdrawalLimit(dto.minWithdrawalLimit, user.sub);
+    }
     list(status) {
         return this.withdrawals.listForAdmin(status === 'pending' || status === 'approved' || status === 'rejected' ? status : undefined);
     }
@@ -39,6 +45,20 @@ let AdminWithdrawalController = class AdminWithdrawalController {
     }
 };
 exports.AdminWithdrawalController = AdminWithdrawalController;
+__decorate([
+    (0, common_1.Get)('settings'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminWithdrawalController.prototype, "getSettings", null);
+__decorate([
+    (0, common_1.Put)('settings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vendor_withdrawal_dto_1.UpdateWithdrawalSettingsDto]),
+    __metadata("design:returntype", void 0)
+], AdminWithdrawalController.prototype, "updateSettings", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('status')),

@@ -54,8 +54,13 @@ export class MenuItemVariantInput {
   @Length(1, 150)
   name: string;
 
+  @IsOptional()
   @IsNumber()
-  priceDelta: number;
+  priceDelta?: number;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 
   @IsOptional()
   @IsBoolean()

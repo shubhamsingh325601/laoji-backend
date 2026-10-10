@@ -3,7 +3,7 @@ import { and, desc, eq, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { users, vendors, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
+import { platformSettings, users, vendors, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
 import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
 import { NotificationService } from '../notification/notification.service';
@@ -220,11 +220,27 @@ export class WalletService {
       throw new BadRequestException('Withdrawal amount must be greater than zero');
     }
 
+    const [user] = await this.db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (user?.role === 'vendor') {
+      const [setting] = await this.db
+        .select({ value: platformSettings.value })
+        .from(platformSettings)
+        .where(eq(platformSettings.key, 'vendor_min_withdrawal_limit'))
+        .limit(1);
+      const minLimit = setting?.value && Number(setting.value) > 0 ? Number(setting.value) : 500;
+      if (dto.amount < minLimit) {
+        throw new BadRequestException(
+          `Minimum withdrawal amount for vendors is ₹${minLimit}. You requested ₹${dto.amount}.`,
+        );
+      }
+    }
+
     if (wallet.balance < dto.amount) {
       throw new BadRequestException(
         `Insufficient wallet balance. You requested ₹${dto.amount}, but your available balance is ₹${wallet.balance}`,
       );
     }
+
 
     if (dto.payoutMethod === 'upi' && !dto.upiId?.trim()) {
       throw new BadRequestException('Please provide a valid UPI ID (e.g. yourname@upi)');

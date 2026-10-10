@@ -12,13 +12,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VendorWithdrawalService = void 0;
+exports.VendorWithdrawalService = exports.PLATFORM_KEY_VENDOR_MIN_WITHDRAWAL = exports.DEFAULT_VENDOR_MIN_WITHDRAWAL_LIMIT = void 0;
 const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const notification_service_1 = require("../notification/notification.service");
 const vendor_withdrawal_1 = require("../notification/templates/push/vendor-withdrawal");
+exports.DEFAULT_VENDOR_MIN_WITHDRAWAL_LIMIT = 500;
+exports.PLATFORM_KEY_VENDOR_MIN_WITHDRAWAL = 'vendor_min_withdrawal_limit';
 const round2 = (n) => Math.round(n * 100) / 100;
 const orderCode = (id) => id.slice(0, 8).toUpperCase();
 let VendorWithdrawalService = class VendorWithdrawalService {
@@ -67,6 +69,48 @@ let VendorWithdrawalService = class VendorWithdrawalService {
             pendingAmount: round2(pendingAmount),
         };
     }
+    async getMinWithdrawalLimit() {
+        const [row] = await this.db
+            .select({ value: schema_1.platformSettings.value })
+            .from(schema_1.platformSettings)
+            .where((0, drizzle_orm_1.eq)(schema_1.platformSettings.key, exports.PLATFORM_KEY_VENDOR_MIN_WITHDRAWAL))
+            .limit(1);
+        if (!row || !row.value)
+            return exports.DEFAULT_VENDOR_MIN_WITHDRAWAL_LIMIT;
+        const parsed = Number(row.value);
+        return Number.isFinite(parsed) && parsed > 0 ? round2(parsed) : exports.DEFAULT_VENDOR_MIN_WITHDRAWAL_LIMIT;
+    }
+    async updateMinWithdrawalLimit(limit, adminId) {
+        const val = round2(Number(limit));
+        if (!Number.isFinite(val) || val < 1) {
+            throw new common_1.BadRequestException('Minimum withdrawal limit must be at least ₹1.');
+        }
+        await this.db
+            .insert(schema_1.platformSettings)
+            .values({
+            key: exports.PLATFORM_KEY_VENDOR_MIN_WITHDRAWAL,
+            value: String(val),
+            description: 'Minimum withdrawal limit for vendors in INR',
+            updatedAt: new Date(),
+            updatedBy: adminId || null,
+        })
+            .onConflictDoUpdate({
+            target: schema_1.platformSettings.key,
+            set: {
+                value: String(val),
+                updatedAt: new Date(),
+                updatedBy: adminId || null,
+            },
+        });
+        return {
+            minWithdrawalLimit: val,
+            message: `Minimum withdrawal limit updated to ₹${val}`,
+        };
+    }
+    async getWithdrawalSettings() {
+        const minWithdrawalLimit = await this.getMinWithdrawalLimit();
+        return { minWithdrawalLimit };
+    }
     async vendorForUser(userId) {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.userId, userId)).limit(1);
         if (!vendor)
@@ -75,7 +119,7 @@ let VendorWithdrawalService = class VendorWithdrawalService {
     }
     async listForVendor(userId) {
         const vendor = await this.vendorForUser(userId);
-        const [balance, rows] = await Promise.all([
+        const [balance, rows, minWithdrawalLimit] = await Promise.all([
             this.getBalance(vendor.id),
             this.db
                 .select()
@@ -83,9 +127,11 @@ let VendorWithdrawalService = class VendorWithdrawalService {
                 .where((0, drizzle_orm_1.eq)(schema_1.vendorWithdrawals.vendorId, vendor.id))
                 .orderBy((0, drizzle_orm_1.desc)(schema_1.vendorWithdrawals.createdAt))
                 .limit(50),
+            this.getMinWithdrawalLimit(),
         ]);
         return {
             ...balance,
+            minWithdrawalLimit,
             hasPending: rows.some((r) => r.status === 'pending'),
             withdrawals: rows.map((w) => ({
                 id: w.id,
@@ -116,13 +162,22 @@ let VendorWithdrawalService = class VendorWithdrawalService {
         if (open) {
             throw new common_1.ConflictException('You already have a withdrawal request waiting for approval.');
         }
-        const { availableBalance } = await this.getBalance(vendor.id);
+        const [{ availableBalance }, minLimit] = await Promise.all([
+            this.getBalance(vendor.id),
+            this.getMinWithdrawalLimit(),
+        ]);
         if (availableBalance <= 0) {
             throw new common_1.BadRequestException('You do not have any balance to withdraw.');
+        }
+        if (availableBalance < minLimit) {
+            throw new common_1.BadRequestException(`Minimum withdrawal limit is ₹${minLimit}. Your current available balance is ₹${availableBalance}.`);
         }
         const amount = requested === undefined ? availableBalance : round2(requested);
         if (amount <= 0)
             throw new common_1.BadRequestException('Withdrawal amount must be greater than zero.');
+        if (amount < minLimit) {
+            throw new common_1.BadRequestException(`Minimum withdrawal amount is ₹${minLimit}. You requested ₹${amount}.`);
+        }
         if (amount > availableBalance) {
             throw new common_1.BadRequestException(`You can withdraw at most ₹${availableBalance}. You asked for ₹${amount}.`);
         }

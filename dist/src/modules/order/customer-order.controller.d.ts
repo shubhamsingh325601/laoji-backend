@@ -15,6 +15,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         discount: number;
         total: number;
+        freeDeliveryApplied: boolean;
+        freeDeliveriesLeft: number;
         minOrderValue: number;
         freeDeliveryThreshold: number;
         coupon: {
@@ -47,6 +49,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         discount: number;
         total: number;
+        freeDeliveryApplied: boolean;
+        freeDeliveriesLeft: number;
         minOrderValue: number;
         freeDeliveryThreshold: number;
         coupon: {
@@ -82,8 +86,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -185,8 +189,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -237,8 +241,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -351,8 +355,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -420,8 +424,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -471,8 +475,8 @@ export declare class CustomerOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;

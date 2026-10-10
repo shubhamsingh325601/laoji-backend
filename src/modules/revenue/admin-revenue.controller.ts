@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { IsArray } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -8,6 +8,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { RevenueConfigService } from './revenue-config.service';
 import { SettlementService } from './settlement.service';
 import { RiderPayoutService } from './rider-payout.service';
+import { NewCustomerDeliveryService } from './new-customer-delivery.service';
 import { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
 
 class SetRiderPayoutTiersDto {
@@ -24,6 +25,7 @@ export class AdminRevenueController {
     private readonly revenueConfig: RevenueConfigService,
     private readonly settlements: SettlementService,
     private readonly riderPayout: RiderPayoutService,
+    private readonly newCustomerDelivery: NewCustomerDeliveryService,
   ) {}
 
   @Post('revenue-config')
@@ -44,6 +46,38 @@ export class AdminRevenueController {
   @Put('rider-payout-tiers')
   async setRiderPayoutTiers(@Body() dto: SetRiderPayoutTiersDto) {
     return { tiers: await this.riderPayout.replaceTiers(dto.tiers) };
+  }
+
+  @Get('new-customer-delivery')
+  getNewCustomerDelivery() {
+    return this.newCustomerDelivery.get();
+  }
+
+  @Put('new-customer-delivery')
+  setNewCustomerDelivery(@Body() body: unknown) {
+    return this.newCustomerDelivery.save(body);
+  }
+
+  // Customers with their free deliveries used and left.
+  @Get('new-customer-delivery/customers')
+  listFreeDeliveryCustomers(@Query('search') search?: string) {
+    return this.newCustomerDelivery.listCustomers(search);
+  }
+
+  @Put('new-customer-delivery/customers/:customerId')
+  setFreeDeliveryExtra(@Param('customerId', ParseUUIDPipe) customerId: string, @Body() body: { extraOrders?: unknown }) {
+    return this.newCustomerDelivery.setExtra(customerId, body?.extraOrders);
+  }
+
+  // What the customer pays for delivery, by distance. Empty = revenue-config fees.
+  @Get('delivery-fee-tiers')
+  async listDeliveryFeeTiers() {
+    return { tiers: await this.newCustomerDelivery.listFeeTiers() };
+  }
+
+  @Put('delivery-fee-tiers')
+  async setDeliveryFeeTiers(@Body() dto: SetRiderPayoutTiersDto) {
+    return { tiers: await this.newCustomerDelivery.replaceFeeTiers(dto.tiers) };
   }
 
   @Get('settlements')

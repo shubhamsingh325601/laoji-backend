@@ -28,6 +28,7 @@ const order_cancelled_1 = require("../notification/templates/push/order-cancelle
 const picked_up_1 = require("../notification/templates/push/picked-up");
 const out_for_delivery_1 = require("../notification/templates/push/out-for-delivery");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
+const new_customer_delivery_service_1 = require("../revenue/new-customer-delivery.service");
 const coupon_service_1 = require("../coupon/coupon.service");
 const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
 const wallet_service_1 = require("../wallet/wallet.service");
@@ -46,7 +47,8 @@ let OrderService = class OrderService {
     coupons;
     vendorDiscounts;
     wallet;
-    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons, vendorDiscounts, wallet) {
+    newCustomerDelivery;
+    constructor(db, allocation, catalog, delivery, payments, notifications, revenueConfig, coupons, vendorDiscounts, wallet, newCustomerDelivery) {
         this.db = db;
         this.allocation = allocation;
         this.catalog = catalog;
@@ -57,6 +59,7 @@ let OrderService = class OrderService {
         this.coupons = coupons;
         this.vendorDiscounts = vendorDiscounts;
         this.wallet = wallet;
+        this.newCustomerDelivery = newCustomerDelivery;
         this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
             this.handlePaymentSatisfied(type, orderId).catch((err) => {
                 console.error('[OrderService] handlePaymentSatisfied error:', err);
@@ -88,7 +91,13 @@ let OrderService = class OrderService {
     }
     async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode, vendorId, dropoff) {
         const outerZone = (0, catalog_types_1.isOutsideCoreZone)(dropoff.lat, dropoff.lng);
-        const baseFee = this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+        const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
+        let baseFee = 0;
+        if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {
+            baseFee =
+                (await this.newCustomerDelivery.feeForDistance(distanceKm)) ??
+                    this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
+        }
         const deliveryFee = outerZone && baseFee > 0 ? catalog_types_1.OUTER_ZONE_DELIVERY_FEE : baseFee;
         const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
         let code = couponCode?.trim().toUpperCase() ?? '';
@@ -109,6 +118,8 @@ let OrderService = class OrderService {
             deliveryFee,
             discount,
             total: Math.max(0, subtotal + deliveryFee - discount),
+            freeDeliveryApplied: offer.applied,
+            freeDeliveriesLeft: offer.remaining,
             minOrderValue: revenue.minOrderValue,
             freeDeliveryThreshold: revenue.freeDeliveryThreshold,
             coupon: coupon
@@ -1390,6 +1401,7 @@ exports.OrderService = OrderService = __decorate([
         revenue_config_service_1.RevenueConfigService,
         coupon_service_1.CouponService,
         vendor_discounts_service_1.VendorDiscountsService,
-        wallet_service_1.WalletService])
+        wallet_service_1.WalletService,
+        new_customer_delivery_service_1.NewCustomerDeliveryService])
 ], OrderService);
 //# sourceMappingURL=order.service.js.map

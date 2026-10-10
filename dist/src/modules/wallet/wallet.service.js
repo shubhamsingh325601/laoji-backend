@@ -157,6 +157,18 @@ let WalletService = class WalletService {
         if (dto.amount <= 0) {
             throw new common_1.BadRequestException('Withdrawal amount must be greater than zero');
         }
+        const [user] = await this.db.select({ role: schema_1.users.role }).from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        if (user?.role === 'vendor') {
+            const [setting] = await this.db
+                .select({ value: schema_1.platformSettings.value })
+                .from(schema_1.platformSettings)
+                .where((0, drizzle_orm_1.eq)(schema_1.platformSettings.key, 'vendor_min_withdrawal_limit'))
+                .limit(1);
+            const minLimit = setting?.value && Number(setting.value) > 0 ? Number(setting.value) : 500;
+            if (dto.amount < minLimit) {
+                throw new common_1.BadRequestException(`Minimum withdrawal amount for vendors is ₹${minLimit}. You requested ₹${dto.amount}.`);
+            }
+        }
         if (wallet.balance < dto.amount) {
             throw new common_1.BadRequestException(`Insufficient wallet balance. You requested ₹${dto.amount}, but your available balance is ₹${wallet.balance}`);
         }

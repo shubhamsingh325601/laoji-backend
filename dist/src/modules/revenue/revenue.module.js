@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const revenue_config_service_1 = require("./revenue-config.service");
 const settlement_service_1 = require("./settlement.service");
 const rider_payout_service_1 = require("./rider-payout.service");
+const new_customer_delivery_service_1 = require("./new-customer-delivery.service");
 const vendor_withdrawal_service_1 = require("./vendor-withdrawal.service");
 const admin_revenue_controller_1 = require("./admin-revenue.controller");
 const admin_withdrawal_controller_1 = require("./admin-withdrawal.controller");
@@ -30,8 +31,8 @@ exports.RevenueModule = RevenueModule = __decorate([
             vendor_settlement_controller_1.VendorSettlementController,
             partner_settlement_controller_1.PartnerSettlementController,
         ],
-        providers: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService, vendor_withdrawal_service_1.VendorWithdrawalService, rider_payout_service_1.RiderPayoutService],
-        exports: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService, rider_payout_service_1.RiderPayoutService],
+        providers: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService, vendor_withdrawal_service_1.VendorWithdrawalService, rider_payout_service_1.RiderPayoutService, new_customer_delivery_service_1.NewCustomerDeliveryService],
+        exports: [revenue_config_service_1.RevenueConfigService, settlement_service_1.SettlementService, rider_payout_service_1.RiderPayoutService, new_customer_delivery_service_1.NewCustomerDeliveryService],
     })
 ], RevenueModule);
 //# sourceMappingURL=revenue.module.js.map

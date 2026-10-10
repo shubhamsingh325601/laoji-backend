@@ -35,6 +35,9 @@ let VendorSettlementController = class VendorSettlementController {
     listWithdrawals(user) {
         return this.withdrawals.listForVendor(user.sub);
     }
+    async getWithdrawalLimit() {
+        return { minWithdrawalLimit: await this.withdrawals.getMinWithdrawalLimit() };
+    }
     withdraw(user, dto) {
         return this.withdrawals.request(user.sub, dto.amount);
     }
@@ -54,6 +57,12 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], VendorSettlementController.prototype, "listWithdrawals", null);
+__decorate([
+    (0, common_1.Get)('withdrawal-limit'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], VendorSettlementController.prototype, "getWithdrawalLimit", null);
 __decorate([
     (0, common_1.Post)('withdraw'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
