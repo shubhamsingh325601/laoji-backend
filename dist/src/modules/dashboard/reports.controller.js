@@ -41,6 +41,7 @@ let ReportsController = class ReportsController {
 };
 exports.ReportsController = ReportsController;
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Get)('series'),
     __param(0, (0, common_1.Query)('days')),
     __metadata("design:type", Function),
@@ -48,6 +49,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "series", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin', 'vendor'),
     (0, common_1.Get)('vendor-performance'),
     __param(0, (0, common_1.Query)('month')),
     __metadata("design:type", Function),
@@ -55,6 +57,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "vendorPerformance", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Get)('vendors/:id/summary'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Query)('from')),
@@ -64,6 +67,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "vendorSummary", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Get)('cancellations'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -71,7 +75,6 @@ __decorate([
 ], ReportsController.prototype, "cancellations", null);
 exports.ReportsController = ReportsController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('reports'),
     __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
 ], ReportsController);

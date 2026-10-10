@@ -394,31 +394,50 @@ let CatalogService = class CatalogService {
         if (cat.ownerVendorId !== null) {
             throw new common_1.ForbiddenException(`"${cat.name}" is a store's own category; that store manages it.`);
         }
-        const [directProduct] = await this.db
-            .select({ id: schema_1.products.id, name: schema_1.products.name })
-            .from(schema_1.products)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.products.categoryId, id), (0, drizzle_orm_1.isNull)(schema_1.products.ownerVendorId)))
-            .limit(1);
-        if (directProduct) {
-            throw new common_1.ConflictException(`Cannot delete category "${cat.name}" because it contains products. Please delete or reassign its products first.`);
-        }
         const subcats = await this.db
             .select()
             .from(schema_1.categories)
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.categories.parentId, id), (0, drizzle_orm_1.isNull)(schema_1.categories.ownerVendorId)));
-        if (subcats.length > 0) {
-            const subcatIds = subcats.map((s) => s.id);
-            const [subProduct] = await this.db
-                .select({ id: schema_1.products.id, name: schema_1.products.name })
-                .from(schema_1.products)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.products.categoryId, subcatIds), (0, drizzle_orm_1.isNull)(schema_1.products.ownerVendorId)))
-                .limit(1);
-            if (subProduct) {
-                throw new common_1.ConflictException(`Cannot delete category "${cat.name}" because its subcategories contain products. Please delete or reassign products first.`);
-            }
-        }
         const allCatIds = [id, ...subcats.map((s) => s.id)];
+        const allProducts = await this.db
+            .select()
+            .from(schema_1.products)
+            .where((0, drizzle_orm_1.inArray)(schema_1.products.categoryId, allCatIds));
+        if (allProducts.length > 0) {
+            const prodIds = allProducts.map((p) => p.id);
+            const [orderItem] = await this.db
+                .select({ id: schema_1.groceryOrderItems.id, productId: schema_1.groceryOrderItems.productId })
+                .from(schema_1.groceryOrderItems)
+                .where((0, drizzle_orm_1.inArray)(schema_1.groceryOrderItems.productId, prodIds))
+                .limit(1);
+            if (orderItem) {
+                const linkedProd = allProducts.find((p) => p.id === orderItem.productId);
+                throw new common_1.ConflictException(`Cannot delete category "${cat.name}" because product "${linkedProd?.name ?? orderItem.productId}" is linked to existing customer orders. Please set products to inactive instead.`);
+            }
+            await this.db
+                .update(schema_1.productSuggestions)
+                .set({ productId: null })
+                .where((0, drizzle_orm_1.inArray)(schema_1.productSuggestions.productId, prodIds));
+            await this.db
+                .update(schema_1.products)
+                .set({ templateProductId: null })
+                .where((0, drizzle_orm_1.inArray)(schema_1.products.templateProductId, prodIds));
+            await this.db
+                .update(schema_1.vendorDiscounts)
+                .set({ productId: null })
+                .where((0, drizzle_orm_1.inArray)(schema_1.vendorDiscounts.productId, prodIds));
+            await this.db
+                .delete(schema_1.vendorProducts)
+                .where((0, drizzle_orm_1.inArray)(schema_1.vendorProducts.productId, prodIds));
+            await this.db
+                .delete(schema_1.products)
+                .where((0, drizzle_orm_1.inArray)(schema_1.products.id, prodIds));
+        }
         await this.detachStoresFromCategories([cat, ...subcats]);
+        await this.db
+            .update(schema_1.categorySuggestions)
+            .set({ categoryId: null })
+            .where((0, drizzle_orm_1.inArray)(schema_1.categorySuggestions.categoryId, allCatIds));
         await this.db
             .delete(schema_1.productSuggestions)
             .where((0, drizzle_orm_1.inArray)(schema_1.productSuggestions.categoryId, allCatIds));
@@ -428,7 +447,10 @@ let CatalogService = class CatalogService {
                 .where((0, drizzle_orm_1.inArray)(schema_1.categories.id, subcats.map((s) => s.id)));
         }
         await this.db.delete(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id));
-        return { success: true, message: `Category "${cat.name}" deleted successfully.` };
+        return {
+            success: true,
+            message: `Category "${cat.name}", ${subcats.length} subcategories, and ${allProducts.length} products deleted successfully.`,
+        };
     }
     async detachStoresFromCategories(deleted) {
         const deletedIds = deleted.map((c) => c.id);

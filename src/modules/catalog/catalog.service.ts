@@ -22,6 +22,7 @@ import {
   restaurants,
   revenueConfig,
   users,
+  vendorDiscounts,
   vendorProducts,
   vendors,
 } from '../../../drizzle/schema';
@@ -501,60 +502,93 @@ export class CatalogService {
       throw new ForbiddenException(`"${cat.name}" is a store's own category; that store manages it.`);
     }
 
-    // 1. Check if the category directly contains Laoji products
-    const [directProduct] = await this.db
-      .select({ id: products.id, name: products.name })
-      .from(products)
-      .where(and(eq(products.categoryId, id), isNull(products.ownerVendorId)))
-      .limit(1);
-
-    if (directProduct) {
-      throw new ConflictException(
-        `Cannot delete category "${cat.name}" because it contains products. Please delete or reassign its products first.`,
-      );
-    }
-
-    // 2. Check for subcategories and whether any subcategory contains Laoji products
+    // 1. Find all subcategories under this category
     const subcats = await this.db
       .select()
       .from(categories)
       .where(and(eq(categories.parentId, id), isNull(categories.ownerVendorId)));
 
-    if (subcats.length > 0) {
-      const subcatIds = subcats.map((s) => s.id);
-      const [subProduct] = await this.db
-        .select({ id: products.id, name: products.name })
-        .from(products)
-        .where(and(inArray(products.categoryId, subcatIds), isNull(products.ownerVendorId)))
-        .limit(1);
-
-      if (subProduct) {
-        throw new ConflictException(
-          `Cannot delete category "${cat.name}" because its subcategories contain products. Please delete or reassign products first.`,
-        );
-      }
-    }
-
     const allCatIds = [id, ...subcats.map((s) => s.id)];
 
-    // Stores keep their products and categories: the category is only a template to them.
+    // 2. Find all products directly under this category or any of its subcategories
+    const allProducts = await this.db
+      .select()
+      .from(products)
+      .where(inArray(products.categoryId, allCatIds));
+
+    // Check if any product is linked to existing customer orders (groceryOrderItems)
+    if (allProducts.length > 0) {
+      const prodIds = allProducts.map((p) => p.id);
+      const [orderItem] = await this.db
+        .select({ id: groceryOrderItems.id, productId: groceryOrderItems.productId })
+        .from(groceryOrderItems)
+        .where(inArray(groceryOrderItems.productId, prodIds))
+        .limit(1);
+
+      if (orderItem) {
+        const linkedProd = allProducts.find((p) => p.id === orderItem.productId);
+        throw new ConflictException(
+          `Cannot delete category "${cat.name}" because product "${linkedProd?.name ?? orderItem.productId}" is linked to existing customer orders. Please set products to inactive instead.`,
+        );
+      }
+
+      // Disassociate product suggestions pointing to these products
+      await this.db
+        .update(productSuggestions)
+        .set({ productId: null })
+        .where(inArray(productSuggestions.productId, prodIds));
+
+      // Disassociate template product links
+      await this.db
+        .update(products)
+        .set({ templateProductId: null })
+        .where(inArray(products.templateProductId, prodIds));
+
+      // Disassociate vendor discounts referencing these products
+      await this.db
+        .update(vendorDiscounts)
+        .set({ productId: null })
+        .where(inArray(vendorDiscounts.productId, prodIds));
+
+      // Delete vendor product listings for these products
+      await this.db
+        .delete(vendorProducts)
+        .where(inArray(vendorProducts.productId, prodIds));
+
+      // Delete the products
+      await this.db
+        .delete(products)
+        .where(inArray(products.id, prodIds));
+    }
+
+    // 3. Detach stores from categories: vendor-owned products pointing to these categories
+    // move to store's own category copy; vendor subcategories lose this parent
     await this.detachStoresFromCategories([cat, ...subcats]);
 
-    // 3. Clean up any product suggestions referencing this category or its subcategories
+    // 4. Clean up any category suggestions referencing this category or its subcategories
+    await this.db
+      .update(categorySuggestions)
+      .set({ categoryId: null })
+      .where(inArray(categorySuggestions.categoryId, allCatIds));
+
+    // 5. Clean up any product suggestions referencing this category or its subcategories
     await this.db
       .delete(productSuggestions)
       .where(inArray(productSuggestions.categoryId, allCatIds));
 
-    // 4. Delete subcategories if any
+    // 6. Delete subcategories if any
     if (subcats.length > 0) {
       await this.db
         .delete(categories)
         .where(inArray(categories.id, subcats.map((s) => s.id)));
     }
 
-    // 5. Delete the category itself
+    // 7. Delete the category itself
     await this.db.delete(categories).where(eq(categories.id, id));
-    return { success: true, message: `Category "${cat.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Category "${cat.name}", ${subcats.length} subcategories, and ${allProducts.length} products deleted successfully.`,
+    };
   }
 
   // Before Laoji categories are deleted: a store's own products filed right
