@@ -34,6 +34,8 @@ const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts
 const wallet_service_1 = require("../wallet/wallet.service");
 const catalog_types_1 = require("../catalog/catalog.types");
 const meal_slots_1 = require("../catalog/meal-slots");
+const LONG_DISTANCE_KM = 5;
+const LONG_DISTANCE_FREE_DELIVERY_MIN = 200;
 const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
 const STATUS_SEQUENCE = ['vendor_accepted', 'preparing', 'ready', 'handed_over'];
 let OrderService = class OrderService {
@@ -91,6 +93,12 @@ let OrderService = class OrderService {
     }
     async priceTotals(customerId, subtotal, distanceKm, revenue, couponCode, vendorId, dropoff) {
         const outerZone = (0, catalog_types_1.isOutsideCoreZone)(dropoff.lat, dropoff.lng);
+        if (distanceKm > LONG_DISTANCE_KM) {
+            revenue = {
+                ...revenue,
+                freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
+            };
+        }
         const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
         let baseFee = 0;
         if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {
@@ -461,8 +469,25 @@ let OrderService = class OrderService {
         const [order] = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.id, id)).limit(1);
         if (!order)
             throw new common_1.NotFoundException('Order not found');
+        if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+            throw new common_1.NotFoundException('Order not found');
+        }
         await this.assertOrderAccess(order.customerId, order.vendorId, requester);
-        const items = await this.db.select().from(schema_1.groceryOrderItems).where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.groceryOrderId, id));
+        const items = await this.db
+            .select({
+            id: schema_1.groceryOrderItems.id,
+            groceryOrderId: schema_1.groceryOrderItems.groceryOrderId,
+            productId: schema_1.groceryOrderItems.productId,
+            qty: schema_1.groceryOrderItems.qty,
+            unitPrice: schema_1.groceryOrderItems.unitPrice,
+            name: schema_1.products.name,
+            imageUrl: schema_1.products.imageUrl,
+            unit: schema_1.products.unit,
+            size: schema_1.products.size,
+        })
+            .from(schema_1.groceryOrderItems)
+            .leftJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, schema_1.products.id))
+            .where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.groceryOrderId, id));
         const history = await this.db
             .select()
             .from(schema_1.orderStatusHistory)
@@ -476,9 +501,25 @@ let OrderService = class OrderService {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, id)).limit(1);
         if (!order)
             throw new common_1.NotFoundException('Order not found');
+        if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+            throw new common_1.NotFoundException('Order not found');
+        }
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, order.restaurantId)).limit(1);
         await this.assertOrderAccess(order.customerId, restaurant?.vendorId, requester);
-        const items = await this.db.select().from(schema_1.foodOrderItems).where((0, drizzle_orm_1.eq)(schema_1.foodOrderItems.foodOrderId, id));
+        const items = await this.db
+            .select({
+            id: schema_1.foodOrderItems.id,
+            foodOrderId: schema_1.foodOrderItems.foodOrderId,
+            menuItemId: schema_1.foodOrderItems.menuItemId,
+            qty: schema_1.foodOrderItems.qty,
+            unitPrice: schema_1.foodOrderItems.unitPrice,
+            addonsJson: schema_1.foodOrderItems.addonsJson,
+            name: schema_1.menuItems.name,
+            imageUrl: schema_1.menuItems.imageUrl,
+        })
+            .from(schema_1.foodOrderItems)
+            .leftJoin(schema_1.menuItems, (0, drizzle_orm_1.eq)(schema_1.foodOrderItems.menuItemId, schema_1.menuItems.id))
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrderItems.foodOrderId, id));
         const history = await this.db
             .select()
             .from(schema_1.orderStatusHistory)
@@ -595,7 +636,21 @@ let OrderService = class OrderService {
         if (orders.length === 0)
             return orders.map((o) => ({ ...o, items: [] }));
         const ids = orders.map((o) => o.id);
-        const items = await this.db.select().from(schema_1.groceryOrderItems).where((0, drizzle_orm_1.inArray)(schema_1.groceryOrderItems.groceryOrderId, ids));
+        const items = await this.db
+            .select({
+            id: schema_1.groceryOrderItems.id,
+            groceryOrderId: schema_1.groceryOrderItems.groceryOrderId,
+            productId: schema_1.groceryOrderItems.productId,
+            qty: schema_1.groceryOrderItems.qty,
+            unitPrice: schema_1.groceryOrderItems.unitPrice,
+            name: schema_1.products.name,
+            imageUrl: schema_1.products.imageUrl,
+            unit: schema_1.products.unit,
+            size: schema_1.products.size,
+        })
+            .from(schema_1.groceryOrderItems)
+            .leftJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, schema_1.products.id))
+            .where((0, drizzle_orm_1.inArray)(schema_1.groceryOrderItems.groceryOrderId, ids));
         const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id) => !!id))];
         const partnerMap = new Map();
         if (partnerIds.length > 0) {
@@ -623,7 +678,20 @@ let OrderService = class OrderService {
         if (orders.length === 0)
             return orders.map((o) => ({ ...o, items: [] }));
         const ids = orders.map((o) => o.id);
-        const items = await this.db.select().from(schema_1.foodOrderItems).where((0, drizzle_orm_1.inArray)(schema_1.foodOrderItems.foodOrderId, ids));
+        const items = await this.db
+            .select({
+            id: schema_1.foodOrderItems.id,
+            foodOrderId: schema_1.foodOrderItems.foodOrderId,
+            menuItemId: schema_1.foodOrderItems.menuItemId,
+            qty: schema_1.foodOrderItems.qty,
+            unitPrice: schema_1.foodOrderItems.unitPrice,
+            addonsJson: schema_1.foodOrderItems.addonsJson,
+            name: schema_1.menuItems.name,
+            imageUrl: schema_1.menuItems.imageUrl,
+        })
+            .from(schema_1.foodOrderItems)
+            .leftJoin(schema_1.menuItems, (0, drizzle_orm_1.eq)(schema_1.foodOrderItems.menuItemId, schema_1.menuItems.id))
+            .where((0, drizzle_orm_1.inArray)(schema_1.foodOrderItems.foodOrderId, ids));
         const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id) => !!id))];
         const partnerMap = new Map();
         if (partnerIds.length > 0) {
@@ -725,7 +793,7 @@ let OrderService = class OrderService {
         const orders = await this.db
             .select()
             .from(schema_1.groceryOrders)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'vendor_accepted'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'preparing'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'ready'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'handed_over'))))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.vendorId, vendor.id), (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected']), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'vendor_accepted'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'preparing'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'ready'), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'handed_over'))))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
         return this.attachGroceryItems(orders);
     }
@@ -824,7 +892,7 @@ let OrderService = class OrderService {
         const orders = await this.db
             .select()
             .from(schema_1.foodOrders)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'vendor_accepted'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'preparing'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'ready'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'handed_over'))))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.foodOrders.restaurantId, restaurant.id), (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected']), (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'vendor_accepted'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'preparing'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'ready'), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'handed_over'))))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
         return this.attachFoodItems(orders);
     }
@@ -868,6 +936,7 @@ let OrderService = class OrderService {
         await this.payments.markRefundPendingIfPaid('food', orderId);
         this.notifications.notifyPush(order.customerId, 'order_cancelled', (0, order_cancelled_1.orderCancelledCustomerPush)(this.orderCode(orderId), orderId, 'food'));
         this.notifications.notifyPush(userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(this.orderCode(orderId), orderId));
+        this.notifications.notifyAllAdminsPush('order_cancelled', (0, order_cancelled_1.orderCancelledAdminPush)(this.orderCode(orderId), orderId, 'food', 'vendor'));
         return this.getFoodOrder(orderId, { userId, role: 'vendor' });
     }
     async advanceFoodOrder(userId, orderId, dto) {
@@ -919,28 +988,40 @@ let OrderService = class OrderService {
             .from(schema_1.groceryOrders)
             .where(opts.includeUnpaid
             ? undefined
-            : (0, drizzle_orm_1.or)((0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES), (0, drizzle_orm_1.eq)(schema_1.groceryOrders.status, 'cancelled')))
+            : (0, drizzle_orm_1.inArray)(schema_1.groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.groceryOrders.createdAt));
         const food = await this.db
             .select()
             .from(schema_1.foodOrders)
             .where(opts.includeUnpaid
             ? undefined
-            : (0, drizzle_orm_1.or)((0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES), (0, drizzle_orm_1.eq)(schema_1.foodOrders.status, 'cancelled')))
+            : (0, drizzle_orm_1.inArray)(schema_1.foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES))
             .orderBy((0, drizzle_orm_1.desc)(schema_1.foodOrders.createdAt));
         const customerIds = [...new Set([...grocery.map((o) => o.customerId), ...food.map((o) => o.customerId)])];
         const customerRows = customerIds.length
             ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.inArray)(schema_1.users.id, customerIds))
             : [];
         const customerPhoneById = new Map(customerRows.map((u) => [u.id, u.phone ?? '']));
+        const attachedGrocery = await this.attachGroceryItems(grocery);
+        const attachedFood = await this.attachFoodItems(food);
         return {
-            grocery: grocery.map((o) => {
+            grocery: attachedGrocery.map((o) => {
                 const { deliveryOtp: _otp, ...rest } = o;
-                return { ...rest, type: 'grocery', customerName: customerPhoneById.get(o.customerId) ?? '' };
+                return {
+                    ...rest,
+                    type: 'grocery',
+                    customerName: customerPhoneById.get(o.customerId) ?? '',
+                    paymentProvider: o.paymentMethod || undefined,
+                };
             }),
-            food: food.map((o) => {
+            food: attachedFood.map((o) => {
                 const { deliveryOtp: _otp, ...rest } = o;
-                return { ...rest, type: 'food', customerName: customerPhoneById.get(o.customerId) ?? '' };
+                return {
+                    ...rest,
+                    type: 'food',
+                    customerName: customerPhoneById.get(o.customerId) ?? '',
+                    paymentProvider: o.paymentMethod || undefined,
+                };
             }),
         };
     }
@@ -977,6 +1058,7 @@ let OrderService = class OrderService {
             if (partner)
                 this.notifications.notifyPush(partner.userId, 'order_cancelled', (0, order_cancelled_1.orderCancelledPartnerPush)(orderCode, orderId));
         }
+        this.notifications.notifyAllAdminsPush('order_cancelled', (0, order_cancelled_1.orderCancelledAdminPush)(orderCode, orderId, type, 'admin'));
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
             : this.getFoodOrder(orderId, { userId: adminUserId, role: 'admin' });
@@ -1336,6 +1418,7 @@ let OrderService = class OrderService {
         const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
         if (vendorUserId)
             this.notifications.notifyPush(vendorUserId, 'order_cancelled', (0, order_cancelled_1.orderCancelledVendorPush)(orderCode, orderId));
+        this.notifications.notifyAllAdminsPush('order_cancelled', (0, order_cancelled_1.orderCancelledAdminPush)(orderCode, orderId, type, 'customer'));
         return type === 'grocery'
             ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })
             : this.getFoodOrder(orderId, { userId: customerId, role: 'customer' });

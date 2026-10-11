@@ -274,11 +274,13 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
+    walletAmount: (0, pg_core_1.doublePrecision)('wallet_amount').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
     discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
+    paymentMethod: (0, pg_core_1.varchar)('payment_method', { length: 30 }),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
     vendorId: (0, pg_core_1.uuid)('vendor_id').references(() => exports.vendors.id),
@@ -325,11 +327,13 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
+    walletAmount: (0, pg_core_1.doublePrecision)('wallet_amount').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
     discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
+    paymentMethod: (0, pg_core_1.varchar)('payment_method', { length: 30 }),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
     restaurantId: (0, pg_core_1.uuid)('restaurant_id')
@@ -387,7 +391,7 @@ exports.deliveryAssignments = (0, pg_core_1.pgTable)('delivery_assignments', {
 }, (table) => [
     (0, pg_core_1.check)('delivery_assignments_exactly_one_order_ref', (0, drizzle_orm_1.sql) `(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`),
 ]);
-exports.paymentProviderEnum = (0, pg_core_1.pgEnum)('payment_provider', ['upi_deeplink', 'cod', 'razorpay']);
+exports.paymentProviderEnum = (0, pg_core_1.pgEnum)('payment_provider', ['upi_deeplink', 'cod', 'razorpay', 'wallet']);
 exports.paymentStatusEnum = (0, pg_core_1.pgEnum)('payment_status', [
     'pending',
     'paid',

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deliveredCustomerPush = deliveredCustomerPush;
 exports.deliveredVendorPush = deliveredVendorPush;
 exports.deliveredPartnerPush = deliveredPartnerPush;
+exports.deliveredAdminPush = deliveredAdminPush;
 function deliveredCustomerPush(orderCode, orderId, type = 'grocery') {
     return {
         title: 'Delivered!',
@@ -33,6 +34,20 @@ function deliveredPartnerPush(orderCode, payout, orderId) {
             event: 'delivered',
             orderCode,
             ...(orderId ? { orderId, link: `/earnings` } : {}),
+        },
+    };
+}
+function deliveredAdminPush(orderCode, orderId, type = 'grocery', total) {
+    const typeLabel = type === 'food' ? 'Food' : 'Grocery';
+    const amountPart = total !== undefined ? ` • ₹${total}` : '';
+    return {
+        title: `✅ ${typeLabel} Order Delivered #${orderCode}`,
+        body: `Order #${orderCode}${amountPart} has been delivered successfully.`,
+        data: {
+            event: 'delivered',
+            orderCode,
+            type,
+            ...(orderId ? { orderId, link: `/orders/${orderId}`, url: `/orders/${orderId}` } : {}),
         },
     };
 }

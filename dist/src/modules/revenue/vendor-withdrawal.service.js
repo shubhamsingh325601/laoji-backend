@@ -211,6 +211,7 @@ let VendorWithdrawalService = class VendorWithdrawalService {
             }
             throw err;
         }
+        this.notifications.notifyAllAdminsPush('withdrawal_requested', (0, vendor_withdrawal_1.withdrawalRequestedAdminPush)(vendor.businessName, amount, created.id));
         const destination = usesUpi
             ? `UPI ID (${vendor.upiId})`
             : `Bank Account (•••• ${vendor.bankAccount?.slice(-4) ?? ''}, IFSC: ${vendor.bankIfsc ?? 'N/A'})`;

@@ -81,6 +81,10 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -112,11 +116,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -133,11 +139,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -155,11 +163,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -174,6 +184,10 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         deliveryPartner: any;
     })[]>;
@@ -184,6 +198,10 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -215,11 +233,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -236,6 +256,8 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -276,11 +298,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -297,11 +321,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -319,11 +345,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -339,6 +367,8 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         deliveryPartner: any;
     })[]>;
@@ -350,6 +380,8 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -390,11 +422,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -419,6 +453,10 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -450,11 +488,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -470,6 +510,8 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -510,11 +552,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;

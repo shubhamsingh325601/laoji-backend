@@ -158,6 +158,9 @@ describe('Admin Order Actions (Accept & Restore)', () => {
           currentTable = table;
           return chain;
         }),
+        leftJoin: jest.fn().mockImplementation(() => {
+          return chain;
+        }),
         where: jest.fn().mockImplementation(() => {
           return chain;
         }),
@@ -396,6 +399,7 @@ describe('Admin Order Actions (Accept & Restore)', () => {
             currentTable = table;
             return chain;
           }),
+          leftJoin: jest.fn().mockImplementation(() => chain),
           where: jest.fn().mockImplementation(() => chain),
           orderBy: jest.fn().mockImplementation(() => Promise.resolve([])),
           limit: jest.fn().mockImplementation(() => {
@@ -457,6 +461,7 @@ describe('Admin Order Actions (Accept & Restore)', () => {
             currentTable = table;
             return chain;
           }),
+          leftJoin: jest.fn().mockImplementation(() => chain),
           where: jest.fn().mockImplementation(() => chain),
           orderBy: jest.fn().mockImplementation(() => Promise.resolve([])),
           limit: jest.fn().mockImplementation(() => {
@@ -522,6 +527,7 @@ describe('Admin Order Actions (Accept & Restore)', () => {
             currentTable = table;
             return chain;
           }),
+          leftJoin: jest.fn().mockImplementation(() => chain),
           where: jest.fn().mockImplementation(() => chain),
           orderBy: jest.fn().mockImplementation(() => Promise.resolve([])),
           limit: jest.fn().mockImplementation(() => {
@@ -617,6 +623,7 @@ describe('Admin Order Actions (Accept & Restore)', () => {
             currentTable = table;
             return chain;
           }),
+          leftJoin: jest.fn().mockImplementation(() => chain),
           where: jest.fn().mockImplementation(() => chain),
           orderBy: jest.fn().mockImplementation(() => Promise.resolve([])),
           limit: jest.fn().mockImplementation(() => {

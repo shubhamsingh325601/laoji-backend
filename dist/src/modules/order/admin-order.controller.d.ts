@@ -7,50 +7,8 @@ export declare class AdminOrderController {
     private readonly orders;
     constructor(orders: OrderService);
     listAll(includeUnpaid?: string): Promise<{
-        grocery: {
-            type: "grocery";
-            customerName: string;
-            id: string;
-            customerId: string;
-            idempotencyKey: string | null;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            subtotal: number;
-            deliveryFee: number;
-            riderPayout: number | null;
-            platformCommission: number;
-            commissionPct: number;
-            couponCode: string | null;
-            discount: number;
-            total: number;
-            paymentStatus: string;
-            instructions: string | null;
-            vendorId: string | null;
-            deliveryAddressId: string;
-            deliveryPartnerId: string | null;
-            createdAt: Date;
-        }[];
-        food: {
-            type: "food";
-            customerName: string;
-            id: string;
-            customerId: string;
-            idempotencyKey: string | null;
-            status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            subtotal: number;
-            deliveryFee: number;
-            riderPayout: number | null;
-            platformCommission: number;
-            commissionPct: number;
-            couponCode: string | null;
-            discount: number;
-            total: number;
-            paymentStatus: string;
-            instructions: string | null;
-            restaurantId: string;
-            deliveryAddressId: string;
-            deliveryPartnerId: string | null;
-            createdAt: Date;
-        }[];
+        grocery: any[];
+        food: any[];
     }>;
     customerAddresses(customerId: string): Promise<{
         id: string;
@@ -68,6 +26,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -99,11 +61,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -119,6 +83,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -159,11 +125,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -179,6 +147,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -210,11 +182,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -230,6 +204,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -270,11 +246,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -290,6 +268,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -321,11 +303,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -341,6 +325,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -381,11 +367,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -401,6 +389,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -432,11 +424,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -452,6 +446,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -492,11 +488,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -512,6 +510,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -543,11 +545,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -563,6 +567,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -603,11 +609,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -623,6 +631,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -654,11 +666,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -674,6 +688,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -714,11 +730,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -734,6 +752,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -765,11 +787,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -785,6 +809,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -825,11 +851,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -845,6 +873,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -876,11 +908,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -896,6 +930,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -936,11 +972,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -956,6 +994,10 @@ export declare class AdminOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
@@ -987,11 +1029,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -1007,6 +1051,8 @@ export declare class AdminOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
@@ -1047,11 +1093,13 @@ export declare class AdminOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;

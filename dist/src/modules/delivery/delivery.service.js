@@ -474,7 +474,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
         const isCod = rawPaymentStatus === 'pending_cod' || rawPaymentStatus === 'cod';
         const isPaid = rawPaymentStatus === 'paid' || rawPaymentStatus === 'collected';
         const paymentMethod = isCod ? 'cod' : 'online';
-        const collectCashAmount = isCod ? (order.total ?? 0) : 0;
+        const collectCashAmount = isCod ? Math.max(0, Math.round(((order.total ?? 0) - (order.walletAmount ?? 0)) * 100) / 100) : 0;
         return {
             id: order.id,
             type,
@@ -732,6 +732,7 @@ let DeliveryService = DeliveryService_1 = class DeliveryService {
             }
         }
         this.notifications.notifyPush(partnerUserId, 'delivered', (0, delivered_1.deliveredPartnerPush)(orderCode, settlement?.deliveryPayout ?? 0, orderId));
+        this.notifications.notifyAllAdminsPush('delivered', (0, delivered_1.deliveredAdminPush)(orderCode, orderId, type, order.subtotal + order.deliveryFee));
         this.assignWaitingOrders().catch((e) => this.logger.error('Failed checking waiting orders after a delivery', e));
     }
     async listPartnersAdmin() {

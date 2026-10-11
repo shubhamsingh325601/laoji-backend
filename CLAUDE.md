@@ -1217,8 +1217,9 @@ min ₹50); `FIRST10` is retired. Migration `0021_offers_vouchers_banners`
   voucher that has a first-N limit (i.e. FREEDEL3), provided the order meets
   the minimum and has a fee to waive. The quote then returns
   `coupon.autoApplied: true` plus `coupon.details`, which the app adopts as
-  its applied coupon. Old builds that never send a code get it too. When a
-  free-delivery voucher applies, `amountToFreeDelivery` is 0. `GET
+  its applied coupon. Old builds that never send a code get it too. (Oct 2026:
+  the product owner considered turning auto-apply off and chose to keep it.)
+  When a free-delivery voucher applies, `amountToFreeDelivery` is 0. `GET
   /coupons/active` feeds the app's Offers screen and cart chips.
 - `POST /coupons/validate` takes the caller only from a verified access token
   (`userId` in the body is ignored); admin coupon `:id` routes use

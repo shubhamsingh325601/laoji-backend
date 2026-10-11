@@ -18,6 +18,7 @@ describe('VendorWithdrawalService', () => {
     mockNotifications = {
       notifyPush: jest.fn(),
       notifyEmail: jest.fn(),
+      notifyAllAdminsPush: jest.fn(),
     };
     service = new VendorWithdrawalService(mockDb, mockNotifications);
   });

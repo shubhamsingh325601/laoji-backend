@@ -1635,6 +1635,8 @@ let CatalogService = class CatalogService {
             imageUrl: dto.imageUrl,
         })
             .returning();
+        const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendor.id)).limit(1);
+        this.notifications.notifyAllAdminsPush('product_suggestion', (0, product_suggestion_1.productSuggestionCreatedAdminPush)(dto.name.trim(), category.name, vendorRow?.businessName));
         return row;
     }
     listMyProductSuggestions(vendorId) {
@@ -1723,6 +1725,8 @@ let CatalogService = class CatalogService {
             .insert(schema_1.categorySuggestions)
             .values({ vendorId: vendor.id, name, businessType: vendor.businessType, note: dto.note?.trim() || null })
             .returning();
+        const [vendorRow] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendor.id)).limit(1);
+        this.notifications.notifyAllAdminsPush('category_suggestion', (0, category_suggestion_1.categorySuggestionCreatedAdminPush)(name, vendor.businessType, vendorRow?.businessName));
         return row;
     }
     listMyCategorySuggestions(vendorId) {

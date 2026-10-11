@@ -11,13 +11,19 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InitiatePaymentDto = exports.PAYMENT_METHODS = void 0;
 const class_validator_1 = require("class-validator");
-exports.PAYMENT_METHODS = ['online', 'cod'];
+exports.PAYMENT_METHODS = ['online', 'cod', 'wallet'];
 class InitiatePaymentDto {
     method;
+    useWallet;
 }
 exports.InitiatePaymentDto = InitiatePaymentDto;
 __decorate([
     (0, class_validator_1.IsIn)(exports.PAYMENT_METHODS),
     __metadata("design:type", Object)
 ], InitiatePaymentDto.prototype, "method", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], InitiatePaymentDto.prototype, "useWallet", void 0);
 //# sourceMappingURL=initiate-payment.dto.js.map

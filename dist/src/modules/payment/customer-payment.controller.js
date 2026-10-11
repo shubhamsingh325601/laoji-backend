@@ -27,7 +27,7 @@ let CustomerPaymentController = class CustomerPaymentController {
         this.payments = payments;
     }
     initiate(user, type, orderId, dto) {
-        return this.payments.initiate(type, orderId, user.sub, dto.method);
+        return this.payments.initiate(type, orderId, user.sub, dto.method, dto.useWallet ?? false);
     }
     get(user, type, orderId) {
         return this.payments.getForOrder(type, orderId, user.sub);
