@@ -443,6 +443,9 @@ export const groceryOrders = pgTable(
     // rider_payout_tiers when the order is first offered for delivery. Separate
     // from delivery_fee, which is what the customer pays.
     riderPayout: doublePrecision('rider_payout'),
+    // Part of the total paid from the customer's wallet (split payment); the
+    // rest is paid by UPI or cash on delivery.
+    walletAmount: doublePrecision('wallet_amount').notNull().default(0),
     platformCommission: doublePrecision('platform_commission').notNull().default(0),
     // Phase 8: the *rate* that produced platform_commission above, snapshotted
     // at order-creation time alongside the already-existing computed amount —
@@ -455,6 +458,7 @@ export const groceryOrders = pgTable(
     couponCode: varchar('coupon_code', { length: 50 }),
     discount: doublePrecision('discount').notNull().default(0),
     total: doublePrecision('total').notNull(),
+    paymentMethod: varchar('payment_method', { length: 30 }),
     // Simple string for now — Payment module (Phase 6) owns the real
     // provider-backed payment_status lifecycle behind PaymentProvider.
     paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
@@ -514,11 +518,13 @@ export const foodOrders = pgTable(
     subtotal: doublePrecision('subtotal').notNull(),
     deliveryFee: doublePrecision('delivery_fee').notNull().default(0),
     riderPayout: doublePrecision('rider_payout'),
+    walletAmount: doublePrecision('wallet_amount').notNull().default(0),
     platformCommission: doublePrecision('platform_commission').notNull().default(0),
     commissionPct: doublePrecision('commission_pct').notNull().default(0),
     couponCode: varchar('coupon_code', { length: 50 }),
     discount: doublePrecision('discount').notNull().default(0),
     total: doublePrecision('total').notNull(),
+    paymentMethod: varchar('payment_method', { length: 30 }),
     paymentStatus: varchar('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: text('instructions'),
     restaurantId: uuid('restaurant_id')
@@ -615,7 +621,7 @@ export const deliveryAssignments = pgTable(
 // itself, and reconciliation metadata for the "no reliable UPI webhook"
 // manual-reconcile path (TRD Section 4 — treated as a real MVP requirement,
 // not an edge case).
-export const paymentProviderEnum = pgEnum('payment_provider', ['upi_deeplink', 'cod', 'razorpay']);
+export const paymentProviderEnum = pgEnum('payment_provider', ['upi_deeplink', 'cod', 'razorpay', 'wallet']);
 
 // pending: UPI initiated, not yet confirmed either way.
 // paid: customer self-confirmed ("I've paid") or admin reconciled as paid.

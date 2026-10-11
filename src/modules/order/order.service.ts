@@ -601,6 +601,9 @@ export class OrderService {
   async getGroceryOrder(id: string, requester: { userId: string; role: string }) {
     const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, id)).limit(1);
     if (!order) throw new NotFoundException('Order not found');
+    if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+      throw new NotFoundException('Order not found');
+    }
     await this.assertOrderAccess(order.customerId, order.vendorId, requester);
 
     const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, id));
@@ -617,6 +620,9 @@ export class OrderService {
   async getFoodOrder(id: string, requester: { userId: string; role: string }) {
     const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, id)).limit(1);
     if (!order) throw new NotFoundException('Order not found');
+    if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+      throw new NotFoundException('Order not found');
+    }
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
     await this.assertOrderAccess(order.customerId, restaurant?.vendorId, requester);
 
@@ -924,6 +930,7 @@ export class OrderService {
       .where(
         and(
           eq(groceryOrders.vendorId, vendor.id),
+          inArray(groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
           or(
             eq(groceryOrders.status, 'vendor_accepted'),
             eq(groceryOrders.status, 'preparing'),
@@ -1070,6 +1077,7 @@ export class OrderService {
       .where(
         and(
           eq(foodOrders.restaurantId, restaurant.id),
+          inArray(foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
           or(
             eq(foodOrders.status, 'vendor_accepted'),
             eq(foodOrders.status, 'preparing'),
@@ -1217,10 +1225,7 @@ export class OrderService {
       .where(
         opts.includeUnpaid
           ? undefined
-          : or(
-              inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
-              eq(groceryOrders.status, 'cancelled'),
-            ),
+          : inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
       )
       .orderBy(desc(groceryOrders.createdAt));
     const food = await this.db
@@ -1229,10 +1234,7 @@ export class OrderService {
       .where(
         opts.includeUnpaid
           ? undefined
-          : or(
-              inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
-              eq(foodOrders.status, 'cancelled'),
-            ),
+          : inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
       )
       .orderBy(desc(foodOrders.createdAt));
 
@@ -1249,11 +1251,21 @@ export class OrderService {
     return {
       grocery: grocery.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
-        return { ...rest, type: 'grocery' as const, customerName: customerPhoneById.get(o.customerId) ?? '' };
+        return {
+          ...rest,
+          type: 'grocery' as const,
+          customerName: customerPhoneById.get(o.customerId) ?? '',
+          paymentProvider: o.paymentMethod || undefined,
+        };
       }),
       food: food.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
-        return { ...rest, type: 'food' as const, customerName: customerPhoneById.get(o.customerId) ?? '' };
+        return {
+          ...rest,
+          type: 'food' as const,
+          customerName: customerPhoneById.get(o.customerId) ?? '',
+          paymentProvider: o.paymentMethod || undefined,
+        };
       }),
     };
   }

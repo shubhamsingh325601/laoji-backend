@@ -22,7 +22,7 @@ export class CustomerPaymentController {
     @Param('orderId') orderId: string,
     @Body() dto: InitiatePaymentDto,
   ) {
-    return this.payments.initiate(type, orderId, user.sub, dto.method);
+    return this.payments.initiate(type, orderId, user.sub, dto.method, dto.useWallet ?? false);
   }
 
   @Get(':type/:orderId')
