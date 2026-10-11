@@ -21,6 +21,7 @@ const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const notification_service_1 = require("../notification/notification.service");
 const kyc_status_1 = require("../notification/templates/email/kyc-status");
+const vendor_onboarding_1 = require("../notification/templates/push/vendor-onboarding");
 let UploadsService = class UploadsService {
     db;
     config;
@@ -77,6 +78,11 @@ let UploadsService = class UploadsService {
                 .returning();
         }
         const rolledUpStatus = await this.rollUpKycStatus(userId, role);
+        const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
+        const userName = user?.name || (user?.phone ? `+91 ${user.phone}` : 'User');
+        if (this.notifications?.notifyAllAdminsPush) {
+            this.notifications.notifyAllAdminsPush('kyc_submitted', (0, vendor_onboarding_1.kycSubmittedAdminPush)(userName, role, input.docType));
+        }
         return { ...row, rolledUpStatus };
     }
     async deleteKycDocument(userId, docId) {

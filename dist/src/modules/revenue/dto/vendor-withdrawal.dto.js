@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RejectWithdrawalDto = exports.ApproveWithdrawalDto = exports.RequestVendorWithdrawalDto = void 0;
+exports.UpdateWithdrawalSettingsDto = exports.RejectWithdrawalDto = exports.ApproveWithdrawalDto = exports.RequestVendorWithdrawalDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class RequestVendorWithdrawalDto {
@@ -43,4 +43,13 @@ __decorate([
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], RejectWithdrawalDto.prototype, "reason", void 0);
+class UpdateWithdrawalSettingsDto {
+    minWithdrawalLimit;
+}
+exports.UpdateWithdrawalSettingsDto = UpdateWithdrawalSettingsDto;
+__decorate([
+    (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 2 }),
+    (0, class_validator_1.Min)(1, { message: 'Minimum withdrawal limit must be at least ₹1' }),
+    __metadata("design:type", Number)
+], UpdateWithdrawalSettingsDto.prototype, "minWithdrawalLimit", void 0);
 //# sourceMappingURL=vendor-withdrawal.dto.js.map

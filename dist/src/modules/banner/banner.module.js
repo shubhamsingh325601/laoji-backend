@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BannerModule = void 0;
 const common_1 = require("@nestjs/common");
 const database_module_1 = require("../../config/database.module");
+const response_cache_module_1 = require("../../common/cache/response-cache.module");
 const banner_service_1 = require("./banner.service");
 const banner_controller_1 = require("./banner.controller");
 let BannerModule = class BannerModule {
@@ -16,7 +17,7 @@ let BannerModule = class BannerModule {
 exports.BannerModule = BannerModule;
 exports.BannerModule = BannerModule = __decorate([
     (0, common_1.Module)({
-        imports: [database_module_1.DatabaseModule],
+        imports: [database_module_1.DatabaseModule, response_cache_module_1.ResponseCacheModule],
         controllers: [banner_controller_1.PublicBannerController, banner_controller_1.AdminBannerController],
         providers: [banner_service_1.BannerService],
     })

@@ -7,3 +7,6 @@ export declare class ApproveWithdrawalDto {
 export declare class RejectWithdrawalDto {
     reason: string;
 }
+export declare class UpdateWithdrawalSettingsDto {
+    minWithdrawalLimit: number;
+}

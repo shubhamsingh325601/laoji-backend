@@ -208,6 +208,9 @@ describe('Vendor Customer Phone Privacy & Delivery Partner Exposure Audit', () =
           currentTable = table;
           return chain;
         }),
+        leftJoin: jest.fn().mockImplementation(() => {
+          return chain;
+        }),
         where: jest.fn().mockImplementation(() => {
           return chain;
         }),

@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsPositive, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RequestVendorWithdrawalDto {
@@ -24,3 +24,10 @@ export class RejectWithdrawalDto {
   @MaxLength(500)
   reason: string;
 }
+
+export class UpdateWithdrawalSettingsDto {
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(1, { message: 'Minimum withdrawal limit must be at least ₹1' })
+  minWithdrawalLimit: number;
+}
+

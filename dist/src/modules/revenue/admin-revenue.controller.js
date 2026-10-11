@@ -22,6 +22,7 @@ const current_user_decorator_1 = require("../../common/decorators/current-user.d
 const revenue_config_service_1 = require("./revenue-config.service");
 const settlement_service_1 = require("./settlement.service");
 const rider_payout_service_1 = require("./rider-payout.service");
+const new_customer_delivery_service_1 = require("./new-customer-delivery.service");
 const create_revenue_config_dto_1 = require("./dto/create-revenue-config.dto");
 class SetRiderPayoutTiersDto {
     tiers;
@@ -34,10 +35,12 @@ let AdminRevenueController = class AdminRevenueController {
     revenueConfig;
     settlements;
     riderPayout;
-    constructor(revenueConfig, settlements, riderPayout) {
+    newCustomerDelivery;
+    constructor(revenueConfig, settlements, riderPayout, newCustomerDelivery) {
         this.revenueConfig = revenueConfig;
         this.settlements = settlements;
         this.riderPayout = riderPayout;
+        this.newCustomerDelivery = newCustomerDelivery;
     }
     create(user, dto) {
         return this.revenueConfig.create(user.sub, dto);
@@ -50,6 +53,24 @@ let AdminRevenueController = class AdminRevenueController {
     }
     async setRiderPayoutTiers(dto) {
         return { tiers: await this.riderPayout.replaceTiers(dto.tiers) };
+    }
+    getNewCustomerDelivery() {
+        return this.newCustomerDelivery.get();
+    }
+    setNewCustomerDelivery(body) {
+        return this.newCustomerDelivery.save(body);
+    }
+    listFreeDeliveryCustomers(search) {
+        return this.newCustomerDelivery.listCustomers(search);
+    }
+    setFreeDeliveryExtra(customerId, body) {
+        return this.newCustomerDelivery.setExtra(customerId, body?.extraOrders);
+    }
+    async listDeliveryFeeTiers() {
+        return { tiers: await this.newCustomerDelivery.listFeeTiers() };
+    }
+    async setDeliveryFeeTiers(dto) {
+        return { tiers: await this.newCustomerDelivery.replaceFeeTiers(dto.tiers) };
     }
     listSettlements() {
         return this.settlements.listAllForAdmin();
@@ -84,6 +105,47 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminRevenueController.prototype, "setRiderPayoutTiers", null);
 __decorate([
+    (0, common_1.Get)('new-customer-delivery'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminRevenueController.prototype, "getNewCustomerDelivery", null);
+__decorate([
+    (0, common_1.Put)('new-customer-delivery'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AdminRevenueController.prototype, "setNewCustomerDelivery", null);
+__decorate([
+    (0, common_1.Get)('new-customer-delivery/customers'),
+    __param(0, (0, common_1.Query)('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminRevenueController.prototype, "listFreeDeliveryCustomers", null);
+__decorate([
+    (0, common_1.Put)('new-customer-delivery/customers/:customerId'),
+    __param(0, (0, common_1.Param)('customerId', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AdminRevenueController.prototype, "setFreeDeliveryExtra", null);
+__decorate([
+    (0, common_1.Get)('delivery-fee-tiers'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminRevenueController.prototype, "listDeliveryFeeTiers", null);
+__decorate([
+    (0, common_1.Put)('delivery-fee-tiers'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [SetRiderPayoutTiersDto]),
+    __metadata("design:returntype", Promise)
+], AdminRevenueController.prototype, "setDeliveryFeeTiers", null);
+__decorate([
     (0, common_1.Get)('settlements'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -95,6 +157,7 @@ exports.AdminRevenueController = AdminRevenueController = __decorate([
     (0, common_1.Controller)('admin'),
     __metadata("design:paramtypes", [revenue_config_service_1.RevenueConfigService,
         settlement_service_1.SettlementService,
-        rider_payout_service_1.RiderPayoutService])
+        rider_payout_service_1.RiderPayoutService,
+        new_customer_delivery_service_1.NewCustomerDeliveryService])
 ], AdminRevenueController);
 //# sourceMappingURL=admin-revenue.controller.js.map

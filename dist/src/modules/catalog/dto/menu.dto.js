@@ -65,9 +65,16 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], MenuItemAddonInput.prototype, "isRequired", void 0);
+const toFiniteNumberOrUndefined = ({ value }) => {
+    if (value === null || value === undefined || value === '')
+        return undefined;
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : undefined;
+};
 class MenuItemVariantInput {
     name;
     priceDelta;
+    price;
     isDefault;
 }
 exports.MenuItemVariantInput = MenuItemVariantInput;
@@ -77,9 +84,17 @@ __decorate([
     __metadata("design:type", String)
 ], MenuItemVariantInput.prototype, "name", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(toFiniteNumberOrUndefined),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], MenuItemVariantInput.prototype, "priceDelta", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(toFiniteNumberOrUndefined),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], MenuItemVariantInput.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

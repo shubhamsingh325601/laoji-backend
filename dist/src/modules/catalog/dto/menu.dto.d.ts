@@ -13,7 +13,8 @@ export declare class MenuItemAddonInput {
 }
 export declare class MenuItemVariantInput {
     name: string;
-    priceDelta: number;
+    priceDelta?: number;
+    price?: number;
     isDefault?: boolean;
 }
 export declare class CreateMenuItemDto {

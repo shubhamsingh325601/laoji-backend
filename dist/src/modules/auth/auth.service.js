@@ -47,6 +47,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
+const notification_service_1 = require("../notification/notification.service");
+const vendor_onboarding_1 = require("../notification/templates/push/vendor-onboarding");
 const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -62,10 +64,12 @@ let AuthService = class AuthService {
     db;
     jwt;
     config;
-    constructor(db, jwt, config) {
+    notifications;
+    constructor(db, jwt, config, notifications) {
         this.db = db;
         this.jwt = jwt;
         this.config = config;
+        this.notifications = notifications;
     }
     async requestOtp(phone, role) {
         const testMode = this.config.get('NODE_ENV') !== 'production' ||
@@ -478,6 +482,9 @@ let AuthService = class AuthService {
             })
                 .returning();
             vendorRecord = created;
+            if (this.notifications) {
+                this.notifications.notifyAllAdminsPush('vendor_registered', (0, vendor_onboarding_1.vendorRegisteredAdminPush)(dto.businessName, dto.ownerName, created.id));
+            }
         }
         const tokens = await this.issueTokens(userId, 'vendor');
         return { tokens, userId, role: 'vendor', vendor: vendorRecord };
@@ -745,8 +752,10 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
+    __param(3, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, jwt_1.JwtService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        notification_service_1.NotificationService])
 ], AuthService);
 function hashToken(token) {
     return (0, crypto_1.createHash)('sha256').update(token).digest('hex');

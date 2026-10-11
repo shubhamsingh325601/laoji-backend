@@ -15,6 +15,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         discount: number;
         total: number;
+        freeDeliveryApplied: boolean;
+        freeDeliveriesLeft: number;
         minOrderValue: number;
         freeDeliveryThreshold: number;
         coupon: {
@@ -47,6 +49,8 @@ export declare class CustomerOrderController {
         deliveryFee: number;
         discount: number;
         total: number;
+        freeDeliveryApplied: boolean;
+        freeDeliveriesLeft: number;
         minOrderValue: number;
         freeDeliveryThreshold: number;
         coupon: {
@@ -77,13 +81,17 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -108,11 +116,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -129,11 +139,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -151,11 +163,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -170,6 +184,10 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         deliveryPartner: any;
     })[]>;
@@ -180,13 +198,17 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -211,11 +233,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -232,13 +256,15 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -272,11 +298,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -293,11 +321,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -315,11 +345,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -335,6 +367,8 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         deliveryPartner: any;
     })[]>;
@@ -346,13 +380,15 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -386,11 +422,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;
@@ -415,13 +453,17 @@ export declare class CustomerOrderController {
             productId: string;
             qty: number;
             unitPrice: number;
+            name: string | null;
+            imageUrl: string | null;
+            unit: string | null;
+            size: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -446,11 +488,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         vendorId: string | null;
@@ -466,13 +510,15 @@ export declare class CustomerOrderController {
             qty: number;
             unitPrice: number;
             addonsJson: unknown;
+            name: string | null;
+            imageUrl: string | null;
         }[];
         history: {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            foodOrderId: string | null;
             groceryOrderId: string | null;
+            foodOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -506,11 +552,13 @@ export declare class CustomerOrderController {
         subtotal: number;
         deliveryFee: number;
         riderPayout: number | null;
+        walletAmount: number;
         platformCommission: number;
         commissionPct: number;
         couponCode: string | null;
         discount: number;
         total: number;
+        paymentMethod: string | null;
         paymentStatus: string;
         instructions: string | null;
         restaurantId: string;

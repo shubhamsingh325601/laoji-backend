@@ -33,6 +33,11 @@ export type Db = NodePgDatabase<typeof schema>;
           `ALTER TABLE "vendors" ADD COLUMN IF NOT EXISTS "schedule_state" boolean`,
           `ALTER TABLE "grocery_orders" ADD COLUMN IF NOT EXISTS "rider_payout" double precision`,
           `ALTER TABLE "food_orders" ADD COLUMN IF NOT EXISTS "rider_payout" double precision`,
+          `ALTER TABLE "grocery_orders" ADD COLUMN IF NOT EXISTS "payment_method" varchar(30)`,
+          `ALTER TABLE "food_orders" ADD COLUMN IF NOT EXISTS "payment_method" varchar(30)`,
+          `ALTER TABLE "grocery_orders" ADD COLUMN IF NOT EXISTS "wallet_amount" double precision DEFAULT 0 NOT NULL`,
+          `ALTER TABLE "food_orders" ADD COLUMN IF NOT EXISTS "wallet_amount" double precision DEFAULT 0 NOT NULL`,
+          `ALTER TYPE "payment_provider" ADD VALUE IF NOT EXISTS 'wallet'`,
           `ALTER TABLE "vendors" ADD COLUMN IF NOT EXISTS "image_url" text`,
           `UPDATE "vendors" v SET "image_url" = r."image_url" FROM "restaurants" r WHERE r."vendor_id" = v."id" AND (v."image_url" IS NULL OR v."image_url" = '') AND r."image_url" IS NOT NULL AND r."image_url" != ''`,
           `UPDATE "restaurants" r SET "image_url" = v."image_url" FROM "vendors" v WHERE r."vendor_id" = v."id" AND (r."image_url" IS NULL OR r."image_url" = '') AND v."image_url" IS NOT NULL AND v."image_url" != ''`,
@@ -141,6 +146,16 @@ export type Db = NodePgDatabase<typeof schema>;
             "amount" double precision NOT NULL,
             "created_at" timestamp with time zone DEFAULT now() NOT NULL
           )`,
+          `CREATE TABLE IF NOT EXISTS "platform_settings" (
+            "key" varchar(100) PRIMARY KEY,
+            "value" text NOT NULL,
+            "description" text,
+            "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+            "updated_by" uuid REFERENCES "users"("id")
+          )`,
+          `INSERT INTO "platform_settings" ("key", "value", "description")
+           VALUES ('vendor_min_withdrawal_limit', '500', 'Default minimum withdrawal limit for vendors in INR')
+           ON CONFLICT ("key") DO NOTHING`,
           `CREATE TABLE IF NOT EXISTS "new_customer_delivery_settings" (
             "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
             "enabled" boolean DEFAULT true NOT NULL,
@@ -165,6 +180,7 @@ export type Db = NodePgDatabase<typeof schema>;
         ];
 
         for (const stmt of statements) {
+
           await runQuery(stmt);
         }
         return drizzle(pool, { schema });

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.orderCancelledCustomerPush = orderCancelledCustomerPush;
 exports.orderCancelledVendorPush = orderCancelledVendorPush;
 exports.orderCancelledPartnerPush = orderCancelledPartnerPush;
+exports.orderCancelledAdminPush = orderCancelledAdminPush;
 function orderCancelledCustomerPush(orderCode, orderId, type = 'grocery') {
     return {
         title: 'Order cancelled',
@@ -33,6 +34,20 @@ function orderCancelledPartnerPush(orderCode, orderId) {
             event: 'order_cancelled',
             orderCode,
             ...(orderId ? { orderId, link: `/(tabs)` } : {}),
+        },
+    };
+}
+function orderCancelledAdminPush(orderCode, orderId, type = 'grocery', cancelledBy) {
+    const typeLabel = type === 'food' ? 'Food' : 'Grocery';
+    const byPart = cancelledBy ? ` (${cancelledBy})` : '';
+    return {
+        title: `❌ ${typeLabel} Order Cancelled #${orderCode}`,
+        body: `Order #${orderCode} was cancelled${byPart}. Tap to view details.`,
+        data: {
+            event: 'order_cancelled',
+            orderCode,
+            type,
+            ...(orderId ? { orderId, link: `/orders/${orderId}`, url: `/orders/${orderId}` } : {}),
         },
     };
 }

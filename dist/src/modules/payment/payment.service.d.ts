@@ -4,6 +4,7 @@ import { UpiDeepLinkProvider } from './providers/upi-deeplink.provider';
 import { CodProvider } from './providers/cod.provider';
 import { RazorpayProvider } from './providers/razorpay.provider';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { WalletService } from '../wallet/wallet.service';
 export type OrderType = 'grocery' | 'food';
 export interface PaymentSatisfiedEvent {
     type: OrderType;
@@ -16,24 +17,27 @@ export declare class PaymentService {
     private readonly cod;
     private readonly razorpay;
     private readonly revenueConfig;
+    private readonly wallet;
     private readonly paymentSatisfied$;
     readonly onPaymentSatisfied: import("rxjs").Observable<PaymentSatisfiedEvent>;
-    constructor(db: Db, config: ConfigService, upi: UpiDeepLinkProvider, cod: CodProvider, razorpay: RazorpayProvider, revenueConfig: RevenueConfigService);
+    constructor(db: Db, config: ConfigService, upi: UpiDeepLinkProvider, cod: CodProvider, razorpay: RazorpayProvider, revenueConfig: RevenueConfigService, wallet: WalletService);
     private vendorIdForOrder;
     isSatisfied(status: string | null | undefined): boolean;
     private onlineProvider;
     private orderTable;
     private requireOwnOrder;
     private setOrderPaymentStatus;
+    private debitWalletForOrder;
+    private refundWalletPortion;
     private latestPayment;
-    initiate(type: OrderType, orderId: string, customerId: string, method: 'online' | 'cod'): Promise<{
+    initiate(type: OrderType, orderId: string, customerId: string, method: 'online' | 'cod' | 'wallet', useWallet?: boolean): Promise<{
         id: string;
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;
         providerRef: string | null;
@@ -44,7 +48,7 @@ export declare class PaymentService {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -58,7 +62,7 @@ export declare class PaymentService {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -77,7 +81,7 @@ export declare class PaymentService {
         type: OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -87,7 +91,7 @@ export declare class PaymentService {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -102,7 +106,7 @@ export declare class PaymentService {
         type: OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -112,7 +116,7 @@ export declare class PaymentService {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay";
+        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;

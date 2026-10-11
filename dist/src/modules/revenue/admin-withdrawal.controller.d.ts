@@ -1,9 +1,16 @@
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { VendorWithdrawalService } from './vendor-withdrawal.service';
-import { ApproveWithdrawalDto, RejectWithdrawalDto } from './dto/vendor-withdrawal.dto';
+import { ApproveWithdrawalDto, RejectWithdrawalDto, UpdateWithdrawalSettingsDto } from './dto/vendor-withdrawal.dto';
 export declare class AdminWithdrawalController {
     private readonly withdrawals;
     constructor(withdrawals: VendorWithdrawalService);
+    getSettings(): Promise<{
+        minWithdrawalLimit: number;
+    }>;
+    updateSettings(user: JwtAccessPayload, dto: UpdateWithdrawalSettingsDto): Promise<{
+        minWithdrawalLimit: number;
+        message: string;
+    }>;
     list(status?: string): Promise<{
         vendor: {
             id: string;

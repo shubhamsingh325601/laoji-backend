@@ -37,7 +37,12 @@ import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
 import { orderPlacedVendorPush, orderPlacedAdminPush } from '../notification/templates/push/order-placed';
 import { orderConfirmedCustomerPush } from '../notification/templates/push/order-confirmed';
-import { orderCancelledCustomerPush, orderCancelledPartnerPush, orderCancelledVendorPush } from '../notification/templates/push/order-cancelled';
+import {
+  orderCancelledAdminPush,
+  orderCancelledCustomerPush,
+  orderCancelledPartnerPush,
+  orderCancelledVendorPush,
+} from '../notification/templates/push/order-cancelled';
 import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
 import type { ADMIN_SETTABLE_STATUSES } from './dto/admin-order-actions.dto';
@@ -55,6 +60,10 @@ import type { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
 
 // A checkout counts as a real order only once payment is satisfied (online paid, or COD chosen),
 // or it was and has since moved into the refund flow. Vendors and admin only hear about these.
+// Orders delivered farther than this pay delivery unless the subtotal reaches the minimum.
+const LONG_DISTANCE_KM = 5;
+const LONG_DISTANCE_FREE_DELIVERY_MIN = 200;
+
 const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
 
 const STATUS_SEQUENCE =['vendor_accepted', 'preparing', 'ready', 'handed_over'] as const;
@@ -138,6 +147,14 @@ export class OrderService {
     dropoff: { lat: number; lng: number },
   ) {
     const outerZone = isOutsideCoreZone(dropoff.lat, dropoff.lng);
+    // Beyond LONG_DISTANCE_KM the order must reach LONG_DISTANCE_FREE_DELIVERY_MIN
+    // for free delivery, whatever lower threshold the vendor's rule sets.
+    if (distanceKm > LONG_DISTANCE_KM) {
+      revenue = {
+        ...revenue,
+        freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
+      };
+    }
     // A customer's first few orders within the admin-set distance get free delivery.
     // Otherwise the admin's km ranges set the fee (revenue-config fees if none are saved).
     const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
@@ -596,9 +613,26 @@ export class OrderService {
   async getGroceryOrder(id: string, requester: { userId: string; role: string }) {
     const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, id)).limit(1);
     if (!order) throw new NotFoundException('Order not found');
+    if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+      throw new NotFoundException('Order not found');
+    }
     await this.assertOrderAccess(order.customerId, order.vendorId, requester);
 
-    const items = await this.db.select().from(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, id));
+    const items = await this.db
+      .select({
+        id: groceryOrderItems.id,
+        groceryOrderId: groceryOrderItems.groceryOrderId,
+        productId: groceryOrderItems.productId,
+        qty: groceryOrderItems.qty,
+        unitPrice: groceryOrderItems.unitPrice,
+        name: products.name,
+        imageUrl: products.imageUrl,
+        unit: products.unit,
+        size: products.size,
+      })
+      .from(groceryOrderItems)
+      .leftJoin(products, eq(groceryOrderItems.productId, products.id))
+      .where(eq(groceryOrderItems.groceryOrderId, id));
     const history = await this.db
       .select()
       .from(orderStatusHistory)
@@ -612,10 +646,26 @@ export class OrderService {
   async getFoodOrder(id: string, requester: { userId: string; role: string }) {
     const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, id)).limit(1);
     if (!order) throw new NotFoundException('Order not found');
+    if (requester.role === 'vendor' && !this.payments.isSatisfied(order.paymentStatus)) {
+      throw new NotFoundException('Order not found');
+    }
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, order.restaurantId)).limit(1);
     await this.assertOrderAccess(order.customerId, restaurant?.vendorId, requester);
 
-    const items = await this.db.select().from(foodOrderItems).where(eq(foodOrderItems.foodOrderId, id));
+    const items = await this.db
+      .select({
+        id: foodOrderItems.id,
+        foodOrderId: foodOrderItems.foodOrderId,
+        menuItemId: foodOrderItems.menuItemId,
+        qty: foodOrderItems.qty,
+        unitPrice: foodOrderItems.unitPrice,
+        addonsJson: foodOrderItems.addonsJson,
+        name: menuItems.name,
+        imageUrl: menuItems.imageUrl,
+      })
+      .from(foodOrderItems)
+      .leftJoin(menuItems, eq(foodOrderItems.menuItemId, menuItems.id))
+      .where(eq(foodOrderItems.foodOrderId, id));
     const history = await this.db
       .select()
       .from(orderStatusHistory)
@@ -751,7 +801,21 @@ export class OrderService {
   private async attachGroceryItems<T extends { id: string; deliveryPartnerId?: string | null }>(orders: T[]) {
     if (orders.length === 0) return orders.map((o) => ({ ...o, items: [] }));
     const ids = orders.map((o) => o.id);
-    const items = await this.db.select().from(groceryOrderItems).where(inArray(groceryOrderItems.groceryOrderId, ids));
+    const items = await this.db
+      .select({
+        id: groceryOrderItems.id,
+        groceryOrderId: groceryOrderItems.groceryOrderId,
+        productId: groceryOrderItems.productId,
+        qty: groceryOrderItems.qty,
+        unitPrice: groceryOrderItems.unitPrice,
+        name: products.name,
+        imageUrl: products.imageUrl,
+        unit: products.unit,
+        size: products.size,
+      })
+      .from(groceryOrderItems)
+      .leftJoin(products, eq(groceryOrderItems.productId, products.id))
+      .where(inArray(groceryOrderItems.groceryOrderId, ids));
     const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id): id is string => !!id))];
     const partnerMap = new Map<string, any>();
     if (partnerIds.length > 0) {
@@ -779,7 +843,20 @@ export class OrderService {
   private async attachFoodItems<T extends { id: string; deliveryPartnerId?: string | null }>(orders: T[]) {
     if (orders.length === 0) return orders.map((o) => ({ ...o, items: [] }));
     const ids = orders.map((o) => o.id);
-    const items = await this.db.select().from(foodOrderItems).where(inArray(foodOrderItems.foodOrderId, ids));
+    const items = await this.db
+      .select({
+        id: foodOrderItems.id,
+        foodOrderId: foodOrderItems.foodOrderId,
+        menuItemId: foodOrderItems.menuItemId,
+        qty: foodOrderItems.qty,
+        unitPrice: foodOrderItems.unitPrice,
+        addonsJson: foodOrderItems.addonsJson,
+        name: menuItems.name,
+        imageUrl: menuItems.imageUrl,
+      })
+      .from(foodOrderItems)
+      .leftJoin(menuItems, eq(foodOrderItems.menuItemId, menuItems.id))
+      .where(inArray(foodOrderItems.foodOrderId, ids));
     const partnerIds = [...new Set(orders.map((o) => o.deliveryPartnerId).filter((id): id is string => !!id))];
     const partnerMap = new Map<string, any>();
     if (partnerIds.length > 0) {
@@ -919,6 +996,7 @@ export class OrderService {
       .where(
         and(
           eq(groceryOrders.vendorId, vendor.id),
+          inArray(groceryOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
           or(
             eq(groceryOrders.status, 'vendor_accepted'),
             eq(groceryOrders.status, 'preparing'),
@@ -1065,6 +1143,7 @@ export class OrderService {
       .where(
         and(
           eq(foodOrders.restaurantId, restaurant.id),
+          inArray(foodOrders.paymentStatus, ['paid', 'pending_cod', 'collected']),
           or(
             eq(foodOrders.status, 'vendor_accepted'),
             eq(foodOrders.status, 'preparing'),
@@ -1137,6 +1216,10 @@ export class OrderService {
       orderCancelledCustomerPush(this.orderCode(orderId), orderId, 'food'),
     );
     this.notifications.notifyPush(userId, 'order_cancelled', orderCancelledVendorPush(this.orderCode(orderId), orderId));
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(this.orderCode(orderId), orderId, 'food', 'vendor'),
+    );
     return this.getFoodOrder(orderId, { userId, role: 'vendor' });
   }
 
@@ -1208,10 +1291,7 @@ export class OrderService {
       .where(
         opts.includeUnpaid
           ? undefined
-          : or(
-              inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
-              eq(groceryOrders.status, 'cancelled'),
-            ),
+          : inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
       )
       .orderBy(desc(groceryOrders.createdAt));
     const food = await this.db
@@ -1220,10 +1300,7 @@ export class OrderService {
       .where(
         opts.includeUnpaid
           ? undefined
-          : or(
-              inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
-              eq(foodOrders.status, 'cancelled'),
-            ),
+          : inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES),
       )
       .orderBy(desc(foodOrders.createdAt));
 
@@ -1237,14 +1314,27 @@ export class OrderService {
     // for the single-order admin timeline view — the list endpoint spreads
     // the raw row and would otherwise leak every order's doorstep code to
     // any admin request.
+    const attachedGrocery = await this.attachGroceryItems(grocery);
+    const attachedFood = await this.attachFoodItems(food);
+
     return {
-      grocery: grocery.map((o) => {
+      grocery: attachedGrocery.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
-        return { ...rest, type: 'grocery' as const, customerName: customerPhoneById.get(o.customerId) ?? '' };
+        return {
+          ...rest,
+          type: 'grocery' as const,
+          customerName: customerPhoneById.get(o.customerId) ?? '',
+          paymentProvider: o.paymentMethod || undefined,
+        };
       }),
-      food: food.map((o) => {
+      food: attachedFood.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
-        return { ...rest, type: 'food' as const, customerName: customerPhoneById.get(o.customerId) ?? '' };
+        return {
+          ...rest,
+          type: 'food' as const,
+          customerName: customerPhoneById.get(o.customerId) ?? '',
+          paymentProvider: o.paymentMethod || undefined,
+        };
       }),
     };
   }
@@ -1298,6 +1388,10 @@ export class OrderService {
       const [partner] = await this.db.select().from(deliveryPartners).where(eq(deliveryPartners.id, updated.deliveryPartnerId)).limit(1);
       if (partner) this.notifications.notifyPush(partner.userId, 'order_cancelled', orderCancelledPartnerPush(orderCode, orderId));
     }
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(orderCode, orderId, type, 'admin'),
+    );
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: adminUserId, role: 'admin' })
@@ -1790,6 +1884,10 @@ export class OrderService {
     const vendorKnewOrder = CONFIRMED_PAYMENT_STATUSES.includes(updated.paymentStatus);
     const vendorUserId = vendorKnewOrder ? await this.vendorUserIdForOrder(type, updated) : null;
     if (vendorUserId) this.notifications.notifyPush(vendorUserId, 'order_cancelled', orderCancelledVendorPush(orderCode, orderId));
+    this.notifications.notifyAllAdminsPush(
+      'order_cancelled',
+      orderCancelledAdminPush(orderCode, orderId, type, 'customer'),
+    );
 
     return type === 'grocery'
       ? this.getGroceryOrder(orderId, { userId: customerId, role: 'customer' })

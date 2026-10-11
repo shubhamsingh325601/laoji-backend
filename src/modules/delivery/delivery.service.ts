@@ -36,7 +36,7 @@ import { assignmentOfferedPartnerPush } from '../notification/templates/push/rea
 import { deliveryAssignedCustomerPush } from '../notification/templates/push/delivery-assigned';
 import { pickedUpCustomerPush, pickedUpVendorPush } from '../notification/templates/push/picked-up';
 import { outForDeliveryCustomerPush } from '../notification/templates/push/out-for-delivery';
-import { deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
+import { deliveredAdminPush, deliveredCustomerPush, deliveredPartnerPush, deliveredVendorPush } from '../notification/templates/push/delivered';
 import { SettlementService } from '../revenue/settlement.service';
 import { RiderPayoutService } from '../revenue/rider-payout.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
@@ -577,7 +577,7 @@ export class DeliveryService {
   // Post-Phase-11 MVP-completion pass: `pickupPhone` and `pickupAddress` added —
   // active-delivery screen has "Call vendor" and navigation links with full store details.
   private assembleAssignmentView(
-    order: { id: string; status: string; deliveryPartnerId: string | null; instructions?: string | null; total?: number; paymentStatus?: string },
+    order: { id: string; status: string; deliveryPartnerId: string | null; instructions?: string | null; total?: number; paymentStatus?: string; walletAmount?: number | null },
     type: OrderType,
     itemCount: number,
     vendor: typeof vendors.$inferSelect | undefined,
@@ -596,7 +596,8 @@ export class DeliveryService {
     const isCod = rawPaymentStatus === 'pending_cod' || rawPaymentStatus === 'cod';
     const isPaid = rawPaymentStatus === 'paid' || rawPaymentStatus === 'collected';
     const paymentMethod: 'cod' | 'online' = isCod ? 'cod' : 'online';
-    const collectCashAmount = isCod ? (order.total ?? 0) : 0;
+    // With a split payment the wallet part is already paid; the rider collects only the rest.
+    const collectCashAmount = isCod ? Math.max(0, Math.round(((order.total ?? 0) - (order.walletAmount ?? 0)) * 100) / 100) : 0;
 
     return {
       id: order.id,
@@ -929,6 +930,10 @@ export class DeliveryService {
       }
     }
     this.notifications.notifyPush(partnerUserId, 'delivered', deliveredPartnerPush(orderCode, settlement?.deliveryPayout ?? 0, orderId));
+    this.notifications.notifyAllAdminsPush(
+      'delivered',
+      deliveredAdminPush(orderCode, orderId, type, order.subtotal + order.deliveryFee),
+    );
 
     // This partner is free again. Orders waiting for a partner (everyone was
     // busy or offline when they were ready) get offered now rather than at

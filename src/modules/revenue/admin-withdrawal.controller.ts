@@ -1,17 +1,30 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
 import { VendorWithdrawalService } from './vendor-withdrawal.service';
-import { ApproveWithdrawalDto, RejectWithdrawalDto } from './dto/vendor-withdrawal.dto';
+import { ApproveWithdrawalDto, RejectWithdrawalDto, UpdateWithdrawalSettingsDto } from './dto/vendor-withdrawal.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 @Controller('admin/vendor-withdrawals')
 export class AdminWithdrawalController {
   constructor(private readonly withdrawals: VendorWithdrawalService) {}
+
+  @Get('settings')
+  getSettings() {
+    return this.withdrawals.getWithdrawalSettings();
+  }
+
+  @Put('settings')
+  updateSettings(
+    @CurrentUser() user: JwtAccessPayload,
+    @Body() dto: UpdateWithdrawalSettingsDto,
+  ) {
+    return this.withdrawals.updateMinWithdrawalLimit(dto.minWithdrawalLimit, user.sub);
+  }
 
   @Get()
   list(@Query('status') status?: string) {
@@ -23,6 +36,7 @@ export class AdminWithdrawalController {
   get(@Param('id', ParseUUIDPipe) id: string) {
     return this.withdrawals.getForAdmin(id);
   }
+
 
   // Admin has sent the money by hand; `payoutReference` is the optional UTR / txn id.
   @Post(':id/approve')

@@ -1,3 +1,4 @@
+import { NotificationService } from '../notification/notification.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Db } from '../../config/database.module';
@@ -9,7 +10,8 @@ export declare class AuthService {
     private readonly db;
     private readonly jwt;
     private readonly config;
-    constructor(db: Db, jwt: JwtService, config: ConfigService);
+    private readonly notifications?;
+    constructor(db: Db, jwt: JwtService, config: ConfigService, notifications?: NotificationService | undefined);
     requestOtp(phone: string, role: OtpRole): Promise<{
         devOtp?: string;
     }>;

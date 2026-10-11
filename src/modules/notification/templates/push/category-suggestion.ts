@@ -17,3 +17,23 @@ export function categorySuggestionRejectedVendorPush(categoryName: string): Push
     data: { event: 'category_suggestion_rejected', screen: '/suggest-product' },
   };
 }
+
+export function categorySuggestionCreatedAdminPush(
+  categoryName: string,
+  businessType?: string,
+  vendorName?: string,
+): PushMessage {
+  const vendorPart = vendorName ? ` by ${vendorName}` : '';
+  return {
+    title: '📁 New Category Suggestion',
+    body: `New category "${categoryName}" suggested${vendorPart}. Tap to review.`,
+    data: {
+      event: 'category_suggestion',
+      categoryName,
+      ...(businessType ? { businessType } : {}),
+      link: '/catalog',
+      url: '/catalog',
+    },
+  };
+}
+

@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
+const response_cache_service_1 = require("../../common/cache/response-cache.service");
 let BannerService = class BannerService {
     db;
-    constructor(db) {
+    cache;
+    constructor(db, cache) {
         this.db = db;
+        this.cache = cache;
     }
     listAllForAdmin() {
         return this.db.select().from(schema_1.banners).orderBy((0, drizzle_orm_1.asc)(schema_1.banners.placement), (0, drizzle_orm_1.asc)(schema_1.banners.sortOrder), (0, drizzle_orm_1.desc)(schema_1.banners.createdAt));
@@ -54,6 +57,7 @@ let BannerService = class BannerService {
             endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
         })
             .returning();
+        this.cache?.clear();
         return row;
     }
     async update(id, dto) {
@@ -78,11 +82,13 @@ let BannerService = class BannerService {
         if (dto.endsAt !== undefined)
             updates.endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
         const [row] = await this.db.update(schema_1.banners).set(updates).where((0, drizzle_orm_1.eq)(schema_1.banners.id, id)).returning();
+        this.cache?.clear();
         return row;
     }
     async delete(id) {
         await this.findOrThrow(id);
         await this.db.delete(schema_1.banners).where((0, drizzle_orm_1.eq)(schema_1.banners.id, id));
+        this.cache?.clear();
         return { success: true };
     }
     async findOrThrow(id) {
@@ -96,6 +102,7 @@ exports.BannerService = BannerService;
 exports.BannerService = BannerService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, common_1.Inject)(response_cache_service_1.ResponseCacheService)),
+    __metadata("design:paramtypes", [Object, response_cache_service_1.ResponseCacheService])
 ], BannerService);
 //# sourceMappingURL=banner.service.js.map

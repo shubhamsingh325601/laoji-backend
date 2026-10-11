@@ -40,3 +40,24 @@ export function orderCancelledPartnerPush(orderCode: string, orderId?: string): 
     },
   };
 }
+
+export function orderCancelledAdminPush(
+  orderCode: string,
+  orderId?: string,
+  type: 'grocery' | 'food' = 'grocery',
+  cancelledBy?: string,
+): PushMessage {
+  const typeLabel = type === 'food' ? 'Food' : 'Grocery';
+  const byPart = cancelledBy ? ` (${cancelledBy})` : '';
+  return {
+    title: `❌ ${typeLabel} Order Cancelled #${orderCode}`,
+    body: `Order #${orderCode} was cancelled${byPart}. Tap to view details.`,
+    data: {
+      event: 'order_cancelled',
+      orderCode,
+      type,
+      ...(orderId ? { orderId, link: `/orders/${orderId}`, url: `/orders/${orderId}` } : {}),
+    },
+  };
+}
+

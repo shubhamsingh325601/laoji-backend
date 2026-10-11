@@ -23,6 +23,7 @@ const upi_deeplink_provider_1 = require("./providers/upi-deeplink.provider");
 const cod_provider_1 = require("./providers/cod.provider");
 const razorpay_provider_1 = require("./providers/razorpay.provider");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
+const wallet_service_1 = require("../wallet/wallet.service");
 const PAYMENT_SATISFIED = ['paid', 'pending_cod', 'collected'];
 let PaymentService = class PaymentService {
     db;
@@ -31,15 +32,17 @@ let PaymentService = class PaymentService {
     cod;
     razorpay;
     revenueConfig;
+    wallet;
     paymentSatisfied$ = new rxjs_1.Subject();
     onPaymentSatisfied = this.paymentSatisfied$.asObservable();
-    constructor(db, config, upi, cod, razorpay, revenueConfig) {
+    constructor(db, config, upi, cod, razorpay, revenueConfig, wallet) {
         this.db = db;
         this.config = config;
         this.upi = upi;
         this.cod = cod;
         this.razorpay = razorpay;
         this.revenueConfig = revenueConfig;
+        this.wallet = wallet;
     }
     async vendorIdForOrder(type, order) {
         if (type === 'grocery')
@@ -68,9 +71,67 @@ let PaymentService = class PaymentService {
             throw new common_1.ForbiddenException('Not your order');
         return order;
     }
-    async setOrderPaymentStatus(type, orderId, status) {
+    async setOrderPaymentStatus(type, orderId, status, method, walletAmount) {
         const table = this.orderTable(type);
-        await this.db.update(table).set({ paymentStatus: status }).where((0, drizzle_orm_1.eq)(table.id, orderId));
+        await this.db
+            .update(table)
+            .set({
+            paymentStatus: status,
+            ...(method ? { paymentMethod: method } : {}),
+            ...(walletAmount !== undefined ? { walletAmount } : {}),
+        })
+            .where((0, drizzle_orm_1.eq)(table.id, orderId));
+    }
+    async debitWalletForOrder(type, orderId, customerId, maxAmount) {
+        const wallet = await this.wallet.getOrCreateWallet(customerId);
+        const amount = Math.min(Math.floor(wallet.balance * 100) / 100, maxAmount);
+        if (amount <= 0)
+            return 0;
+        const updated = await this.db
+            .update(schema_1.wallets)
+            .set({ balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} - ${amount}`, updatedAt: new Date() })
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id), (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} >= ${amount}`))
+            .returning({ id: schema_1.wallets.id });
+        if (!updated.length)
+            throw new common_1.BadRequestException('Wallet balance changed. Please try again.');
+        await this.db.insert(schema_1.walletTransactions).values({
+            walletId: wallet.id,
+            userId: customerId,
+            amount,
+            type: 'order_payment',
+            status: 'completed',
+            description: `Payment for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
+            orderId,
+            orderType: type,
+        });
+        return amount;
+    }
+    async refundWalletPortion(type, orderId, customerId) {
+        const txs = await this.db
+            .select({ type: schema_1.walletTransactions.type, amount: schema_1.walletTransactions.amount })
+            .from(schema_1.walletTransactions)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.orderId, orderId), (0, drizzle_orm_1.inArray)(schema_1.walletTransactions.type, ['order_payment', 'order_refund'])));
+        const net = txs.reduce((sum, t) => sum + (t.type === 'order_payment' ? t.amount : -t.amount), 0);
+        const amount = Math.round(net * 100) / 100;
+        if (amount <= 0)
+            return;
+        const wallet = await this.wallet.getOrCreateWallet(customerId);
+        await this.db
+            .update(schema_1.wallets)
+            .set({ balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${amount}`, updatedAt: new Date() })
+            .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+        await this.db.insert(schema_1.walletTransactions).values({
+            walletId: wallet.id,
+            userId: customerId,
+            amount,
+            type: 'order_refund',
+            status: 'completed',
+            description: `Refund for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
+            orderId,
+            orderType: type,
+        });
+        const table = this.orderTable(type);
+        await this.db.update(table).set({ walletAmount: 0 }).where((0, drizzle_orm_1.eq)(table.id, orderId));
     }
     async latestPayment(type, orderId) {
         const [row] = await this.db
@@ -81,11 +142,54 @@ let PaymentService = class PaymentService {
             .limit(1);
         return row ?? null;
     }
-    async initiate(type, orderId, customerId, method) {
+    async initiate(type, orderId, customerId, method, useWallet = false) {
         const order = await this.requireOwnOrder(type, orderId, customerId);
         const existing = await this.latestPayment(type, orderId);
         if (existing && existing.status !== 'failed')
             return existing;
+        if (useWallet && method !== 'wallet') {
+            const w = await this.wallet.getOrCreateWallet(customerId);
+            if (Math.round(w.balance * 100) / 100 >= order.total)
+                method = 'wallet';
+        }
+        if (method === 'wallet') {
+            const wallet = await this.wallet.getOrCreateWallet(customerId);
+            const currentBalance = Math.round(wallet.balance * 100) / 100;
+            if (currentBalance < order.total) {
+                throw new common_1.BadRequestException(`Insufficient wallet balance. Available balance is ₹${currentBalance}, but order total is ₹${order.total}`);
+            }
+            await this.db
+                .update(schema_1.wallets)
+                .set({
+                balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} - ${order.total}`,
+                updatedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+            const orderCode = orderId.slice(0, 8).toUpperCase();
+            await this.db.insert(schema_1.walletTransactions).values({
+                walletId: wallet.id,
+                userId: customerId,
+                amount: order.total,
+                type: 'order_payment',
+                status: 'completed',
+                description: `Payment for ${type} order #${orderCode}`,
+                orderId,
+                orderType: type,
+            });
+            const [payment] = await this.db
+                .insert(schema_1.payments)
+                .values({
+                ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
+                provider: 'wallet',
+                status: 'paid',
+                amount: order.total,
+                providerRef: orderId,
+            })
+                .returning();
+            await this.setOrderPaymentStatus(type, orderId, 'paid', 'wallet', order.total);
+            this.paymentSatisfied$.next({ type, orderId });
+            return payment;
+        }
         if (method === 'cod') {
             const vendorId = await this.vendorIdForOrder(type, order);
             const { codThreshold } = vendorId ? await this.revenueConfig.resolve(vendorId, null) : { codThreshold: null };
@@ -93,20 +197,30 @@ let PaymentService = class PaymentService {
                 throw new common_1.BadRequestException(`Cash on delivery isn't available for orders above ₹${codThreshold}`);
             }
         }
+        const walletUsed = useWallet ? await this.debitWalletForOrder(type, orderId, customerId, order.total) : 0;
+        const payable = Math.round((order.total - walletUsed) * 100) / 100;
         const { provider, name } = method === 'cod' ? { provider: this.cod, name: 'cod' } : this.onlineProvider();
-        const result = await provider.initiate({ orderId, amount: order.total });
+        let result;
+        try {
+            result = await provider.initiate({ orderId, amount: payable });
+        }
+        catch (err) {
+            if (walletUsed > 0)
+                await this.refundWalletPortion(type, orderId, customerId);
+            throw err;
+        }
         const [payment] = await this.db
             .insert(schema_1.payments)
             .values({
             ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
             provider: name,
             status: result.status,
-            amount: order.total,
+            amount: payable,
             upiDeepLink: result.upiDeepLink,
             providerRef: result.providerRef,
         })
             .returning();
-        await this.setOrderPaymentStatus(type, orderId, result.status);
+        await this.setOrderPaymentStatus(type, orderId, result.status, method === 'cod' ? 'cod' : 'upi', walletUsed);
         if (this.isSatisfied(result.status)) {
             this.paymentSatisfied$.next({ type, orderId });
         }
@@ -135,7 +249,7 @@ let PaymentService = class PaymentService {
             .set({ status: 'paid', updatedAt: new Date() })
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id))
             .returning();
-        await this.setOrderPaymentStatus(type, orderId, 'paid');
+        await this.setOrderPaymentStatus(type, orderId, 'paid', 'upi');
         this.paymentSatisfied$.next({ type, orderId });
         return updated;
     }
@@ -144,12 +258,47 @@ let PaymentService = class PaymentService {
         if (!payment || payment.provider !== 'cod')
             return;
         await this.db.update(schema_1.payments).set({ status: 'collected', updatedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id));
-        await this.setOrderPaymentStatus(type, orderId, 'collected');
+        await this.setOrderPaymentStatus(type, orderId, 'collected', 'cod');
     }
     async markRefundPendingIfPaid(type, orderId) {
         const payment = await this.latestPayment(type, orderId);
-        if (!payment || payment.status !== 'paid')
+        if (!payment)
             return;
+        if (payment.provider !== 'wallet' && ['paid', 'pending', 'pending_cod'].includes(payment.status)) {
+            const table = this.orderTable(type);
+            const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+            if (order && order.walletAmount > 0)
+                await this.refundWalletPortion(type, orderId, order.customerId);
+        }
+        if (payment.status !== 'paid')
+            return;
+        if (payment.provider === 'wallet') {
+            const table = this.orderTable(type);
+            const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+            if (order) {
+                const wallet = await this.wallet.getOrCreateWallet(order.customerId);
+                await this.db
+                    .update(schema_1.wallets)
+                    .set({
+                    balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${payment.amount}`,
+                    updatedAt: new Date(),
+                })
+                    .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+                await this.db.insert(schema_1.walletTransactions).values({
+                    walletId: wallet.id,
+                    userId: order.customerId,
+                    amount: payment.amount,
+                    type: 'order_refund',
+                    status: 'completed',
+                    description: `Refund for cancelled ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
+                    orderId,
+                    orderType: type,
+                });
+            }
+            await this.db.update(schema_1.payments).set({ status: 'refunded', updatedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id));
+            await this.setOrderPaymentStatus(type, orderId, 'refunded', 'wallet');
+            return;
+        }
         await this.db.update(schema_1.payments).set({ status: 'refund_pending', updatedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.payments.id, payment.id));
         await this.setOrderPaymentStatus(type, orderId, 'refund_pending');
     }
@@ -211,6 +360,12 @@ let PaymentService = class PaymentService {
         const type = payment.groceryOrderId ? 'grocery' : 'food';
         const orderId = (payment.groceryOrderId ?? payment.foodOrderId);
         await this.setOrderPaymentStatus(type, orderId, status);
+        if (status === 'failed') {
+            const table = this.orderTable(type);
+            const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+            if (order && order.walletAmount > 0)
+                await this.refundWalletPortion(type, orderId, order.customerId);
+        }
         if (status === 'paid') {
             this.paymentSatisfied$.next({ type, orderId });
         }
@@ -245,6 +400,7 @@ exports.PaymentService = PaymentService = __decorate([
         upi_deeplink_provider_1.UpiDeepLinkProvider,
         cod_provider_1.CodProvider,
         razorpay_provider_1.RazorpayProvider,
-        revenue_config_service_1.RevenueConfigService])
+        revenue_config_service_1.RevenueConfigService,
+        wallet_service_1.WalletService])
 ], PaymentService);
 //# sourceMappingURL=payment.service.js.map

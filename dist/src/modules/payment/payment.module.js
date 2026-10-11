@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentModule = void 0;
 const common_1 = require("@nestjs/common");
 const revenue_module_1 = require("../revenue/revenue.module");
+const wallet_module_1 = require("../wallet/wallet.module");
 const payment_service_1 = require("./payment.service");
 const upi_deeplink_provider_1 = require("./providers/upi-deeplink.provider");
 const cod_provider_1 = require("./providers/cod.provider");
@@ -20,7 +21,7 @@ let PaymentModule = class PaymentModule {
 exports.PaymentModule = PaymentModule;
 exports.PaymentModule = PaymentModule = __decorate([
     (0, common_1.Module)({
-        imports: [revenue_module_1.RevenueModule],
+        imports: [revenue_module_1.RevenueModule, wallet_module_1.WalletModule],
         controllers: [customer_payment_controller_1.CustomerPaymentController, admin_payment_controller_1.AdminPaymentController],
         providers: [payment_service_1.PaymentService, upi_deeplink_provider_1.UpiDeepLinkProvider, cod_provider_1.CodProvider, razorpay_provider_1.RazorpayProvider],
         exports: [payment_service_1.PaymentService],

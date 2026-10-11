@@ -246,11 +246,13 @@ export declare class DeliveryService {
             subtotal: number;
             deliveryFee: number;
             riderPayout: number | null;
+            walletAmount: number;
             platformCommission: number;
             commissionPct: number;
             couponCode: string | null;
             discount: number;
             total: number;
+            paymentMethod: string | null;
             paymentStatus: string;
             instructions: string | null;
             vendorId: string | null;
@@ -267,11 +269,13 @@ export declare class DeliveryService {
             subtotal: number;
             deliveryFee: number;
             riderPayout: number | null;
+            walletAmount: number;
             platformCommission: number;
             commissionPct: number;
             couponCode: string | null;
             discount: number;
             total: number;
+            paymentMethod: string | null;
             paymentStatus: string;
             instructions: string | null;
             restaurantId: string;

@@ -589,16 +589,16 @@ export declare class AdminBannerController {
     }>, "orderBy">;
     create(dto: CreateBannerDto): Promise<{
         id: string;
+        title: string;
+        subtitle: string | null;
         link: string | null;
-        createdAt: Date;
         imageUrl: string;
+        placement: string;
         sortOrder: number;
         isActive: boolean;
         startsAt: Date | null;
-        title: string;
-        subtitle: string | null;
-        placement: string;
         endsAt: Date | null;
+        createdAt: Date;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{
         id: string;

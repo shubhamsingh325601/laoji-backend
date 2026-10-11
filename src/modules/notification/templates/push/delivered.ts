@@ -35,3 +35,24 @@ export function deliveredPartnerPush(orderCode: string, payout: number, orderId?
     },
   };
 }
+
+export function deliveredAdminPush(
+  orderCode: string,
+  orderId?: string,
+  type: 'grocery' | 'food' = 'grocery',
+  total?: number,
+): PushMessage {
+  const typeLabel = type === 'food' ? 'Food' : 'Grocery';
+  const amountPart = total !== undefined ? ` • ₹${total}` : '';
+  return {
+    title: `✅ ${typeLabel} Order Delivered #${orderCode}`,
+    body: `Order #${orderCode}${amountPart} has been delivered successfully.`,
+    data: {
+      event: 'delivered',
+      orderCode,
+      type,
+      ...(orderId ? { orderId, link: `/orders/${orderId}`, url: `/orders/${orderId}` } : {}),
+    },
+  };
+}
+

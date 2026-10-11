@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.coupons = exports.areaManagers = exports.foodOrderRatings = exports.vendorWithdrawals = exports.settlements = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = void 0;
+exports.vendorWithdrawals = exports.settlements = exports.customerDeliveryFeeTiers = exports.customerFreeDeliveryBonus = exports.newCustomerDeliverySettings = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.platformSettings = exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -274,11 +274,13 @@ exports.groceryOrders = (0, pg_core_1.pgTable)('grocery_orders', {
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
+    walletAmount: (0, pg_core_1.doublePrecision)('wallet_amount').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
     discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
+    paymentMethod: (0, pg_core_1.varchar)('payment_method', { length: 30 }),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
     vendorId: (0, pg_core_1.uuid)('vendor_id').references(() => exports.vendors.id),
@@ -325,11 +327,13 @@ exports.foodOrders = (0, pg_core_1.pgTable)('food_orders', {
     subtotal: (0, pg_core_1.doublePrecision)('subtotal').notNull(),
     deliveryFee: (0, pg_core_1.doublePrecision)('delivery_fee').notNull().default(0),
     riderPayout: (0, pg_core_1.doublePrecision)('rider_payout'),
+    walletAmount: (0, pg_core_1.doublePrecision)('wallet_amount').notNull().default(0),
     platformCommission: (0, pg_core_1.doublePrecision)('platform_commission').notNull().default(0),
     commissionPct: (0, pg_core_1.doublePrecision)('commission_pct').notNull().default(0),
     couponCode: (0, pg_core_1.varchar)('coupon_code', { length: 50 }),
     discount: (0, pg_core_1.doublePrecision)('discount').notNull().default(0),
     total: (0, pg_core_1.doublePrecision)('total').notNull(),
+    paymentMethod: (0, pg_core_1.varchar)('payment_method', { length: 30 }),
     paymentStatus: (0, pg_core_1.varchar)('payment_status', { length: 30 }).notNull().default('pending'),
     instructions: (0, pg_core_1.text)('instructions'),
     restaurantId: (0, pg_core_1.uuid)('restaurant_id')
@@ -387,7 +391,7 @@ exports.deliveryAssignments = (0, pg_core_1.pgTable)('delivery_assignments', {
 }, (table) => [
     (0, pg_core_1.check)('delivery_assignments_exactly_one_order_ref', (0, drizzle_orm_1.sql) `(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`),
 ]);
-exports.paymentProviderEnum = (0, pg_core_1.pgEnum)('payment_provider', ['upi_deeplink', 'cod', 'razorpay']);
+exports.paymentProviderEnum = (0, pg_core_1.pgEnum)('payment_provider', ['upi_deeplink', 'cod', 'razorpay', 'wallet']);
 exports.paymentStatusEnum = (0, pg_core_1.pgEnum)('payment_status', [
     'pending',
     'paid',
@@ -496,6 +500,27 @@ exports.categorySuggestions = (0, pg_core_1.pgTable)('category_suggestions', {
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.riderPayoutTiers = (0, pg_core_1.pgTable)('rider_payout_tiers', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    fromKm: (0, pg_core_1.doublePrecision)('from_km').notNull(),
+    toKm: (0, pg_core_1.doublePrecision)('to_km'),
+    amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.newCustomerDeliverySettings = (0, pg_core_1.pgTable)('new_customer_delivery_settings', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    enabled: (0, pg_core_1.boolean)('enabled').notNull().default(true),
+    maxKm: (0, pg_core_1.doublePrecision)('max_km').notNull().default(5),
+    maxOrders: (0, pg_core_1.integer)('max_orders').notNull().default(3),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.customerFreeDeliveryBonus = (0, pg_core_1.pgTable)('customer_free_delivery_bonus', {
+    customerId: (0, pg_core_1.uuid)('customer_id')
+        .primaryKey()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    extraOrders: (0, pg_core_1.integer)('extra_orders').notNull().default(0),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.customerDeliveryFeeTiers = (0, pg_core_1.pgTable)('customer_delivery_fee_tiers', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     fromKm: (0, pg_core_1.doublePrecision)('from_km').notNull(),
     toKm: (0, pg_core_1.doublePrecision)('to_km'),
@@ -686,5 +711,12 @@ exports.withdrawalRequests = (0, pg_core_1.pgTable)('withdrawal_requests', {
     adminNotes: (0, pg_core_1.text)('admin_notes'),
     processedAt: (0, pg_core_1.timestamp)('processed_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.platformSettings = (0, pg_core_1.pgTable)('platform_settings', {
+    key: (0, pg_core_1.varchar)('key', { length: 100 }).primaryKey(),
+    value: (0, pg_core_1.text)('value').notNull(),
+    description: (0, pg_core_1.text)('description'),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: (0, pg_core_1.uuid)('updated_by').references(() => exports.users.id),
 });
 //# sourceMappingURL=schema.js.map

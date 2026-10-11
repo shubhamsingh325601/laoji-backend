@@ -3,11 +3,15 @@ import { and, asc, desc, eq, gte, isNull, lte, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { banners } from '../../../drizzle/schema';
+import { ResponseCacheService } from '../../common/cache/response-cache.service';
 import type { BannerPlacement, CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
 
 @Injectable()
 export class BannerService {
-  constructor(@Inject(DRIZZLE) private readonly db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Db,
+    @Inject(ResponseCacheService) private readonly cache?: ResponseCacheService,
+  ) {}
 
   listAllForAdmin() {
     return this.db.select().from(banners).orderBy(asc(banners.placement), asc(banners.sortOrder), desc(banners.createdAt));
@@ -51,6 +55,7 @@ export class BannerService {
         endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
       })
       .returning();
+    this.cache?.clear();
     return row;
   }
 
@@ -67,12 +72,14 @@ export class BannerService {
     if (dto.startsAt !== undefined) updates.startsAt = dto.startsAt ? new Date(dto.startsAt) : null;
     if (dto.endsAt !== undefined) updates.endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
     const [row] = await this.db.update(banners).set(updates).where(eq(banners.id, id)).returning();
+    this.cache?.clear();
     return row;
   }
 
   async delete(id: string) {
     await this.findOrThrow(id);
     await this.db.delete(banners).where(eq(banners.id, id));
+    this.cache?.clear();
     return { success: true };
   }
 
