@@ -1,8 +1,10 @@
 import type { Db } from '../../config/database.module';
+import { ResponseCacheService } from '../../common/cache/response-cache.service';
 import type { BannerPlacement, CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
 export declare class BannerService {
     private readonly db;
-    constructor(db: Db);
+    private readonly cache?;
+    constructor(db: Db, cache?: ResponseCacheService | undefined);
     listAllForAdmin(): Omit<import("drizzle-orm/pg-core").PgSelectBase<"banners", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -488,7 +490,7 @@ export declare class BannerService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "partial", Record<"banners", "not-null">, false, "where" | "orderBy", {
+    }, "partial", Record<"banners", "not-null">, false, "orderBy" | "where", {
         id: string;
         title: string;
         subtitle: string | null;
@@ -582,19 +584,19 @@ export declare class BannerService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     create(dto: CreateBannerDto): Promise<{
         id: string;
+        title: string;
+        subtitle: string | null;
         link: string | null;
-        createdAt: Date;
         imageUrl: string;
+        placement: string;
         sortOrder: number;
         isActive: boolean;
         startsAt: Date | null;
-        title: string;
-        subtitle: string | null;
-        placement: string;
         endsAt: Date | null;
+        createdAt: Date;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{
         id: string;

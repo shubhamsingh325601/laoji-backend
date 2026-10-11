@@ -13,7 +13,7 @@ exports.CacheInvalidationInterceptor = void 0;
 const common_1 = require("@nestjs/common");
 const rxjs_1 = require("rxjs");
 const response_cache_service_1 = require("./response-cache.service");
-const INVALIDATING_PATH = /^\/api\/v1\/(admin|vendor|vendors|users\/me)(\/|$)/;
+const INVALIDATING_PATH = /^(\/api\/v1)?\/(admin|vendor|vendors|users\/me)(\/|$)/;
 let CacheInvalidationInterceptor = class CacheInvalidationInterceptor {
     cache;
     constructor(cache) {
@@ -21,7 +21,8 @@ let CacheInvalidationInterceptor = class CacheInvalidationInterceptor {
     }
     intercept(context, next) {
         const req = context.switchToHttp().getRequest();
-        if (req.method === 'GET' || req.method === 'HEAD' || !INVALIDATING_PATH.test(req.path)) {
+        const path = req.originalUrl || req.path || '';
+        if (req.method === 'GET' || req.method === 'HEAD' || !INVALIDATING_PATH.test(path)) {
             return next.handle();
         }
         return next.handle().pipe((0, rxjs_1.tap)(() => this.cache.clear()));
