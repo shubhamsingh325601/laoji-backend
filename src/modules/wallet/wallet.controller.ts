@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
@@ -13,6 +13,16 @@ export class WalletController {
   @Get('me')
   async getMyWallet(@CurrentUser() user: JwtAccessPayload) {
     return this.wallet.getWalletSummary(user.sub);
+  }
+
+  @Get('scratch-cards')
+  async myScratchCards(@CurrentUser() user: JwtAccessPayload) {
+    return this.wallet.listScratchCards(user.sub);
+  }
+
+  @Post('scratch-cards/:id/scratch')
+  async scratchCard(@CurrentUser() user: JwtAccessPayload, @Param('id', ParseUUIDPipe) id: string) {
+    return this.wallet.scratchCard(user.sub, id);
   }
 
   @Post('withdraw')

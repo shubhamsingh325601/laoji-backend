@@ -1,9 +1,18 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { and, desc, eq, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { platformSettings, users, vendors, wallets, walletTransactions, withdrawalRequests } from '../../../drizzle/schema';
+import {
+  platformSettings,
+  scratchCards,
+  users,
+  vendors,
+  wallets,
+  walletTransactions,
+  withdrawalRequests,
+} from '../../../drizzle/schema';
 import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
 import { NotificationService } from '../notification/notification.service';
@@ -208,6 +217,107 @@ export class WalletService {
           eq(walletTransactions.status, 'cancelled'),
         ),
       );
+  }
+
+  // ================= SCRATCH CARDS =================
+
+  /**
+   * Issue the customer a scratch card for a delivered order. Idempotent —
+   * one card per order, a repeat call (e.g. an admin delivery override after
+   * the rider's) is a no-op. The reward is not decided here, only at scratch time.
+   */
+  async issueScratchCard(userId: string, orderType: 'grocery' | 'food', orderId: string) {
+    const [card] = await this.db
+      .insert(scratchCards)
+      .values({ userId, orderType, orderId })
+      .onConflictDoNothing()
+      .returning();
+    return card ?? null;
+  }
+
+  async listScratchCards(userId: string) {
+    const rows = await this.db
+      .select()
+      .from(scratchCards)
+      .where(eq(scratchCards.userId, userId))
+      .orderBy(desc(scratchCards.createdAt))
+      .limit(50);
+    return rows.map((c) => this.toScratchCardView(c));
+  }
+
+  /**
+   * Reveal a card: rolls ₹1–₹5 and credits it to the wallet. The status flip
+   * and the credit share one transaction, and the flip only matches a still-
+   * unscratched card, so a card can never pay out twice (double tap, retry).
+   * Scratching an already-scratched card just returns it unchanged.
+   */
+  async scratchCard(userId: string, cardId: string) {
+    const wallet = await this.getOrCreateWallet(userId);
+
+    const result = await this.db.transaction(async (tx) => {
+      const amount = randomInt(1, 6);
+      const [won] = await tx
+        .update(scratchCards)
+        .set({ status: 'scratched', amount, scratchedAt: new Date() })
+        .where(
+          and(
+            eq(scratchCards.id, cardId),
+            eq(scratchCards.userId, userId),
+            eq(scratchCards.status, 'unscratched'),
+          ),
+        )
+        .returning();
+
+      if (!won) {
+        const [existing] = await tx
+          .select()
+          .from(scratchCards)
+          .where(and(eq(scratchCards.id, cardId), eq(scratchCards.userId, userId)))
+          .limit(1);
+        if (!existing) throw new NotFoundException('Scratch card not found');
+        return { card: existing, justScratched: false };
+      }
+
+      await tx.insert(walletTransactions).values({
+        walletId: wallet.id,
+        userId,
+        amount,
+        type: 'scratch_card',
+        status: 'completed',
+        description: `Scratch card reward for ${won.orderType} order #${won.orderId.slice(0, 8).toUpperCase()}`,
+        orderId: won.orderId,
+        orderType: won.orderType,
+        metadata: { scratchCardId: won.id },
+      });
+      await tx
+        .update(wallets)
+        .set({
+          balance: sql`${wallets.balance} + ${amount}`,
+          totalEarned: sql`${wallets.totalEarned} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallets.id, wallet.id));
+      return { card: won, justScratched: true };
+    });
+
+    const summary = await this.getWalletSummary(userId);
+    return {
+      ...this.toScratchCardView(result.card),
+      justScratched: result.justScratched,
+      walletBalance: summary.wallet.balance,
+    };
+  }
+
+  private toScratchCardView(c: typeof scratchCards.$inferSelect) {
+    return {
+      id: c.id,
+      orderId: c.orderId,
+      orderType: c.orderType as 'grocery' | 'food',
+      status: c.status as 'unscratched' | 'scratched',
+      amount: c.amount,
+      scratchedAt: c.scratchedAt,
+      createdAt: c.createdAt,
+    };
   }
 
   /**

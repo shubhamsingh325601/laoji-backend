@@ -44,6 +44,11 @@ export class CustomerOrderController {
     return this.orders.getGroceryOrder(id, { userId: user.sub, role: user.role });
   }
 
+  @Post('grocery/:id/rating')
+  rateGroceryOrder(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string, @Body() dto: RateFoodOrderDto) {
+    return this.orders.rateGroceryOrder(user.sub, id, dto);
+  }
+
   @Throttle({ orderCreate: { limit: 10, ttl: 60_000 } })
   @Post('food')
   createFood(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateFoodOrderDto) {

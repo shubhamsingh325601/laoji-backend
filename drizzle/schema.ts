@@ -912,14 +912,23 @@ export const vendorWithdrawals = pgTable(
 // allocation/SLA). One rating per food order, only once it's reached
 // `delivered`, enforced at the service layer (not a DB constraint, same
 // style as the rest of this codebase's business-rule enforcement).
+//
+// Grocery orders are rated too (the customer rates the vendor, whatever the
+// order type), so exactly one of food_order_id / grocery_order_id is set —
+// the same dual-nullable-FK pattern order_status_history uses. Every rating
+// still carries `restaurant_id`: each vendor has exactly one restaurants row
+// (restaurants.vendor_id is unique) which is where the storefront rating
+// shown to customers is aggregated from, grocery and food alike.
 export const foodOrderRatings = pgTable(
   'food_order_ratings',
   {
     id: uuid('id').defaultRandom().primaryKey(),
     foodOrderId: uuid('food_order_id')
-      .notNull()
       .unique()
       .references(() => foodOrders.id, { onDelete: 'cascade' }),
+    groceryOrderId: uuid('grocery_order_id')
+      .unique()
+      .references(() => groceryOrders.id, { onDelete: 'cascade' }),
     customerId: uuid('customer_id')
       .notNull()
       .references(() => users.id),
@@ -930,7 +939,37 @@ export const foodOrderRatings = pgTable(
     comment: text('comment'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [check('food_order_ratings_rating_range', sql`${table.rating} between 1 and 5`)],
+  (table) => [
+    check('food_order_ratings_rating_range', sql`${table.rating} between 1 and 5`),
+    check(
+      'food_order_ratings_one_order',
+      sql`(${table.foodOrderId} is not null) <> (${table.groceryOrderId} is not null)`,
+    ),
+  ],
+);
+
+// Scratch cards: one is issued to the customer when an order is delivered.
+// The reward (₹1–₹5) is rolled server-side at scratch time, never stored
+// beforehand, so the client can't peek at it; `status` flips atomically so a
+// card can only ever pay out once. One card per order.
+export const scratchCards = pgTable(
+  'scratch_cards',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    orderId: uuid('order_id').notNull(),
+    orderType: varchar('order_type', { length: 20 }).notNull(), // 'grocery' | 'food'
+    status: varchar('status', { length: 20 }).notNull().default('unscratched'), // 'unscratched' | 'scratched'
+    amount: integer('amount'), // null until scratched
+    scratchedAt: timestamp('scratched_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('scratch_cards_order_idx').on(table.orderType, table.orderId),
+    check('scratch_cards_amount_range', sql`${table.amount} is null or ${table.amount} between 1 and 5`),
+  ],
 );
 
 export const areaManagers = pgTable('area_managers', {

@@ -640,7 +640,15 @@ export class OrderService {
       .orderBy(orderStatusHistory.changedAt);
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
     const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
-    return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner }, requester);
+    const [rating] = await this.db
+      .select()
+      .from(foodOrderRatings)
+      .where(eq(foodOrderRatings.groceryOrderId, id))
+      .limit(1);
+    return this.withOtpVisibility(
+      { ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null },
+      requester,
+    );
   }
 
   async getFoodOrder(id: string, requester: { userId: string; role: string }) {
@@ -685,6 +693,9 @@ export class OrderService {
   // (not e.g. right after placing), and only once ever — food only, per
   // PRD Section 5's "Food: ... ratings" row (grocery has no ratings
   // concept anywhere in the PRD/TRD).
+  //
+  // Grocery orders are rated the same way (rateGroceryOrder below): the
+  // customer is rating the vendor, whichever kind of order it was.
   async rateFoodOrder(customerId: string, foodOrderId: string, dto: { rating: number; comment?: string }) {
     const [order] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, foodOrderId)).limit(1);
     if (!order) throw new NotFoundException('Order not found');
@@ -706,6 +717,37 @@ export class OrderService {
       .returning();
 
     await this.catalog.recalcRestaurantRating(order.restaurantId);
+    return row;
+  }
+
+  async rateGroceryOrder(customerId: string, groceryOrderId: string, dto: { rating: number; comment?: string }) {
+    const [order] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, groceryOrderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.customerId !== customerId) throw new ForbiddenException('Not your order');
+    if (order.status !== 'delivered') throw new BadRequestException('Order has not been delivered yet');
+    if (!order.vendorId) throw new BadRequestException('This order has no vendor to rate');
+
+    const [existing] = await this.db
+      .select()
+      .from(foodOrderRatings)
+      .where(eq(foodOrderRatings.groceryOrderId, groceryOrderId))
+      .limit(1);
+    if (existing) throw new BadRequestException('Order already rated');
+
+    // The vendor's storefront rating lives on its restaurants row (one per vendor).
+    const restaurant = await this.catalog.getOrCreateRestaurant(order.vendorId);
+    const [row] = await this.db
+      .insert(foodOrderRatings)
+      .values({
+        groceryOrderId,
+        customerId,
+        restaurantId: restaurant.id,
+        rating: dto.rating,
+        comment: dto.comment,
+      })
+      .returning();
+
+    await this.catalog.recalcRestaurantRating(restaurant.id);
     return row;
   }
 

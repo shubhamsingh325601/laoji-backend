@@ -138,7 +138,8 @@ export class CatalogService {
 
     // Dynamic rating calculation from real food order reviews / restaurant data
     const [rest] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, row.id)).limit(1);
-    let ratingAvg = 4.8;
+    // Only real customer ratings count; 0 / 0 means "not rated yet" (clients show "New").
+    let ratingAvg = 0;
     let ratingCount = 0;
     if (rest) {
       const [agg] = await this.db
@@ -152,9 +153,6 @@ export class CatalogService {
       if (agg && Number(agg.count) > 0) {
         ratingAvg = Math.round(Number(agg.avg) * 10) / 10;
         ratingCount = Number(agg.count);
-      } else if (rest.ratingAvg && Number(rest.ratingAvg) > 0) {
-        ratingAvg = Math.round(Number(rest.ratingAvg) * 10) / 10;
-        ratingCount = 0;
       }
     }
 
@@ -1595,7 +1593,7 @@ export class CatalogService {
         const v = vendorMap.get(r.vendorId);
         const openNow = (v?.isOpen ?? false) && (v ? isVendorOpenNow(v) : false);
         const agg = ratingsMap.get(r.id);
-        const dynamicRating = agg && agg.count > 0 ? agg.avg : (r.ratingAvg > 0 ? Math.round(r.ratingAvg * 10) / 10 : 4.8);
+        const dynamicRating = agg && agg.count > 0 ? agg.avg : 0;
         const dynamicCount = agg ? agg.count : 0;
         return {
           ...r,
@@ -1645,7 +1643,7 @@ export class CatalogService {
 
     const dynamicRating = ratingsAgg && Number(ratingsAgg.count) > 0
       ? Math.round(Number(ratingsAgg.avg) * 10) / 10
-      : (restaurant.ratingAvg > 0 ? Math.round(restaurant.ratingAvg * 10) / 10 : 4.8);
+      : 0;
     const dynamicCount = ratingsAgg ? Number(ratingsAgg.count) : 0;
 
     const cats = await this.db

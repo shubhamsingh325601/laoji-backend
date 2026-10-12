@@ -72,6 +72,13 @@ export class SettlementService {
       await this.confirmAffiliateCommission(order, type, orderId);
     }
 
+    // Reward the customer with a scratch card. Never allowed to break delivery.
+    try {
+      await this.wallet.issueScratchCard(order.customerId, type, orderId);
+    } catch (err) {
+      console.error('[SettlementService] Failed to issue scratch card on order delivery:', err);
+    }
+
     return settlement;
   }
 
