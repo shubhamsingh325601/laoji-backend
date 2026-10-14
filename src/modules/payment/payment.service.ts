@@ -156,7 +156,25 @@ export class PaymentService {
     const order = await this.requireOwnOrder(type, orderId, customerId);
 
     const existing = await this.latestPayment(type, orderId);
-    if (existing && existing.status !== 'failed') return existing;
+    if (existing && existing.status !== 'failed') {
+      // Retrying the same way (e.g. reopening the UPI app) reuses the payment.
+      // But a customer who backed out of the UPI app and now picks COD or the
+      // wallet must get that instead — returning the still-pending UPI payment
+      // left the order unpaid, so the vendor never saw it.
+      const abandonedOnline =
+        existing.status === 'pending' && existing.provider !== 'cod' && existing.provider !== ('wallet' as any) && method !== 'online';
+      if (!abandonedOnline) return existing;
+
+      // Only drops it while still pending, so a payment confirmed meanwhile wins.
+      const dropped = await this.db
+        .update(payments)
+        .set({ status: 'failed' })
+        .where(and(eq(payments.id, existing.id), eq(payments.status, 'pending')))
+        .returning({ id: payments.id });
+      if (!dropped.length) return (await this.latestPayment(type, orderId)) ?? existing;
+      // Give back any wallet part taken for the abandoned attempt before paying again.
+      await this.refundWalletPortion(type, orderId, customerId);
+    }
 
     if (useWallet && method !== 'wallet') {
       const w = await this.wallet.getOrCreateWallet(customerId);
