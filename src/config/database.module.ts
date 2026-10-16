@@ -211,6 +211,10 @@ export type Db = NodePgDatabase<typeof schema>;
           )`,
           `CREATE UNIQUE INDEX IF NOT EXISTS "scratch_cards_order_idx" ON "scratch_cards" ("order_type", "order_id")`,
           `CREATE INDEX IF NOT EXISTS "scratch_cards_user_idx" ON "scratch_cards" ("user_id", "created_at")`,
+          // Grocery sizes (see products.variant_group_id). Nullable, so every existing product stays standalone.
+          `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variant_group_id" uuid`,
+          `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variant_label" varchar(50)`,
+          `CREATE INDEX IF NOT EXISTS "products_variant_group_idx" ON "products" ("variant_group_id")`,
         ];
 
         for (const stmt of statements) {

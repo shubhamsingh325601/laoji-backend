@@ -1,5 +1,18 @@
 import { Type } from 'class-transformer';
-import { ArrayNotEmpty, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { MenuItemAddonInput, MenuItemVariantInput } from './menu.dto';
 
 export class BulkDeleteAdminVendorItemsDto {
@@ -7,6 +20,32 @@ export class BulkDeleteAdminVendorItemsDto {
   @IsString({ each: true })
   @ArrayNotEmpty()
   itemIds: string[];
+}
+
+// One extra size of a grocery item (see GrocerySizesService). The item being
+// saved is itself one size, labelled by its `unit`; `sizes` lists the others.
+export class GrocerySizeInput {
+  // An existing size's listing id; omit to add a new size.
+  @IsOptional()
+  @IsUUID()
+  listingId?: string;
+
+  @IsString()
+  @Length(1, 50)
+  label: string;
+
+  @IsNumber()
+  @Min(0)
+  price: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  stockQty?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isAvailable?: boolean;
 }
 
 export class CreateAdminVendorItemDto {
@@ -80,6 +119,14 @@ export class CreateAdminVendorItemDto {
   @ValidateNested({ each: true })
   @Type(() => MenuItemAddonInput)
   addons?: MenuItemAddonInput[];
+
+  // Grocery only, and only while grocery sizes are switched on.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => GrocerySizeInput)
+  sizes?: GrocerySizeInput[];
 }
 
 export class UpdateAdminVendorItemDto {
@@ -147,4 +194,13 @@ export class UpdateAdminVendorItemDto {
   @ValidateNested({ each: true })
   @Type(() => MenuItemAddonInput)
   addons?: MenuItemAddonInput[];
+
+  // Grocery only, and only while grocery sizes are switched on. Omitted =
+  // sizes untouched; [] = remove every extra size.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => GrocerySizeInput)
+  sizes?: GrocerySizeInput[];
 }

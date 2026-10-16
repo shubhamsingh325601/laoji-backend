@@ -28,7 +28,10 @@ import {
   vendors,
 } from '../../../drizzle/schema';
 import { parseDurationMs } from '../../common/utils/duration';
-import { isDefaultPickup } from '../catalog/catalog.types';
+import {
+  DEFAULT_VENDOR_RADIUS_KM,
+  isDefaultPickup,
+} from '../catalog/catalog.types';
 import { JwtAccessPayload, JwtRefreshPayload, OtpRole, TokenPair, UserRole } from './auth.types';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { CustomerRegisterDto } from './dto/customer-auth.dto';
@@ -569,7 +572,8 @@ export class AuthService {
           shopAddress: dto.shopAddress ?? null,
           pickupLat: dto.pickupLat,
           pickupLng: dto.pickupLng,
-          radiusKm: dto.radiusKm ?? 5,
+          // The signup default, whatever the app sends (see DEFAULT_VENDOR_RADIUS_KM).
+          radiusKm: DEFAULT_VENDOR_RADIUS_KM,
         })
         .returning();
       vendorRecord = created;

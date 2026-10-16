@@ -1,4 +1,21 @@
-import { IsBoolean, IsInt, IsISO8601, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsISO8601,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Matches,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { GrocerySizeInput } from './admin-vendor-item.dto';
 
 // A product the vendor creates from scratch for its own store.
 export class CreateGroceryProductDto {
@@ -73,4 +90,13 @@ export class CreateGroceryProductDto {
   @IsOptional()
   @IsObject()
   attributes?: Record<string, unknown>;
+
+  // The item's other sizes (see GrocerySizesService), only while grocery
+  // sizes are switched on.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => GrocerySizeInput)
+  sizes?: GrocerySizeInput[];
 }

@@ -32,6 +32,8 @@ export class UpsertVendorProfileDto {
   @Max(180)
   pickupLng?: number;
 
+  // Still accepted from older app builds, but ignored: a new vendor always
+  // gets DEFAULT_VENDOR_RADIUS_KM, and only an admin changes it afterwards.
   @IsOptional()
   @IsNumber()
   @Min(0.5)

@@ -11,12 +11,27 @@ import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
+import { UpdateCatalogFeaturesDto } from './dto/catalog-features.dto';
+import { GrocerySizesService } from './grocery-sizes.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 @Controller('admin')
 export class AdminCatalogController {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly grocerySizes: GrocerySizesService,
+  ) {}
+
+  @Get('catalog/features')
+  async getCatalogFeatures() {
+    return { grocerySizes: await this.grocerySizes.isEnabled() };
+  }
+
+  @Put('catalog/features')
+  updateCatalogFeatures(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdateCatalogFeaturesDto) {
+    return this.grocerySizes.setEnabled(dto.grocerySizes, user.sub);
+  }
 
   @Get('categories')
   listCategories() {

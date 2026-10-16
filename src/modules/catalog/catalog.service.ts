@@ -37,8 +37,10 @@ import {
   isVendorOpenNow,
   isWithinSchedule,
   roundKm,
+  DEFAULT_VENDOR_RADIUS_KM,
 } from './catalog.types';
 import { productFormFor, readProductAttributes } from './product-forms';
+import { GrocerySizesService, type AdminGrocerySize } from './grocery-sizes.service';
 import {
   laojiCategoryId,
   normalizeAttributes,
@@ -61,7 +63,7 @@ import type { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import type { CreateProductSuggestionDto } from './dto/product-suggestion.dto';
 import type { ApproveCategorySuggestionDto, CreateCategorySuggestionDto } from './dto/category-suggestion.dto';
 import type { CreateAdminVendorDto, ReorderVendorsDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
-import type { CreateAdminVendorItemDto, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
+import type { CreateAdminVendorItemDto, GrocerySizeInput, UpdateAdminVendorItemDto } from './dto/admin-vendor-item.dto';
 import type { UpdateVendorLocationDto, UpsertVendorProfileDto } from './dto/vendor-profile.dto';
 import type {
   CreateVendorCustomProductDto,
@@ -108,6 +110,7 @@ export class CatalogService {
     private readonly notifications: NotificationService,
     private readonly vendorDiscounts: VendorDiscountsService,
     @Optional() private readonly revenueConfig?: RevenueConfigService,
+    @Optional() private readonly grocerySizes?: GrocerySizesService,
   ) {}
 
   private async resolveVendorCommissionPct(vendorId: string): Promise<number> {
@@ -232,7 +235,8 @@ export class CatalogService {
         upiId: dto.upiId ?? null,
         pickupLat,
         pickupLng,
-        ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+        // The signup default, whatever the app sends (see DEFAULT_VENDOR_RADIUS_KM).
+        radiusKm: DEFAULT_VENDOR_RADIUS_KM,
         imageUrl: dto.imageUrl ?? null,
         businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
       })
@@ -1022,7 +1026,21 @@ export class CatalogService {
       this.ownCategoryCopies(vendorId),
       this.resolveVendorCommissionPct(vendorId),
     ]);
-    return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct));
+    // Each listing's other grocery sizes at this store (none for most items).
+    const sizeRows = rows.map((r) => ({
+      id: r.vendorProduct.id,
+      productId: r.product.id,
+      variantGroupId: r.product.variantGroupId,
+      variantLabel: r.product.variantLabel,
+      unit: r.product.unit,
+      price: r.vendorProduct.price,
+      stockQty: r.vendorProduct.stockQty,
+      isAvailable: r.vendorProduct.isAvailable,
+    }));
+    return rows.map((r, i) => ({
+      ...this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct),
+      sizes: this.grocerySizes ? this.grocerySizes.adminSizesFor(sizeRows[i], sizeRows) : [],
+    }));
   }
 
   private listingView(
@@ -1167,6 +1185,7 @@ export class CatalogService {
 
     this.assertRestockEtaNotPast(dto.restockEta);
     await this.assertListableBy(vendor, product);
+    const sizes = await this.vendorSizesToSave(vendor, dto.unit?.trim() || product.unit, dto.sizes);
     const listed = await this.productForListing(vendor, product, dto);
     const isAvailable = dto.isAvailable ?? true;
     const [created] = await this.db
@@ -1184,12 +1203,14 @@ export class CatalogService {
         lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
       })
       .returning();
+    if (sizes) return this.saveVendorSizes(vendor.id, created.id, sizes);
     return this.listingResponse(vendor.id, created, listed);
   }
 
   // A product the vendor creates from scratch for its own store.
   async createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto) {
     this.assertRestockEtaNotPast(dto.restockEta);
+    const sizes = await this.vendorSizesToSave(vendor, dto.unit.trim(), dto.sizes);
     const scope = await this.vendorCategories(vendor);
     const categoryId = scope.usable(dto.categoryId);
     const attributes =
@@ -1229,7 +1250,26 @@ export class CatalogService {
         lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
       })
       .returning();
+    if (sizes) return this.saveVendorSizes(vendor.id, listing.id, sizes);
     return this.listingResponse(vendor.id, listing, product);
+  }
+
+  // Grocery sizes sent with a vendor's save, checked before anything is
+  // saved. undefined (nothing to do) unless the request carries `sizes` and
+  // the feature is on, so every other save is unchanged.
+  private async vendorSizesToSave(vendor: VendorRef, unit: string, sizes: GrocerySizeInput[] | undefined) {
+    if (sizes === undefined || !this.grocerySizes || vendor.businessType === 'restaurant') return undefined;
+    if (!(await this.grocerySizes.isEnabled())) return undefined;
+    this.grocerySizes.assertValidLabels(unit, sizes);
+    return sizes;
+  }
+
+  // Syncs the listing's other sizes, then answers with the listing as it now
+  // is (a Laoji product gets copied for the store when sizes are added).
+  private async saveVendorSizes(vendorId: string, listingId: string, sizes: GrocerySizeInput[]) {
+    await this.grocerySizes!.syncSizes(vendorId, listingId, sizes);
+    const listing = await this.requireOwnVendorProduct(vendorId, listingId);
+    return this.listingResponse(vendorId, listing, await this.getProduct(listing.productId));
   }
 
   private async requireOwnVendorProduct(vendorId: string, id: string) {
@@ -1247,7 +1287,9 @@ export class CatalogService {
   async updateVendorProduct(vendor: VendorRef, id: string, dto: UpdateVendorProductDto) {
     const existing = await this.requireOwnVendorProduct(vendor.id, id);
     this.assertRestockEtaNotPast(dto.restockEta);
-    const product = await this.productForListing(vendor, await this.getProduct(existing.productId), dto);
+    const current = await this.getProduct(existing.productId);
+    const sizes = await this.vendorSizesToSave(vendor, dto.unit?.trim() || current.unit, dto.sizes);
+    const product = await this.productForListing(vendor, current, dto);
 
     const stockQty = dto.stockQty ?? existing.stockQty;
     const isAvailable = dto.isAvailable ?? existing.isAvailable;
@@ -1269,6 +1311,7 @@ export class CatalogService {
       .where(eq(vendorProducts.id, id))
       .returning();
 
+    if (sizes) return this.saveVendorSizes(vendor.id, id, sizes);
     return this.listingResponse(vendor.id, updated, product);
   }
 
@@ -1307,6 +1350,13 @@ export class CatalogService {
         .where(eq(groceryOrderItems.productId, product.id))
         .limit(1);
       if (!orderItem) await this.db.delete(products).where(eq(products.id, product.id));
+      // Kept for its past orders: no longer one of the item's sizes.
+      else if (product.variantGroupId) {
+        await this.db
+          .update(products)
+          .set({ variantGroupId: null, variantLabel: null })
+          .where(eq(products.id, product.id));
+      }
     }
     return { success: true };
   }
@@ -1435,6 +1485,8 @@ export class CatalogService {
     const { byId } = await this.categoryIndex();
     const inRadius = await this.vendorsInRadius(lat, lng);
     const vendorIds = inRadius.map((v) => v.id);
+    // The item's other sizes ride along so the product page can offer them.
+    const siblingIds = this.grocerySizes ? await this.grocerySizes.siblingProductIds(product) : [];
 
     const rows =
       vendorIds.length === 0
@@ -1445,13 +1497,13 @@ export class CatalogService {
             .innerJoin(products, eq(vendorProducts.productId, products.id))
             .where(
               and(
-                eq(vendorProducts.productId, id),
+                siblingIds.length ? inArray(vendorProducts.productId, [id, ...siblingIds]) : eq(vendorProducts.productId, id),
                 inArray(vendorProducts.vendorId, vendorIds),
                 eq(vendorProducts.isAvailable, true),
               ),
             );
 
-    const [aggregated] = await this.aggregateByProduct(rows, byId);
+    const aggregated = (await this.aggregateByProduct(rows, byId)).find((p) => p.id === id);
     return {
       ...product,
       categoryId: laojiCategoryId(product.categoryId, byId),
@@ -1460,6 +1512,7 @@ export class CatalogService {
       offerTag: aggregated?.offerTag ?? null,
       inStock: aggregated?.inStock ?? false,
       restockEta: aggregated?.restockEta ?? null,
+      sizes: aggregated && 'sizes' in aggregated ? aggregated.sizes : [],
     };
   }
 
@@ -1514,7 +1567,7 @@ export class CatalogService {
       current.inStock ||= inStock;
       if (eta && (!current.restockEta || eta < current.restockEta)) current.restockEta = eta;
     }
-    return [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
+    const aggregated = [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
       ...product,
       categoryId: laojiCategoryId(product.categoryId, categoriesById),
       price,
@@ -1523,6 +1576,7 @@ export class CatalogService {
       inStock,
       restockEta: inStock ? null : restockEta,
     }));
+    return this.grocerySizes ? this.grocerySizes.withPublicSizes(aggregated) : aggregated;
   }
 
   // ---------- Public: customer browse (restaurants + menu) ----------
@@ -2591,6 +2645,9 @@ export class CatalogService {
       commissionPct?: number;
       customCommissionPct?: number | null;
       wholesalePrice?: number | null;
+      variantGroupId?: string | null;
+      variantLabel?: string | null;
+      sizes?: AdminGrocerySize[];
     }[] = [];
 
     // 1. Fetch grocery products
@@ -2610,6 +2667,8 @@ export class CatalogService {
           imageUrl: products.imageUrl,
           categoryId: categories.id,
           categoryName: categories.name,
+          variantGroupId: products.variantGroupId,
+          variantLabel: products.variantLabel,
         })
         .from(vendorProducts)
         .innerJoin(products, eq(vendorProducts.productId, products.id))
@@ -2637,6 +2696,9 @@ export class CatalogService {
           stockQty: vp.stockQty,
           commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
           customCommissionPct: vp.customCommissionPct ?? null,
+          variantGroupId: vp.variantGroupId ?? null,
+          variantLabel: vp.variantLabel ?? null,
+          sizes: this.grocerySizes ? this.grocerySizes.adminSizesFor(vp, vProds) : [],
         });
       }
     } catch (err) {
@@ -2838,6 +2900,7 @@ export class CatalogService {
           })
           .where(eq(vendorProducts.id, existingListing.id))
           .returning();
+        await this.saveGrocerySizes(vendor.id, updated.id, dto.sizes);
         const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
         return {
           id: updated.id,
@@ -2870,6 +2933,7 @@ export class CatalogService {
         })
         .returning();
 
+      await this.saveGrocerySizes(vendor.id, createdListing.id, dto.sizes);
       const [prod] = await this.db.select().from(products).where(eq(products.id, productId)).limit(1);
       return {
         id: createdListing.id,
@@ -2887,6 +2951,14 @@ export class CatalogService {
         customCommissionPct: createdListing.commissionPct ?? null,
       };
     }
+  }
+
+  // Grocery sizes for an admin-saved listing. Does nothing unless the request
+  // carries `sizes` and the feature is on, so every other save is unchanged.
+  private async saveGrocerySizes(vendorId: string, listingId: string, sizes: UpdateAdminVendorItemDto['sizes']) {
+    if (sizes === undefined || !this.grocerySizes) return;
+    if (!(await this.grocerySizes.isEnabled())) return;
+    await this.grocerySizes.syncSizes(vendorId, listingId, sizes);
   }
 
   async updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto) {
@@ -2956,6 +3028,7 @@ export class CatalogService {
         }
       }
 
+      await this.saveGrocerySizes(vendorId, vp.id, dto.sizes);
       return { success: true };
     }
 

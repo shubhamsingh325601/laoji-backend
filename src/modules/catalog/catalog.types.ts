@@ -71,6 +71,13 @@ export function isCategoryVisibleTo(categoryType: string, vendorBusinessType: st
  */
 export const DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 } as const;
 
+/**
+ * Delivery radius (km) a vendor gets when it signs up in the app. The server
+ * sets it, not the app: builds up to 1.0.3 send 2000. Afterwards only an admin
+ * changes it (re-registering or editing the profile keeps it).
+ */
+export const DEFAULT_VENDOR_RADIUS_KM = 4;
+
 // Every fallback point a Vendor app build has sent: Sangod, and Kolhapur
 // city centre before it. Builds up to 1.0.2 also sent it on every profile
 // edit, which is why an update carrying exactly one of these points is

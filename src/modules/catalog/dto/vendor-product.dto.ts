@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsISO8601,
@@ -11,7 +14,9 @@ import {
   Matches,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { GrocerySizeInput } from './admin-vendor-item.dto';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -102,6 +107,15 @@ export class UpsertVendorProductDto extends VendorProductDetailsDto {
   @Matches(DATE_RE, { message: 'restockEta must be YYYY-MM-DD' })
   @IsISO8601({ strict: true })
   restockEta?: string | null;
+
+  // The item's other sizes (see GrocerySizesService), only while grocery
+  // sizes are switched on.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => GrocerySizeInput)
+  sizes?: GrocerySizeInput[];
 }
 
 export class UpdateVendorProductDto extends VendorProductDetailsDto {
@@ -133,6 +147,15 @@ export class UpdateVendorProductDto extends VendorProductDetailsDto {
   @Matches(DATE_RE, { message: 'restockEta must be YYYY-MM-DD' })
   @IsISO8601({ strict: true })
   restockEta?: string | null;
+
+  // The item's other sizes (see GrocerySizesService), only while grocery
+  // sizes are switched on. Omitted = sizes untouched; [] = remove every extra size.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => GrocerySizeInput)
+  sizes?: GrocerySizeInput[];
 }
 
 export class RestockVendorProductDto {

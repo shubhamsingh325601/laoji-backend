@@ -282,6 +282,13 @@ export const products = pgTable('products', {
   templateProductId: uuid('template_product_id').references((): AnyPgColumn => products.id, {
     onDelete: 'set null',
   }),
+  // Grocery sizes: an item sold in several sizes (180ml, 900ml…) is one
+  // vendor-owned product per size, all sharing this group id, each with its
+  // own listing, price and stock — so ordering, stock and allocation treat a
+  // size like any other product. `variantLabel` is the size shown to buyers
+  // (also kept in `unit`). Null for every standalone product.
+  variantGroupId: uuid('variant_group_id'),
+  variantLabel: varchar('variant_label', { length: 50 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

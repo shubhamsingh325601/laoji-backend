@@ -1,6 +1,7 @@
 import { BadRequestException, Controller, Get, Param, Query, UseInterceptors } from '@nestjs/common';
 import { ResponseCacheInterceptor } from '../../common/cache/response-cache.interceptor';
 import { CatalogService } from './catalog.service';
+import { GrocerySizesService } from './grocery-sizes.service';
 
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
   let latNum = Number(lat);
@@ -20,7 +21,16 @@ function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
 @UseInterceptors(ResponseCacheInterceptor)
 @Controller('catalog')
 export class PublicCatalogController {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly grocerySizes: GrocerySizesService,
+  ) {}
+
+  // Switches apps read to decide whether to show newer catalog UI (e.g. size chips).
+  @Get('features')
+  async features() {
+    return { grocerySizes: await this.grocerySizes.isEnabled() };
+  }
 
   @Get('categories')
   categories() {
