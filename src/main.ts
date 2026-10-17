@@ -17,9 +17,11 @@ async function bootstrap() {
   const corsOrigins = rawCors
     ? Array.from(new Set([...rawCors.split(',').map((s) => s.trim()), 'https://www.laojionline.com', 'https://laojionline.com']))
     : defaultOrigins;
+  const laojiAdminPreviewOrigin =
+    /^https:\/\/laoji-admin-[a-z0-9-]+-shubham-singhs-projects-fad54e54\.vercel\.app$/;
 
   app.enableCors({
-    origin: corsOrigins,
+    origin: [...corsOrigins, laojiAdminPreviewOrigin],
     credentials: true,
   });
 
