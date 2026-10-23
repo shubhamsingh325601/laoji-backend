@@ -24,18 +24,24 @@ export class UpiDeepLinkProvider implements PaymentProvider {
   async initiate({ orderId, amount }: PaymentInitiateParams): Promise<PaymentInitiateResult> {
     const vpa = this.config.get<string>('UPI_VPA')!;
     const payeeName = this.config.get<string>('UPI_PAYEE_NAME')!;
-    const params = new URLSearchParams({
+    // Built by hand rather than with URLSearchParams: that writes spaces as "+",
+    // which UPI apps show literally ("Laoji+Order+AB12CD34") or reject. There is
+    // no `url` return link either: it must be an https URL per the UPI spec and
+    // the apps never redirect back to it, so the app reads the result itself.
+    const params: Record<string, string> = {
       pa: vpa,
       pn: payeeName,
       am: amount.toFixed(2),
       tr: orderId,
       tn: `Laoji Order ${orderId.slice(0, 8).toUpperCase()}`,
       cu: 'INR',
-      url: `laojiuser://payment?orderId=${orderId}`,
-    });
+    };
+    const query = Object.entries(params)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value).replace(/%40/g, '@')}`)
+      .join('&');
     return {
       status: 'pending',
-      upiDeepLink: `upi://pay?${params.toString()}`,
+      upiDeepLink: `upi://pay?${query}`,
       providerRef: orderId,
     };
   }

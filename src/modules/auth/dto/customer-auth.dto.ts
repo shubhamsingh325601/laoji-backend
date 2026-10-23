@@ -1,4 +1,4 @@
-﻿import { IsOptional, IsString, Length, Matches } from 'class-validator';
+﻿import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 export class CustomerLoginDto {
   @IsString()
@@ -26,6 +26,12 @@ export class CustomerRegisterDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  // Another customer's refer code. Only counts for a brand-new account.
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  referralCode?: string;
 
   @IsOptional()
   @IsString()

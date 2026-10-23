@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'crypto';
-import { and, desc, eq, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
@@ -17,6 +17,17 @@ import type { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import type { AdjustWalletDto } from './dto/adjust-wallet.dto';
 import { NotificationService } from '../notification/notification.service';
 import { walletAdjustedPush } from '../notification/templates/push/wallet-adjustment';
+import { ensureReferralCode } from '../../common/utils/referral-code';
+
+export const DEFAULT_REFERRAL_REWARD_PCT = 5;
+export const DEFAULT_REFERRAL_REWARD_MAX = 15;
+
+/** Referrer's reward: pct% of the first order's item subtotal, capped at maxAmount, rounded to paise. */
+export function calcReferralReward(orderSubtotal: number, pct: number, maxAmount = Infinity): number {
+  if (!(orderSubtotal > 0) || !(pct > 0)) return 0;
+  const reward = Math.round(((orderSubtotal * pct) / 100) * 100) / 100;
+  return Math.min(reward, maxAmount);
+}
 
 @Injectable()
 export class WalletService {
@@ -217,6 +228,157 @@ export class WalletService {
           eq(walletTransactions.status, 'cancelled'),
         ),
       );
+  }
+
+  // ================= REFER & EARN =================
+
+  private async referralSetting(key: string, fallback: number): Promise<number> {
+    const [setting] = await this.db
+      .select({ value: platformSettings.value })
+      .from(platformSettings)
+      .where(eq(platformSettings.key, key))
+      .limit(1);
+    const n = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  }
+
+  /** Referrer's cut of the referred customer's first order, in percent. Admin-tunable via platform_settings. */
+  private referralRewardPct(): Promise<number> {
+    return this.referralSetting('referral_reward_pct', DEFAULT_REFERRAL_REWARD_PCT);
+  }
+
+  /** Most a single referral can pay the referrer, in rupees. */
+  private referralRewardMax(): Promise<number> {
+    return this.referralSetting('referral_reward_max_amount', DEFAULT_REFERRAL_REWARD_MAX);
+  }
+
+  /**
+   * Pay the referrer when a referred customer's first order is delivered.
+   * Once-only: the claim on `referral_rewarded_at` and the wallet credit
+   * share one transaction, and the claim only matches a still-unrewarded
+   * user, so a repeat call (admin delivery override, retry) pays nothing.
+   * Later orders from the same customer never pay again.
+   */
+  async creditReferralReward(customerId: string, orderType: 'grocery' | 'food', orderId: string, orderSubtotal: number) {
+    const [customer] = await this.db
+      .select({
+        referredBy: users.referredBy,
+        referralRewardedAt: users.referralRewardedAt,
+        name: users.name,
+        phone: users.phone,
+      })
+      .from(users)
+      .where(eq(users.id, customerId))
+      .limit(1);
+    if (!customer?.referredBy || customer.referralRewardedAt) return null;
+
+    const pct = await this.referralRewardPct();
+    const maxAmount = await this.referralRewardMax();
+    const amount = calcReferralReward(orderSubtotal, pct, maxAmount);
+    if (amount <= 0) return null;
+
+    const referrerId = customer.referredBy;
+    const wallet = await this.getOrCreateWallet(referrerId);
+    const orderCode = orderId.slice(0, 8).toUpperCase();
+
+    const credited = await this.db.transaction(async (tx) => {
+      const [claimed] = await tx
+        .update(users)
+        .set({ referralRewardedAt: new Date() })
+        .where(and(eq(users.id, customerId), isNull(users.referralRewardedAt)))
+        .returning({ id: users.id });
+      if (!claimed) return false;
+
+      await tx.insert(walletTransactions).values({
+        walletId: wallet.id,
+        userId: referrerId,
+        amount,
+        type: 'referral_bonus',
+        status: 'completed',
+        description: `Referral bonus for your friend's first ${orderType} order #${orderCode}`,
+        orderId,
+        orderType,
+        metadata: { referredUserId: customerId, pct, maxAmount, orderSubtotal },
+      });
+      await tx
+        .update(wallets)
+        .set({
+          balance: sql`${wallets.balance} + ${amount}`,
+          totalEarned: sql`${wallets.totalEarned} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallets.id, wallet.id));
+      return true;
+    });
+    if (!credited) return null;
+
+    try {
+      const summary = await this.getWalletSummary(referrerId);
+      this.notifications.notifyPush(
+        referrerId,
+        'wallet_adjustment',
+        walletAdjustedPush({
+          action: 'credit',
+          amount,
+          newBalance: summary.wallet.balance,
+          reason: 'Referral bonus',
+          role: 'customer',
+        }),
+      );
+    } catch {
+      // Non-blocking: the money is already in the wallet.
+    }
+    return { referrerId, amount };
+  }
+
+  /** What the Refer & Earn screen shows: the user's code, the reward rule, and who they've referred. */
+  async getReferralSummary(userId: string) {
+    const code = await ensureReferralCode(this.db, userId);
+    const rewardPct = await this.referralRewardPct();
+    const rewardMax = await this.referralRewardMax();
+
+    const referred = await this.db
+      .select({
+        id: users.id,
+        name: users.name,
+        phone: users.phone,
+        createdAt: users.createdAt,
+        rewardedAt: users.referralRewardedAt,
+      })
+      .from(users)
+      .where(eq(users.referredBy, userId))
+      .orderBy(desc(users.createdAt))
+      .limit(100);
+
+    const bonuses = await this.db
+      .select({ amount: walletTransactions.amount, metadata: walletTransactions.metadata })
+      .from(walletTransactions)
+      .where(and(eq(walletTransactions.userId, userId), eq(walletTransactions.type, 'referral_bonus')));
+
+    const rewardByReferred = new Map<string, number>();
+    let totalEarned = 0;
+    for (const b of bonuses) {
+      totalEarned += b.amount;
+      const referredId = (b.metadata as { referredUserId?: string } | null)?.referredUserId;
+      if (referredId) rewardByReferred.set(referredId, b.amount);
+    }
+
+    return {
+      code,
+      rewardPct,
+      rewardMax,
+      totalReferrals: referred.length,
+      rewardedReferrals: referred.filter((r) => r.rewardedAt).length,
+      totalEarned: Math.round(totalEarned * 100) / 100,
+      referrals: referred.map((r) => ({
+        id: r.id,
+        // Never hand a friend's full number to the referrer.
+        name: r.name?.trim() || (r.phone ? `+91 ${r.phone.slice(0, 2)}••••••${r.phone.slice(-2)}` : 'Friend'),
+        joinedAt: r.createdAt,
+        status: r.rewardedAt ? ('rewarded' as const) : ('joined' as const),
+        reward: rewardByReferred.get(r.id) ?? null,
+      })),
+    };
   }
 
   // ================= SCRATCH CARDS =================

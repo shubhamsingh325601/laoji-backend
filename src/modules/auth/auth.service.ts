@@ -28,6 +28,7 @@ import {
   vendors,
 } from '../../../drizzle/schema';
 import { parseDurationMs } from '../../common/utils/duration';
+import { ensureReferralCode, normalizeReferralCode } from '../../common/utils/referral-code';
 import {
   DEFAULT_VENDOR_RADIUS_KM,
   isDefaultPickup,
@@ -250,6 +251,23 @@ export class AuthService {
       return { tokens, userId: updated.id, role: 'customer', user: safeUser };
     }
 
+    // A refer code is only honoured for a brand-new account, and a wrong one
+    // fails the sign-up so the customer can fix the typo instead of silently
+    // losing their friend's reward.
+    let referrerId: string | null = null;
+    const referralCode = normalizeReferralCode(dto.referralCode);
+    if (referralCode) {
+      const [referrer] = await this.db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.referralCode, referralCode), eq(users.role, 'customer'), eq(users.status, 'active')))
+        .limit(1);
+      if (!referrer) {
+        throw new BadRequestException('Invalid referral code. Please check it or leave it blank.');
+      }
+      referrerId = referrer.id;
+    }
+
     const [created] = await this.db
       .insert(users)
       .values({
@@ -257,8 +275,12 @@ export class AuthService {
         role: 'customer',
         passwordHash,
         name: dto.name?.trim() || null,
+        referredBy: referrerId,
       })
       .returning();
+
+    // Their own code is generated on first use if this ever fails.
+    await ensureReferralCode(this.db, created.id).catch(() => undefined);
 
     const tokens = await this.issueTokens(created.id, 'customer', dto.deviceId);
     const { passwordHash: _hash, ...safeUser } = created;

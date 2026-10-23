@@ -54,6 +54,13 @@ export const users = pgTable(
     notifyKyc: boolean('notify_kyc').notNull().default(true),
     supportNotes: text('support_notes'),
     mustChangePassword: boolean('must_change_password').notNull().default(false),
+    // Refer & earn (customers). referralCode is the code this user shares;
+    // referredBy is whoever's code they entered at sign-up. referralRewardedAt
+    // is set the moment the referrer is paid for this user's first delivered
+    // order, and doubles as the once-only guard for that payout.
+    referralCode: varchar('referral_code', { length: 12 }),
+    referredBy: uuid('referred_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
+    referralRewardedAt: timestamp('referral_rewarded_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -62,6 +69,7 @@ export const users = pgTable(
     // two accounts in the same role.
     uniqueIndex('users_phone_role_idx').on(table.phone, table.role),
     uniqueIndex('users_email_idx').on(table.email),
+    uniqueIndex('users_referral_code_idx').on(table.referralCode),
   ],
 );
 

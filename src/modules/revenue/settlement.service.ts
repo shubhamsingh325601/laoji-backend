@@ -60,7 +60,8 @@ export class SettlementService {
       .insert(settlements)
       .values({
         ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
-        vendorPayout: order.subtotal - order.platformCommission,
+        // Rounded to paise so payout + platform share always add back up to the subtotal.
+        vendorPayout: Math.round((order.subtotal - order.platformCommission) * 100) / 100,
         deliveryPayout: riderPayout,
         platformShare: order.platformCommission,
         commissionPctSnapshot: order.commissionPct,
@@ -77,6 +78,13 @@ export class SettlementService {
       await this.wallet.issueScratchCard(order.customerId, type, orderId);
     } catch (err) {
       console.error('[SettlementService] Failed to issue scratch card on order delivery:', err);
+    }
+
+    // Pay the referrer if this is their friend's first delivered order. Never allowed to break delivery.
+    try {
+      await this.wallet.creditReferralReward(order.customerId, type, orderId, order.subtotal);
+    } catch (err) {
+      console.error('[SettlementService] Failed to credit referral reward on order delivery:', err);
     }
 
     return settlement;

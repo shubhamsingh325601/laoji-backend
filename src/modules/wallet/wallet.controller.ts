@@ -15,6 +15,11 @@ export class WalletController {
     return this.wallet.getWalletSummary(user.sub);
   }
 
+  @Get('referral')
+  async myReferral(@CurrentUser() user: JwtAccessPayload) {
+    return this.wallet.getReferralSummary(user.sub);
+  }
+
   @Get('scratch-cards')
   async myScratchCards(@CurrentUser() user: JwtAccessPayload) {
     return this.wallet.listScratchCards(user.sub);
