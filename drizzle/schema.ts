@@ -767,6 +767,43 @@ export const notificationLog = pgTable(
   ],
 );
 
+// Everything admins do: every write request made with an admin token, plus
+// admin sign-ins (and failed ones). Append-only. `admin_id` deliberately has no
+// foreign key so entries outlive the account; the email / name are a snapshot.
+export const adminAuditLog = pgTable(
+  'admin_audit_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // 'action' | 'login' | 'login_failed'
+    eventType: varchar('event_type', { length: 20 }).notNull().default('action'),
+    adminId: uuid('admin_id'),
+    adminEmail: varchar('admin_email', { length: 255 }),
+    adminName: varchar('admin_name', { length: 200 }),
+    method: varchar('method', { length: 10 }).notNull(),
+    // Route pattern ("/admin/orders/:type/:id/cancel") and the real path.
+    route: varchar('route', { length: 300 }).notNull(),
+    path: varchar('path', { length: 500 }).notNull(),
+    resource: varchar('resource', { length: 60 }).notNull(),
+    action: varchar('action', { length: 80 }).notNull(),
+    targetId: varchar('target_id', { length: 64 }),
+    // 'success' | 'failed'
+    outcome: varchar('outcome', { length: 10 }).notNull().default('success'),
+    statusCode: integer('status_code'),
+    errorMessage: text('error_message'),
+    params: jsonb('params'),
+    body: jsonb('body'),
+    ip: varchar('ip', { length: 64 }),
+    userAgent: varchar('user_agent', { length: 300 }),
+    durationMs: integer('duration_ms'),
+  },
+  (table) => [
+    index('admin_audit_log_created_at_idx').on(table.createdAt.desc()),
+    index('admin_audit_log_admin_idx').on(table.adminId, table.createdAt.desc()),
+    index('admin_audit_log_resource_idx').on(table.resource, table.createdAt.desc()),
+  ],
+);
+
 // Phase 8 (Revenue Config & Settlements). Rules are immutable once created
 // — a "change" is always a new row with its own effective_from, never an
 // UPDATE to an existing one. That's deliberate: it's both the enforcement

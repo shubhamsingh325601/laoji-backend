@@ -8,6 +8,8 @@ import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 import { AdminUserListQueryDto } from './dto/admin-user-list.dto';
 import { escapeLike } from '../order/admin-order-filters';
 
+const ADMIN_ACCOUNTS_ONLY = 'Admin accounts are managed from the Admins screen.';
+
 const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
@@ -225,6 +227,7 @@ export class UserService {
   async createUser(dto: CreateAdminUserDto) {
     const role = dto.role ?? 'customer';
     const status = dto.status ?? 'active';
+    if (role === 'admin') throw new BadRequestException(ADMIN_ACCOUNTS_ONLY);
 
     // Check if phone+role already exists
     const [existing] = await this.db
@@ -275,6 +278,7 @@ export class UserService {
   async updateUser(id: string, dto: UpdateAdminUserDto) {
     const [u] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     if (!u) throw new NotFoundException('User not found');
+    if (u.role === 'admin' || dto.role === 'admin') throw new BadRequestException(ADMIN_ACCOUNTS_ONLY);
 
     const targetRole = dto.role !== undefined ? dto.role : u.role;
     const targetPhone = dto.phone !== undefined ? dto.phone.trim() : u.phone;
@@ -332,6 +336,7 @@ export class UserService {
   async deleteUser(id: string) {
     const [u] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     if (!u) throw new NotFoundException('User not found');
+    if (u.role === 'admin') throw new BadRequestException(ADMIN_ACCOUNTS_ONLY);
 
     // 1. Delete KYC documents belonging to this user
     await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, id));

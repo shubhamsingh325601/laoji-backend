@@ -158,6 +158,9 @@ export class AuthService {
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
     }
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This admin account is suspended');
+    }
 
     let matches = await bcrypt.compare(password, user.passwordHash);
 
@@ -729,6 +732,9 @@ export class AuthService {
       if (rotatedRecently) {
         const [user] = await this.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
         if (user) {
+          if (user.role === 'admin' && user.status !== 'active') {
+            throw new UnauthorizedException('This admin account is suspended');
+          }
           return this.issueTokens(user.id, user.role, row.deviceId ?? undefined);
         }
       }
@@ -743,6 +749,9 @@ export class AuthService {
     const [user] = await this.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
     if (!user) {
       throw new UnauthorizedException('User no longer exists');
+    }
+    if (user.role === 'admin' && user.status !== 'active') {
+      throw new UnauthorizedException('This admin account is suspended');
     }
 
     await this.db

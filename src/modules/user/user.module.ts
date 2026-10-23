@@ -5,11 +5,13 @@ import { UserController } from './user.controller';
 import { AddressController } from './address.controller';
 import { AdminUserController } from './admin-user.controller';
 import { UserService } from './user.service';
+import { AdminAccountsController } from './admin-accounts.controller';
+import { AdminAccountsService } from './admin-accounts.service';
 
 @Module({
   imports: [AuthModule, NotificationModule],
-  controllers: [UserController, AddressController, AdminUserController],
-  providers: [UserService],
+  controllers: [UserController, AddressController, AdminUserController, AdminAccountsController],
+  providers: [UserService, AdminAccountsService],
   exports: [UserService],
 })
 export class UserModule {}

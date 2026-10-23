@@ -244,6 +244,31 @@ export type Db = NodePgDatabase<typeof schema>;
           `CREATE INDEX IF NOT EXISTS "wallet_transactions_user_idx" ON "wallet_transactions" ("user_id", "created_at" DESC)`,
           `CREATE INDEX IF NOT EXISTS "wallet_transactions_created_at_idx" ON "wallet_transactions" ("created_at" DESC)`,
           `CREATE INDEX IF NOT EXISTS "users_role_created_at_idx" ON "users" ("role", "created_at" DESC)`,
+          `CREATE TABLE IF NOT EXISTS "admin_audit_log" (
+            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+            "event_type" varchar(20) NOT NULL DEFAULT 'action',
+            "admin_id" uuid,
+            "admin_email" varchar(255),
+            "admin_name" varchar(200),
+            "method" varchar(10) NOT NULL,
+            "route" varchar(300) NOT NULL,
+            "path" varchar(500) NOT NULL,
+            "resource" varchar(60) NOT NULL,
+            "action" varchar(80) NOT NULL,
+            "target_id" varchar(64),
+            "outcome" varchar(10) NOT NULL DEFAULT 'success',
+            "status_code" integer,
+            "error_message" text,
+            "params" jsonb,
+            "body" jsonb,
+            "ip" varchar(64),
+            "user_agent" varchar(300),
+            "duration_ms" integer
+          )`,
+          `CREATE INDEX IF NOT EXISTS "admin_audit_log_created_at_idx" ON "admin_audit_log" ("created_at" DESC)`,
+          `CREATE INDEX IF NOT EXISTS "admin_audit_log_admin_idx" ON "admin_audit_log" ("admin_id", "created_at" DESC)`,
+          `CREATE INDEX IF NOT EXISTS "admin_audit_log_resource_idx" ON "admin_audit_log" ("resource", "created_at" DESC)`,
         ];
 
         for (const stmt of statements) {
