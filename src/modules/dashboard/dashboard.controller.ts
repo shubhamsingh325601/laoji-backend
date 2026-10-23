@@ -20,6 +20,11 @@ export class DashboardController {
     return this.dashboard.getAttention();
   }
 
+  @Get('overview')
+  overview() {
+    return this.dashboard.getOverview();
+  }
+
   @Get('summary')
   summary() {
     return this.dashboard.getSummary();

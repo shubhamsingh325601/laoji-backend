@@ -14,6 +14,7 @@ import {
   productSuggestions,
   restaurants,
   settlements,
+  users,
   vendorWithdrawals,
   vendors,
   type orderStatusEnum,
@@ -68,6 +69,21 @@ export interface DashboardSummary {
   laojiEarnings: number;
   vendorEarnings: number;
   riderPayouts: number;
+}
+
+export interface DashboardOverview {
+  liveOrders: number;
+  awaitingVendor: number;
+  awaitingRider: number;
+  ridersOnDelivery: number;
+  ridersOnline: number;
+  placedToday: number;
+  unfulfilledToday: number;
+  unfulfilledTodayPct: number;
+  newCustomersToday: number;
+  newCustomersWeek: number;
+  pendingPayouts: number;
+  pendingPayoutAmount: number;
 }
 
 export interface RecentOrderRow {
@@ -253,6 +269,90 @@ export class DashboardService {
       laojiEarnings: roundMoney(hasSettlements ? settled.platformShare : grocery.commission + food.commission),
       vendorEarnings: roundMoney(hasSettlements ? settled.vendorPayout : grocery.vendorNet + food.vendorNet),
       riderPayouts: roundMoney(hasSettlements ? settled.deliveryPayout : grocery.deliveryFees + food.deliveryFees),
+    };
+  }
+
+  // ----------------------------------------------------------- overview
+
+  /**
+   * "Live right now" numbers for the dashboard's quick-overview cards: what is
+   * in flight, what is waiting on someone, and a few of today's counts. Real
+   * (payment-confirmed) orders only, same as the other dashboard figures.
+   */
+  async getOverview(): Promise<DashboardOverview> {
+    const todayStart = startOfDay(new Date());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+
+    const perTable = (t: typeof groceryOrders | typeof foodOrders) =>
+      this.db
+        .select({
+          live: sql<number>`count(*) filter (where ${t.status} not in ('delivered', 'failed', 'cancelled'))::int`,
+          awaitingVendor: sql<number>`count(*) filter (where ${t.status} = 'placed')::int`,
+          awaitingRider: sql<number>`count(*) filter (where ${t.status} = 'ready' and ${t.deliveryPartnerId} is null)::int`,
+          placedToday: sql<number>`count(*) filter (where ${t.createdAt} >= ${todayStart})::int`,
+          unfulfilledToday: sql<number>`count(*) filter (where ${t.createdAt} >= ${todayStart} and ${t.status} in ('failed', 'cancelled'))::int`,
+        })
+        .from(t)
+        // Finished orders from before today can't change any of these numbers.
+        .where(
+          and(
+            inArray(t.paymentStatus, CONFIRMED_PAYMENT),
+            or(gte(t.createdAt, todayStart), sql`${t.status} not in ('delivered', 'failed', 'cancelled')`),
+          ),
+        );
+
+    const [[grocery], [food], busy, [partners], [customers], [payouts]] = await Promise.all([
+      perTable(groceryOrders),
+      perTable(foodOrders),
+      this.db.execute(sql`
+        select count(*)::int as n from (
+          select ${groceryOrders.deliveryPartnerId} as partner_id from ${groceryOrders}
+            where ${groceryOrders.deliveryPartnerId} is not null
+              and ${groceryOrders.status} not in ('delivered', 'failed', 'cancelled')
+          union
+          select ${foodOrders.deliveryPartnerId} from ${foodOrders}
+            where ${foodOrders.deliveryPartnerId} is not null
+              and ${foodOrders.status} not in ('delivered', 'failed', 'cancelled')
+        ) busy
+      `),
+      this.db
+        .select({
+          online: sql<number>`count(*) filter (where ${deliveryPartners.kycStatus} = 'verified' and ${deliveryPartners.isOnline})::int`,
+        })
+        .from(deliveryPartners),
+      this.db
+        .select({
+          today: sql<number>`count(*) filter (where ${users.createdAt} >= ${todayStart})::int`,
+          week: sql<number>`count(*) filter (where ${users.createdAt} >= ${weekStart})::int`,
+        })
+        .from(users)
+        .where(eq(users.role, 'customer')),
+      this.db
+        .select({
+          n: sql<number>`count(*)::int`,
+          amount: sql<number>`coalesce(sum(${vendorWithdrawals.amount}), 0)::float8`,
+        })
+        .from(vendorWithdrawals)
+        .where(eq(vendorWithdrawals.status, 'pending')),
+    ]);
+
+    const placedToday = grocery.placedToday + food.placedToday;
+    const unfulfilledToday = grocery.unfulfilledToday + food.unfulfilledToday;
+
+    return {
+      liveOrders: grocery.live + food.live,
+      awaitingVendor: grocery.awaitingVendor + food.awaitingVendor,
+      awaitingRider: grocery.awaitingRider + food.awaitingRider,
+      ridersOnDelivery: Number((busy.rows[0] as { n: number | string }).n),
+      ridersOnline: partners.online,
+      placedToday,
+      unfulfilledToday,
+      unfulfilledTodayPct: placedToday > 0 ? Math.round((unfulfilledToday / placedToday) * 1000) / 10 : 0,
+      newCustomersToday: customers.today,
+      newCustomersWeek: customers.week,
+      pendingPayouts: payouts.n,
+      pendingPayoutAmount: roundMoney(payouts.amount),
     };
   }
 
