@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, gte, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -57,6 +57,8 @@ import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import type { AdvanceStatusDto, CorrectStatusDto } from './dto/advance-status.dto';
 import type { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
+import type { AdminOrderListQueryDto } from './dto/admin-order-list.dto';
+import { escapeLike, istDayEnd, istDayStart, paymentStatusesForFilter, statusesForFilter } from './admin-order-filters';
 
 // A checkout counts as a real order only once payment is satisfied (online paid, or COD chosen),
 // or it was and has since moved into the refund flow. Vendors and admin only hear about these.
@@ -1378,6 +1380,194 @@ export class OrderService {
           paymentProvider: o.paymentMethod || undefined,
         };
       }),
+    };
+  }
+
+  // WHERE clause for one orders table, or null when the filters can never match
+  // anything in it (e.g. "allocation failed" has no food orders).
+  adminOrderWhere(kind: 'grocery' | 'food', q: AdminOrderListQueryDto): SQL | null | undefined {
+    const t = kind === 'grocery' ? groceryOrders : foodOrders;
+    const conds: (SQL | undefined)[] = [];
+
+    if (q.status) {
+      const statuses = statusesForFilter(q.status, kind);
+      if (statuses.length === 0) return null;
+      conds.push(inArray(t.status, statuses));
+    }
+
+    // Abandoned checkouts stay hidden unless the admin asks for a payment
+    // status explicitly (same rule as the unpaginated list).
+    conds.push(
+      inArray(t.paymentStatus, q.paymentStatus ? paymentStatusesForFilter(q.paymentStatus) : CONFIRMED_PAYMENT_STATUSES),
+    );
+
+    if (q.vendorId) {
+      conds.push(kind === 'grocery' ? eq(groceryOrders.vendorId, q.vendorId) : eq(foodOrders.restaurantId, q.vendorId));
+    }
+    if (q.from) conds.push(gte(t.createdAt, istDayStart(q.from)));
+    if (q.to) conds.push(lte(t.createdAt, istDayEnd(q.to)));
+
+    const term = q.search?.trim();
+    if (term) {
+      const like = `%${escapeLike(term)}%`;
+      const codePrefix = `${escapeLike(term)}%`;
+      const vendorMatch =
+        kind === 'grocery'
+          ? sql`exists (select 1 from ${vendors} v where v.id = ${groceryOrders.vendorId} and v.business_name ilike ${like})`
+          : sql`exists (select 1 from ${restaurants} r where r.id = ${foodOrders.restaurantId} and r.name ilike ${like})`;
+      conds.push(
+        or(
+          sql`${t.id}::text ilike ${codePrefix}`,
+          sql`exists (select 1 from ${users} cu where cu.id = ${t.customerId} and (cu.phone ilike ${like} or cu.name ilike ${like}))`,
+          vendorMatch,
+          sql`exists (select 1 from ${deliveryPartners} dp join ${users} du on du.id = dp.user_id where dp.id = ${t.deliveryPartnerId} and du.phone ilike ${like})`,
+        ),
+      );
+    }
+
+    return and(...conds);
+  }
+
+  // One page of the admin Orders list, newest first, grocery and food merged.
+  // Only ids + timestamps are read to pick the page; full rows (and items) are
+  // then loaded for just those orders. Items are attached because the list
+  // shows them under the order code.
+  async listOrdersPageForAdmin(q: AdminOrderListQueryDto) {
+    const page = q.page ?? 1;
+    const pageSize = q.pageSize ?? 14;
+    const take = page * pageSize;
+
+    const groceryWhere = q.type === 'food' ? null : this.adminOrderWhere('grocery', q);
+    const foodWhere = q.type === 'grocery' ? null : this.adminOrderWhere('food', q);
+
+    const countOf = async (kind: 'grocery' | 'food', where: SQL | null | undefined): Promise<number> => {
+      if (where === null) return 0;
+      const t = kind === 'grocery' ? groceryOrders : foodOrders;
+      const [row] = await this.db.select({ n: sql<number>`count(*)::int` }).from(t).where(where);
+      return Number(row?.n ?? 0);
+    };
+    const newestOf = async (kind: 'grocery' | 'food', where: SQL | null | undefined) => {
+      if (where === null) return [];
+      const t = kind === 'grocery' ? groceryOrders : foodOrders;
+      return this.db
+        .select({ id: t.id, createdAt: t.createdAt })
+        .from(t)
+        .where(where)
+        .orderBy(desc(t.createdAt), desc(t.id))
+        .limit(take);
+    };
+
+    const [groceryTotal, foodTotal, groceryHead, foodHead] = await Promise.all([
+      countOf('grocery', groceryWhere),
+      countOf('food', foodWhere),
+      newestOf('grocery', groceryWhere),
+      newestOf('food', foodWhere),
+    ]);
+
+    const pageRefs = [
+      ...groceryHead.map((r) => ({ ...r, type: 'grocery' as const })),
+      ...foodHead.map((r) => ({ ...r, type: 'food' as const })),
+    ]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
+      .slice((page - 1) * pageSize, take);
+
+    const groceryIds = pageRefs.filter((r) => r.type === 'grocery').map((r) => r.id);
+    const foodIds = pageRefs.filter((r) => r.type === 'food').map((r) => r.id);
+    const [groceryRows, foodRows] = await Promise.all([
+      groceryIds.length ? this.db.select().from(groceryOrders).where(inArray(groceryOrders.id, groceryIds)) : [],
+      foodIds.length ? this.db.select().from(foodOrders).where(inArray(foodOrders.id, foodIds)) : [],
+    ]);
+
+    const customerIds = [...new Set([...groceryRows, ...foodRows].map((o) => o.customerId))];
+    const customerRows = customerIds.length
+      ? await this.db.select({ id: users.id, phone: users.phone }).from(users).where(inArray(users.id, customerIds))
+      : [];
+    const customerPhoneById = new Map(customerRows.map((u) => [u.id, u.phone ?? '']));
+
+    const [groceryWithItems, foodWithItems] = await Promise.all([
+      this.attachGroceryItems(groceryRows),
+      this.attachFoodItems(foodRows),
+    ]);
+
+    // deliveryOtp is the customer's doorstep code — never sent in a list.
+    const byKey = new Map<string, Record<string, unknown>>();
+    for (const o of groceryWithItems) {
+      const { deliveryOtp: _otp, ...rest } = o;
+      byKey.set(`grocery:${o.id}`, {
+        ...rest,
+        type: 'grocery' as const,
+        customerName: customerPhoneById.get(o.customerId) ?? '',
+        paymentProvider: o.paymentMethod || undefined,
+      });
+    }
+    for (const o of foodWithItems) {
+      const { deliveryOtp: _otp, ...rest } = o;
+      byKey.set(`food:${o.id}`, {
+        ...rest,
+        type: 'food' as const,
+        customerName: customerPhoneById.get(o.customerId) ?? '',
+        paymentProvider: o.paymentMethod || undefined,
+      });
+    }
+
+    return {
+      items: pageRefs.map((r) => byKey.get(`${r.type}:${r.id}`)).filter((o): o is Record<string, unknown> => !!o),
+      total: groceryTotal + foodTotal,
+      page,
+      pageSize,
+    };
+  }
+
+  // What the admin's background new-order watcher needs and nothing more: the
+  // last few hours of confirmed orders, as id/status/total/customer only. The
+  // watcher remembers ids it has already announced, so a recent window is all
+  // it has to see. (An order stays "recent" long enough for its payment to
+  // confirm; nothing older ever turns into a new order.)
+  async listRecentOrdersForAdminWatch(hours = 3) {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const LIMIT = 300;
+    const [grocery, food] = await Promise.all([
+      this.db
+        .select({
+          id: groceryOrders.id,
+          status: groceryOrders.status,
+          total: groceryOrders.total,
+          paymentStatus: groceryOrders.paymentStatus,
+          customerId: groceryOrders.customerId,
+          createdAt: groceryOrders.createdAt,
+        })
+        .from(groceryOrders)
+        .where(and(gte(groceryOrders.createdAt, since), inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
+        .orderBy(desc(groceryOrders.createdAt))
+        .limit(LIMIT),
+      this.db
+        .select({
+          id: foodOrders.id,
+          status: foodOrders.status,
+          total: foodOrders.total,
+          paymentStatus: foodOrders.paymentStatus,
+          customerId: foodOrders.customerId,
+          createdAt: foodOrders.createdAt,
+        })
+        .from(foodOrders)
+        .where(and(gte(foodOrders.createdAt, since), inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT_STATUSES)))
+        .orderBy(desc(foodOrders.createdAt))
+        .limit(LIMIT),
+    ]);
+
+    const customerIds = [...new Set([...grocery, ...food].map((o) => o.customerId))];
+    const customerRows = customerIds.length
+      ? await this.db.select({ id: users.id, phone: users.phone }).from(users).where(inArray(users.id, customerIds))
+      : [];
+    const phoneById = new Map(customerRows.map((u) => [u.id, u.phone ?? '']));
+
+    const shape = <T extends { customerId: string }>(o: T, type: 'grocery' | 'food') => {
+      const { customerId, ...rest } = o;
+      return { ...rest, type, customerName: phoneById.get(customerId) ?? '' };
+    };
+    return {
+      grocery: grocery.map((o) => shape(o, 'grocery')),
+      food: food.map((o) => shape(o, 'food')),
     };
   }
 

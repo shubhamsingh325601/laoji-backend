@@ -4,6 +4,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserService } from './user.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import { AdminUserListQueryDto } from './dto/admin-user-list.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -14,6 +15,19 @@ export class AdminUserController {
   @Get()
   list(@Query('role') role?: string, @Query('search') search?: string) {
     return this.users.listUsers(role, search);
+  }
+
+  // Declared before ':id' so "page" is not read as a user id.
+  @Get('page')
+  listPage(@Query() query: AdminUserListQueryDto) {
+    return this.users.listUsersPage(query);
+  }
+
+  // Comma-separated user ids -> [{ id, name, phone, role }].
+  @Get('lookup')
+  lookup(@Query('ids') ids?: string | string[]) {
+    const list = (Array.isArray(ids) ? ids : [ids ?? '']).flatMap((s) => String(s).split(','));
+    return this.users.lookupUsers(list);
   }
 
   @Get(':id')

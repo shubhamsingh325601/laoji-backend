@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import type { PgColumn } from 'drizzle-orm/pg-core';
-import { and, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import {
@@ -56,6 +56,27 @@ export interface DashboardStats {
   pendingKyc: number;
   pendingSuggestions: number;
   pendingCategorySuggestions: number;
+}
+
+export interface DashboardSummary {
+  totalOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  failedOrders: number;
+  cancellationRate: number;
+  gmv: number;
+  laojiEarnings: number;
+  vendorEarnings: number;
+  riderPayouts: number;
+}
+
+export interface RecentOrderRow {
+  id: string;
+  type: 'grocery' | 'food';
+  status: OrderStatus;
+  total: number;
+  createdAt: Date;
+  vendorName: string;
 }
 
 export interface AttentionItem {
@@ -116,77 +137,163 @@ export class DashboardService {
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
     const lastWeekEnd = new Date(todayStart);
 
-    const [groceryToday, foodToday, groceryLastWeek, foodLastWeek] = await Promise.all([
-      this.db
-        .select()
-        .from(groceryOrders)
-        .where(and(gte(groceryOrders.createdAt, todayStart), inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT))),
-      this.db
-        .select()
-        .from(foodOrders)
-        .where(and(gte(foodOrders.createdAt, todayStart), inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT))),
-      this.db
-        .select()
-        .from(groceryOrders)
-        .where(
-          and(
-            gte(groceryOrders.createdAt, lastWeekStart),
-            lt(groceryOrders.createdAt, lastWeekEnd),
-            inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT),
-          ),
-        ),
-      this.db
-        .select()
-        .from(foodOrders)
-        .where(
-          and(
-            gte(foodOrders.createdAt, lastWeekStart),
-            lt(foodOrders.createdAt, lastWeekEnd),
-            inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT),
-          ),
-        ),
-    ]);
-
     // Overall GMV and completed orders must ONLY count orders with status = 'delivered'.
     // Non-delivered orders (cancelled, failed, pending, placed) must not be counted as completed GMV.
-    const groceryTodayDelivered = groceryToday.filter((o) => o.status === 'delivered');
-    const foodTodayDelivered = foodToday.filter((o) => o.status === 'delivered');
-    const groceryLastWeekDelivered = groceryLastWeek.filter((o) => o.status === 'delivered');
-    const foodLastWeekDelivered = foodLastWeek.filter((o) => o.status === 'delivered');
-
-    const gmvToday = sumTotal(groceryTodayDelivered) + sumTotal(foodTodayDelivered);
-    const gmvLastWeek = sumTotal(groceryLastWeekDelivered) + sumTotal(foodLastWeekDelivered);
-    const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
-
-    const [allVendors, allPartners, pendingSuggestionsRows, pendingCategorySuggestionRows] = await Promise.all([
-      this.db.select().from(vendors),
-      this.db.select().from(deliveryPartners),
-      this.db.select().from(productSuggestions).where(eq(productSuggestions.status, 'pending')),
+    // Everything is counted in the database; only the totals come back.
+    const windows = (t: typeof groceryOrders | typeof foodOrders) =>
       this.db
-        .select({ id: categorySuggestions.id })
-        .from(categorySuggestions)
-        .where(eq(categorySuggestions.status, 'pending')),
-    ]);
+        .select({
+          deliveredToday: sql<number>`count(*) filter (where ${t.status} = 'delivered' and ${t.createdAt} >= ${todayStart})::int`,
+          gmvToday: sql<number>`coalesce(sum(${t.total}) filter (where ${t.status} = 'delivered' and ${t.createdAt} >= ${todayStart}), 0)::float8`,
+          gmvLastWeek: sql<number>`coalesce(sum(${t.total}) filter (where ${t.status} = 'delivered' and ${t.createdAt} >= ${lastWeekStart} and ${t.createdAt} < ${lastWeekEnd}), 0)::float8`,
+        })
+        .from(t)
+        .where(and(gte(t.createdAt, lastWeekStart), inArray(t.paymentStatus, CONFIRMED_PAYMENT)));
 
-    const verifiedPartners = allPartners.filter((p) => p.kycStatus === 'verified');
+    const [[grocery], [food], [vendorAgg], [partnerAgg], [productSuggestionAgg], [categorySuggestionAgg]] =
+      await Promise.all([
+        windows(groceryOrders),
+        windows(foodOrders),
+        this.db
+          .select({
+            total: sql<number>`count(*)::int`,
+            open: sql<number>`count(*) filter (where ${vendors.isOpen})::int`,
+            pendingKyc: sql<number>`count(*) filter (where ${vendors.kycStatus} = 'pending')::int`,
+          })
+          .from(vendors),
+        this.db
+          .select({
+            verified: sql<number>`count(*) filter (where ${deliveryPartners.kycStatus} = 'verified')::int`,
+            verifiedOnline: sql<number>`count(*) filter (where ${deliveryPartners.kycStatus} = 'verified' and ${deliveryPartners.isOnline})::int`,
+            pendingKyc: sql<number>`count(*) filter (where ${deliveryPartners.kycStatus} = 'pending')::int`,
+          })
+          .from(deliveryPartners),
+        this.db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(productSuggestions)
+          .where(eq(productSuggestions.status, 'pending')),
+        this.db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(categorySuggestions)
+          .where(eq(categorySuggestions.status, 'pending')),
+      ]);
+
+    const gmvToday = roundMoney(grocery.gmvToday) + roundMoney(food.gmvToday);
+    const gmvLastWeek = roundMoney(grocery.gmvLastWeek) + roundMoney(food.gmvLastWeek);
+    const gmvDeltaPct = gmvLastWeek > 0 ? Math.round(((gmvToday - gmvLastWeek) / gmvLastWeek) * 1000) / 10 : 0;
 
     return {
       ordersToday: {
-        grocery: groceryTodayDelivered.length,
-        food: foodTodayDelivered.length,
+        grocery: grocery.deliveredToday,
+        food: food.deliveredToday,
       },
-      gmvToday,
+      gmvToday: roundMoney(gmvToday),
       gmvDeltaPct,
-      activeVendors: allVendors.filter((v) => v.isOpen).length,
-      totalVendors: allVendors.length,
-      activePartners: verifiedPartners.filter((p) => p.isOnline).length,
-      totalPartners: verifiedPartners.length,
-      pendingKyc:
-        allVendors.filter((v) => v.kycStatus === 'pending').length +
-        allPartners.filter((p) => p.kycStatus === 'pending').length,
-      pendingSuggestions: pendingSuggestionsRows.length,
-      pendingCategorySuggestions: pendingCategorySuggestionRows.length,
+      activeVendors: vendorAgg.open,
+      totalVendors: vendorAgg.total,
+      activePartners: partnerAgg.verifiedOnline,
+      totalPartners: partnerAgg.verified,
+      pendingKyc: vendorAgg.pendingKyc + partnerAgg.pendingKyc,
+      pendingSuggestions: productSuggestionAgg.n,
+      pendingCategorySuggestions: categorySuggestionAgg.n,
     };
+  }
+
+  // ------------------------------------------------------------ summary
+
+  /**
+   * Lifetime totals behind the "All-Time Performance & Earnings" cards on the
+   * dashboard and reports pages — counted in the database instead of the
+   * browser adding up every order. Orders are the real (payment-confirmed)
+   * ones only. Earnings come from settlements once any exist, otherwise they
+   * are estimated from delivered orders — the same rule the pages used.
+   */
+  async getSummary(): Promise<DashboardSummary> {
+    const perTable = (t: typeof groceryOrders | typeof foodOrders) =>
+      this.db
+        .select({
+          total: sql<number>`count(*)::int`,
+          delivered: sql<number>`count(*) filter (where ${t.status} = 'delivered')::int`,
+          cancelled: sql<number>`count(*) filter (where ${t.status} = 'cancelled')::int`,
+          failed: sql<number>`count(*) filter (where ${t.status} = 'failed')::int`,
+          gmv: sql<number>`coalesce(sum(${t.total}) filter (where ${t.status} = 'delivered'), 0)::float8`,
+          commission: sql<number>`coalesce(sum(${t.platformCommission}) filter (where ${t.status} = 'delivered'), 0)::float8`,
+          vendorNet: sql<number>`coalesce(sum(greatest(0, ${t.subtotal} - ${t.platformCommission})) filter (where ${t.status} = 'delivered'), 0)::float8`,
+          deliveryFees: sql<number>`coalesce(sum(${t.deliveryFee}) filter (where ${t.status} = 'delivered'), 0)::float8`,
+        })
+        .from(t)
+        .where(inArray(t.paymentStatus, CONFIRMED_PAYMENT));
+
+    const [[grocery], [food], [settled]] = await Promise.all([
+      perTable(groceryOrders),
+      perTable(foodOrders),
+      this.db
+        .select({
+          rows: sql<number>`count(*)::int`,
+          platformShare: sql<number>`coalesce(sum(${settlements.platformShare}), 0)::float8`,
+          vendorPayout: sql<number>`coalesce(sum(${settlements.vendorPayout}), 0)::float8`,
+          deliveryPayout: sql<number>`coalesce(sum(${settlements.deliveryPayout}), 0)::float8`,
+        })
+        .from(settlements),
+    ]);
+
+    const totalOrders = grocery.total + food.total;
+    const cancelledOrders = grocery.cancelled + food.cancelled;
+    const failedOrders = grocery.failed + food.failed;
+    const unfulfilled = cancelledOrders + failedOrders;
+    const hasSettlements = settled.rows > 0;
+
+    return {
+      totalOrders,
+      deliveredOrders: grocery.delivered + food.delivered,
+      cancelledOrders,
+      failedOrders,
+      cancellationRate: totalOrders > 0 ? Math.round((unfulfilled / totalOrders) * 1000) / 10 : 0,
+      gmv: roundMoney(grocery.gmv + food.gmv),
+      laojiEarnings: roundMoney(hasSettlements ? settled.platformShare : grocery.commission + food.commission),
+      vendorEarnings: roundMoney(hasSettlements ? settled.vendorPayout : grocery.vendorNet + food.vendorNet),
+      riderPayouts: roundMoney(hasSettlements ? settled.deliveryPayout : grocery.deliveryFees + food.deliveryFees),
+    };
+  }
+
+  /** The newest few real orders, with the vendor / restaurant name already attached. */
+  async getRecentOrders(limit = 7): Promise<RecentOrderRow[]> {
+    const take = Math.min(Math.max(Math.trunc(limit) || 7, 1), 50);
+    const [grocery, food] = await Promise.all([
+      this.db
+        .select({
+          id: groceryOrders.id,
+          status: groceryOrders.status,
+          total: groceryOrders.total,
+          createdAt: groceryOrders.createdAt,
+          vendorName: vendors.businessName,
+        })
+        .from(groceryOrders)
+        .leftJoin(vendors, eq(vendors.id, groceryOrders.vendorId))
+        .where(inArray(groceryOrders.paymentStatus, CONFIRMED_PAYMENT))
+        .orderBy(desc(groceryOrders.createdAt))
+        .limit(take),
+      this.db
+        .select({
+          id: foodOrders.id,
+          status: foodOrders.status,
+          total: foodOrders.total,
+          createdAt: foodOrders.createdAt,
+          vendorName: restaurants.name,
+        })
+        .from(foodOrders)
+        .leftJoin(restaurants, eq(restaurants.id, foodOrders.restaurantId))
+        .where(inArray(foodOrders.paymentStatus, CONFIRMED_PAYMENT))
+        .orderBy(desc(foodOrders.createdAt))
+        .limit(take),
+    ]);
+
+    return [
+      ...grocery.map((o) => ({ ...o, type: 'grocery' as const, vendorName: o.vendorName ?? 'Unassigned' })),
+      ...food.map((o) => ({ ...o, type: 'food' as const, vendorName: o.vendorName ?? 'Unknown restaurant' })),
+    ]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, take);
   }
 
   // ------------------------------------------------------ vendor summary
@@ -445,27 +552,32 @@ export class DashboardService {
     });
   }
 
+  // When each order's status last changed. The latest is worked out per order
+  // in the database, so a long order timeline isn't pulled over just to read
+  // its final row.
   private async latestStatusChangeMap(groceryIds: string[], foodIds: string[]) {
     const map = new Map<string, Date>();
-    if (groceryIds.length === 0 && foodIds.length === 0) return map;
+    const latest = sql`max(${orderStatusHistory.changedAt})`.mapWith(orderStatusHistory.changedAt);
 
-    const conditions: SQL[] = [];
-    if (groceryIds.length) conditions.push(inArray(orderStatusHistory.groceryOrderId, groceryIds));
-    if (foodIds.length) conditions.push(inArray(orderStatusHistory.foodOrderId, foodIds));
+    const [groceryRows, foodRows] = await Promise.all([
+      groceryIds.length
+        ? this.db
+            .select({ orderId: orderStatusHistory.groceryOrderId, changedAt: latest })
+            .from(orderStatusHistory)
+            .where(inArray(orderStatusHistory.groceryOrderId, groceryIds))
+            .groupBy(orderStatusHistory.groceryOrderId)
+        : [],
+      foodIds.length
+        ? this.db
+            .select({ orderId: orderStatusHistory.foodOrderId, changedAt: latest })
+            .from(orderStatusHistory)
+            .where(inArray(orderStatusHistory.foodOrderId, foodIds))
+            .groupBy(orderStatusHistory.foodOrderId)
+        : [],
+    ]);
 
-    const rows = await this.db
-      .select({
-        groceryOrderId: orderStatusHistory.groceryOrderId,
-        foodOrderId: orderStatusHistory.foodOrderId,
-        changedAt: orderStatusHistory.changedAt,
-      })
-      .from(orderStatusHistory)
-      .where(or(...conditions));
-
-    for (const r of rows) {
-      const orderId = r.groceryOrderId ?? r.foodOrderId!;
-      const existing = map.get(orderId);
-      if (!existing || r.changedAt > existing) map.set(orderId, r.changedAt);
+    for (const r of [...groceryRows, ...foodRows]) {
+      if (r.orderId) map.set(r.orderId, r.changedAt);
     }
     return map;
   }
@@ -545,6 +657,16 @@ export class DashboardService {
     return [...buckets.entries()].map(([date, v]) => ({ date, ...v }));
   }
 
+  // Vendor leaderboard for one calendar month. The work is done in the
+  // database in one query: only orders from roughly this month are looked at
+  // (an order is never delivered a month after it was placed), and only one
+  // row per ranked vendor comes back.
+  //   - orders / GMV: orders delivered in the month. The delivery time is the
+  //     status-history 'delivered' row, falling back to when it was placed.
+  //   - acceptance: food orders placed in the month (accepted if the vendor
+  //     accepted it, rejected if it failed unaccepted) plus grocery
+  //     allocation attempts made in the month (accepted vs rejected/timeout).
+  //   - prep time: vendor_accepted -> ready, on those delivered orders.
   async getVendorPerformance(monthStr?: string): Promise<VendorPerformanceRow[]> {
     const now = new Date();
     let startOfMonth: Date;
@@ -557,119 +679,111 @@ export class DashboardService {
       startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     }
+    const lookback = new Date(startOfMonth.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [allVendors, allRestaurants, allGrocery, allFood, attempts, history] = await Promise.all([
-      this.db.select().from(vendors),
-      this.db.select().from(restaurants),
-      this.db.select().from(groceryOrders),
-      this.db.select().from(foodOrders),
-      this.db.select().from(allocationAttempts),
-      this.db.select().from(orderStatusHistory),
-    ]);
+    const result = await this.db.execute(sql`
+      with g as (
+        select o.id, o.vendor_id, o.status, o.total, o.created_at
+        from grocery_orders o
+        where o.vendor_id is not null and o.created_at >= ${lookback} and o.created_at <= ${endOfMonth}
+      ),
+      f as (
+        select o.id, r.vendor_id, o.status, o.total, o.created_at
+        from food_orders o
+        join restaurants r on r.id = o.restaurant_id
+        where o.created_at >= ${lookback} and o.created_at <= ${endOfMonth}
+      ),
+      ord as (
+        select id, 'grocery'::text as kind, vendor_id, status, total, created_at from g
+        union all
+        select id, 'food'::text as kind, vendor_id, status, total, created_at from f
+      ),
+      hist as (
+        select coalesce(h.grocery_order_id, h.food_order_id) as order_id,
+               max(h.changed_at) filter (where h.status = 'vendor_accepted') as accepted_at,
+               max(h.changed_at) filter (where h.status = 'ready') as ready_at,
+               max(h.changed_at) filter (where h.status = 'delivered') as delivered_at
+        from order_status_history h
+        where h.status in ('vendor_accepted', 'ready', 'delivered')
+          and (h.grocery_order_id in (select id from g) or h.food_order_id in (select id from f))
+        group by 1
+      ),
+      joined as (
+        select ord.*, hist.accepted_at, hist.ready_at,
+               coalesce(hist.delivered_at, ord.created_at) as delivered_effective
+        from ord
+        left join hist on hist.order_id = ord.id
+      ),
+      delivered as (
+        select vendor_id,
+               count(*)::int as orders,
+               coalesce(sum(total), 0)::float8 as gmv,
+               (avg(extract(epoch from (ready_at - accepted_at)) / 60.0)
+                  filter (where accepted_at is not null and ready_at is not null and ready_at > accepted_at))::float8 as avg_prep
+        from joined
+        where status = 'delivered' and delivered_effective >= ${startOfMonth} and delivered_effective <= ${endOfMonth}
+        group by vendor_id
+      ),
+      food_decisions as (
+        select vendor_id,
+               count(*) filter (where accepted_at is not null)::int as accepted,
+               count(*) filter (where accepted_at is null and status = 'failed')::int as rejected
+        from joined
+        where kind = 'food' and created_at >= ${startOfMonth} and created_at <= ${endOfMonth}
+        group by vendor_id
+      ),
+      grocery_decisions as (
+        select vendor_id,
+               count(*) filter (where outcome = 'accepted')::int as accepted,
+               count(*) filter (where outcome in ('rejected', 'timeout'))::int as rejected
+        from allocation_attempts
+        where created_at >= ${startOfMonth} and created_at <= ${endOfMonth}
+        group by vendor_id
+      )
+      select v.id as vendor_id,
+             v.business_name as vendor_name,
+             d.orders,
+             d.gmv,
+             d.avg_prep,
+             coalesce(fd.accepted, 0) + coalesce(gd.accepted, 0) as accepted,
+             coalesce(fd.rejected, 0) + coalesce(gd.rejected, 0) as rejected
+      from delivered d
+      join vendors v on v.id = d.vendor_id
+      left join food_decisions fd on fd.vendor_id = d.vendor_id
+      left join grocery_decisions gd on gd.vendor_id = d.vendor_id
+    `);
 
-    const restaurantVendorId = new Map(allRestaurants.map((r) => [r.id, r.vendorId]));
-
-    type Agg = { orders: number; gmv: number; accepted: number; rejected: number; prepMinutes: number[] };
-    const agg = new Map<string, Agg>();
-    const ensure = (vendorId: string): Agg => {
-      let a = agg.get(vendorId);
-      if (!a) {
-        a = { orders: 0, gmv: 0, accepted: 0, rejected: 0, prepMinutes: [] };
-        agg.set(vendorId, a);
-      }
-      return a;
-    };
-
-    // Prep time and delivery timestamps from order_status_history
-    const acceptedAt = new Map<string, Date>();
-    const readyAt = new Map<string, Date>();
-    const deliveredAt = new Map<string, Date>();
-    for (const h of history) {
-      const orderId = h.groceryOrderId ?? h.foodOrderId;
-      if (!orderId) continue;
-      if (h.status === 'vendor_accepted') acceptedAt.set(orderId, h.changedAt);
-      if (h.status === 'ready') readyAt.set(orderId, h.changedAt);
-      if (h.status === 'delivered') deliveredAt.set(orderId, h.changedAt);
-    }
-
-    // Grocery orders: ONLY count delivered orders that were delivered in the current month window
-    for (const o of allGrocery) {
-      if (!o.vendorId) continue;
-      if (o.status === 'delivered') {
-        const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
-        if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
-          const a = ensure(o.vendorId);
-          a.orders += 1;
-          a.gmv += o.total;
-          const start = acceptedAt.get(o.id);
-          const end = readyAt.get(o.id);
-          if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
-        }
-      }
-    }
-
-    // Food orders: ONLY count delivered orders that were delivered in the current month window
-    for (const o of allFood) {
-      const vendorId = restaurantVendorId.get(o.restaurantId);
-      if (!vendorId) continue;
-      if (o.status === 'delivered') {
-        const orderDate = deliveredAt.get(o.id) ?? o.createdAt;
-        if (orderDate >= startOfMonth && orderDate <= endOfMonth) {
-          const a = ensure(vendorId);
-          a.orders += 1;
-          a.gmv += o.total;
-          const start = acceptedAt.get(o.id);
-          const end = readyAt.get(o.id);
-          if (start && end && end > start) a.prepMinutes.push((end.getTime() - start.getTime()) / 60000);
-        }
-      }
-      // Food acceptance rate in current month
-      if (o.createdAt >= startOfMonth && o.createdAt <= endOfMonth) {
-        if (acceptedAt.has(o.id)) ensure(vendorId).accepted += 1;
-        else if (o.status === 'failed') ensure(vendorId).rejected += 1;
-      }
-    }
-
-    // Grocery allocation attempts in current month
-    for (const at of attempts) {
-      if (at.createdAt >= startOfMonth && at.createdAt <= endOfMonth) {
-        const a = ensure(at.vendorId);
-        if (at.outcome === 'accepted') a.accepted += 1;
-        else if (at.outcome === 'rejected' || at.outcome === 'timeout') a.rejected += 1;
-      }
-    }
-
-    const rows: VendorPerformanceRow[] = [...agg.entries()]
-      .map(([vendorId, a]) => {
-        const vendor = allVendors.find((v) => v.id === vendorId);
-        const decided = a.accepted + a.rejected;
+    const rows = (result.rows as Record<string, unknown>[])
+      .map((r) => {
+        const accepted = Number(r.accepted);
+        const decided = accepted + Number(r.rejected);
+        const avgPrep = r.avg_prep === null || r.avg_prep === undefined ? null : Number(r.avg_prep);
         return {
-          vendorId,
-          vendorName: vendor?.businessName ?? 'Unknown vendor',
-          orders: a.orders,
-          gmv: Math.round(a.gmv * 100) / 100,
-          acceptanceRate: decided > 0 ? Math.round((a.accepted / decided) * 1000) / 10 : 0,
-          avgPrepMinutes:
-            a.prepMinutes.length > 0
-              ? Math.round((a.prepMinutes.reduce((s, m) => s + m, 0) / a.prepMinutes.length) * 10) / 10
-              : 0,
+          vendorId: String(r.vendor_id),
+          vendorName: (r.vendor_name as string | null) ?? 'Unknown vendor',
+          orders: Number(r.orders),
+          gmv: Math.round(Number(r.gmv) * 100) / 100,
+          acceptanceRate: decided > 0 ? Math.round((accepted / decided) * 1000) / 10 : 0,
+          avgPrepMinutes: avgPrep !== null ? Math.round(avgPrep * 10) / 10 : 0,
         };
       })
       .filter((r) => r.orders > 0)
-      .sort((a, b) => b.orders - a.orders || (b.acceptanceRate ?? 0) - (a.acceptanceRate ?? 0))
-      .map((r, index) => ({
-        ...r,
-        rank: index + 1,
-      }));
+      .sort((a, b) => b.orders - a.orders || b.acceptanceRate - a.acceptanceRate)
+      .map((r, index) => ({ ...r, rank: index + 1 }));
 
     return rows;
   }
 
   async getCancellations(): Promise<CancellationRow[]> {
     const rows = await this.db
-      .select({ status: orderStatusHistory.status, actorRole: orderStatusHistory.actorRole })
+      .select({
+        status: orderStatusHistory.status,
+        actorRole: orderStatusHistory.actorRole,
+        n: sql<number>`count(*)::int`,
+      })
       .from(orderStatusHistory)
-      .where(inArray(orderStatusHistory.status, ['failed', 'cancelled']));
+      .where(inArray(orderStatusHistory.status, ['failed', 'cancelled']))
+      .groupBy(orderStatusHistory.status, orderStatusHistory.actorRole);
 
     let customer = 0;
     let vendor = 0;
@@ -682,9 +796,9 @@ export class DashboardService {
       // customer's request, so it's bucketed as the 'customer' cause here.
       // Flagged rather than silently assumed: if a real customer-cancel
       // endpoint is added later, it should get its own actor_role branch.
-      if (r.status === 'cancelled' && r.actorRole === 'admin') customer += 1;
-      else if (r.status === 'failed' && r.actorRole === 'vendor') vendor += 1;
-      else if (r.status === 'failed' && r.actorRole === 'system') noFulfillment += 1;
+      if (r.status === 'cancelled' && r.actorRole === 'admin') customer += r.n;
+      else if (r.status === 'failed' && r.actorRole === 'vendor') vendor += r.n;
+      else if (r.status === 'failed' && r.actorRole === 'system') noFulfillment += r.n;
     }
 
     return [
@@ -695,6 +809,6 @@ export class DashboardService {
   }
 }
 
-function sumTotal(orders: { total: number }[]) {
-  return Math.round(orders.reduce((s, o) => s + o.total, 0) * 100) / 100;
+function roundMoney(n: number) {
+  return Math.round((Number(n) || 0) * 100) / 100;
 }

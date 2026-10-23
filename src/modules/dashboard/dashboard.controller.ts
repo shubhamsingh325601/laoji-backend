@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,5 +18,15 @@ export class DashboardController {
   @Get('attention')
   attention() {
     return this.dashboard.getAttention();
+  }
+
+  @Get('summary')
+  summary() {
+    return this.dashboard.getSummary();
+  }
+
+  @Get('recent-orders')
+  recentOrders(@Query('limit') limit?: string) {
+    return this.dashboard.getRecentOrders(limit ? Number(limit) : undefined);
   }
 }

@@ -17,6 +17,7 @@ import {
   check,
   date,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -70,6 +71,7 @@ export const users = pgTable(
     uniqueIndex('users_phone_role_idx').on(table.phone, table.role),
     uniqueIndex('users_email_idx').on(table.email),
     uniqueIndex('users_referral_code_idx').on(table.referralCode),
+    index('users_role_created_at_idx').on(table.role, table.createdAt.desc()),
   ],
 );
 
@@ -492,34 +494,51 @@ export const groceryOrders = pgTable(
   },
   (table) => [
     uniqueIndex('grocery_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+    index('grocery_orders_created_at_idx').on(table.createdAt.desc()),
+    index('grocery_orders_status_idx').on(table.status, table.createdAt.desc()),
+    index('grocery_orders_payment_status_idx').on(table.paymentStatus, table.createdAt.desc()),
+    index('grocery_orders_customer_idx').on(table.customerId, table.createdAt.desc()),
+    index('grocery_orders_vendor_idx').on(table.vendorId, table.createdAt.desc()),
+    index('grocery_orders_partner_idx').on(table.deliveryPartnerId),
   ],
 );
 
-export const groceryOrderItems = pgTable('grocery_order_items', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  groceryOrderId: uuid('grocery_order_id')
-    .notNull()
-    .references(() => groceryOrders.id, { onDelete: 'cascade' }),
-  productId: uuid('product_id')
-    .notNull()
-    .references(() => products.id),
-  qty: integer('qty').notNull(),
-  unitPrice: doublePrecision('unit_price').notNull(),
-});
+export const groceryOrderItems = pgTable(
+  'grocery_order_items',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    groceryOrderId: uuid('grocery_order_id')
+      .notNull()
+      .references(() => groceryOrders.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id),
+    qty: integer('qty').notNull(),
+    unitPrice: doublePrecision('unit_price').notNull(),
+  },
+  (table) => [index('grocery_order_items_order_idx').on(table.groceryOrderId)],
+);
 
-export const allocationAttempts = pgTable('allocation_attempts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  groceryOrderId: uuid('grocery_order_id')
-    .notNull()
-    .references(() => groceryOrders.id, { onDelete: 'cascade' }),
-  vendorId: uuid('vendor_id')
-    .notNull()
-    .references(() => vendors.id),
-  outcome: allocationOutcomeEnum('outcome').notNull().default('pending'),
-  attemptNo: integer('attempt_no').notNull(),
-  slaDeadline: timestamp('sla_deadline', { withTimezone: true }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const allocationAttempts = pgTable(
+  'allocation_attempts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    groceryOrderId: uuid('grocery_order_id')
+      .notNull()
+      .references(() => groceryOrders.id, { onDelete: 'cascade' }),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    outcome: allocationOutcomeEnum('outcome').notNull().default('pending'),
+    attemptNo: integer('attempt_no').notNull(),
+    slaDeadline: timestamp('sla_deadline', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('allocation_attempts_order_idx').on(table.groceryOrderId),
+    index('allocation_attempts_vendor_idx').on(table.vendorId, table.createdAt),
+  ],
+);
 
 export const foodOrders = pgTable(
   'food_orders',
@@ -554,24 +573,34 @@ export const foodOrders = pgTable(
   },
   (table) => [
     uniqueIndex('food_orders_customer_idempotency_idx').on(table.customerId, table.idempotencyKey),
+    index('food_orders_created_at_idx').on(table.createdAt.desc()),
+    index('food_orders_status_idx').on(table.status, table.createdAt.desc()),
+    index('food_orders_payment_status_idx').on(table.paymentStatus, table.createdAt.desc()),
+    index('food_orders_customer_idx').on(table.customerId, table.createdAt.desc()),
+    index('food_orders_restaurant_idx').on(table.restaurantId, table.createdAt.desc()),
+    index('food_orders_partner_idx').on(table.deliveryPartnerId),
   ],
 );
 
-export const foodOrderItems = pgTable('food_order_items', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  foodOrderId: uuid('food_order_id')
-    .notNull()
-    .references(() => foodOrders.id, { onDelete: 'cascade' }),
-  menuItemId: uuid('menu_item_id')
-    .notNull()
-    .references(() => menuItems.id),
-  qty: integer('qty').notNull(),
-  unitPrice: doublePrecision('unit_price').notNull(),
-  // Snapshot of selected variant/addons at order time (name + price each) —
-  // menu items can change after an order is placed, so history must not
-  // depend on live joins back into menu_items/menu_item_addons.
-  addonsJson: jsonb('addons_json'),
-});
+export const foodOrderItems = pgTable(
+  'food_order_items',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    foodOrderId: uuid('food_order_id')
+      .notNull()
+      .references(() => foodOrders.id, { onDelete: 'cascade' }),
+    menuItemId: uuid('menu_item_id')
+      .notNull()
+      .references(() => menuItems.id),
+    qty: integer('qty').notNull(),
+    unitPrice: doublePrecision('unit_price').notNull(),
+    // Snapshot of selected variant/addons at order time (name + price each) —
+    // menu items can change after an order is placed, so history must not
+    // depend on live joins back into menu_items/menu_item_addons.
+    addonsJson: jsonb('addons_json'),
+  },
+  (table) => [index('food_order_items_order_idx').on(table.foodOrderId)],
+);
 
 export const orderStatusHistory = pgTable(
   'order_status_history',
@@ -589,6 +618,8 @@ export const orderStatusHistory = pgTable(
       'order_status_history_exactly_one_order_ref',
       sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
     ),
+    index('order_status_history_grocery_idx').on(table.groceryOrderId, table.changedAt),
+    index('order_status_history_food_idx').on(table.foodOrderId, table.changedAt),
   ],
 );
 
@@ -625,6 +656,9 @@ export const deliveryAssignments = pgTable(
       'delivery_assignments_exactly_one_order_ref',
       sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
     ),
+    index('delivery_assignments_grocery_idx').on(table.groceryOrderId),
+    index('delivery_assignments_food_idx').on(table.foodOrderId),
+    index('delivery_assignments_partner_idx').on(table.deliveryPartnerId, table.outcome),
   ],
 );
 
@@ -713,18 +747,25 @@ export const deviceTokens = pgTable(
 export const notificationChannelEnum = pgEnum('notification_channel', ['push', 'email', 'sms']);
 export const notificationStatusEnum = pgEnum('notification_status', ['queued', 'sent', 'failed']);
 
-export const notificationLog = pgTable('notification_log', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  channel: notificationChannelEnum('channel').notNull(),
-  template: varchar('template', { length: 60 }).notNull(),
-  payloadJson: jsonb('payload_json').notNull(),
-  status: notificationStatusEnum('status').notNull().default('queued'),
-  sentAt: timestamp('sent_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const notificationLog = pgTable(
+  'notification_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channel: notificationChannelEnum('channel').notNull(),
+    template: varchar('template', { length: 60 }).notNull(),
+    payloadJson: jsonb('payload_json').notNull(),
+    status: notificationStatusEnum('status').notNull().default('queued'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('notification_log_created_at_idx').on(table.createdAt.desc()),
+    index('notification_log_user_idx').on(table.userId, table.createdAt.desc()),
+  ],
+);
 
 // Phase 8 (Revenue Config & Settlements). Rules are immutable once created
 // — a "change" is always a new row with its own effective_from, never an
@@ -877,6 +918,8 @@ export const settlements = pgTable(
       'settlements_exactly_one_order_ref',
       sql`(${table.groceryOrderId} is not null and ${table.foodOrderId} is null) or (${table.groceryOrderId} is null and ${table.foodOrderId} is not null)`,
     ),
+    index('settlements_grocery_idx').on(table.groceryOrderId),
+    index('settlements_food_idx').on(table.foodOrderId),
   ],
 );
 
@@ -1114,24 +1157,31 @@ export const wallets = pgTable('wallets', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const walletTransactions = pgTable('wallet_transactions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  walletId: uuid('wallet_id')
-    .notNull()
-    .references(() => wallets.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  amount: doublePrecision('amount').notNull(),
-  type: varchar('type', { length: 30 }).notNull(), // 'affiliate_commission' | 'withdrawal' | 'adjustment'
-  status: varchar('status', { length: 20 }).notNull().default('completed'), // 'pending' | 'completed' | 'cancelled' | 'rejected'
-  description: text('description').notNull(),
-  orderId: uuid('order_id'),
-  orderType: varchar('order_type', { length: 20 }), // 'grocery' | 'food'
-  couponCode: varchar('coupon_code', { length: 50 }),
-  metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const walletTransactions = pgTable(
+  'wallet_transactions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    walletId: uuid('wallet_id')
+      .notNull()
+      .references(() => wallets.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    amount: doublePrecision('amount').notNull(),
+    type: varchar('type', { length: 30 }).notNull(), // 'affiliate_commission' | 'withdrawal' | 'adjustment'
+    status: varchar('status', { length: 20 }).notNull().default('completed'), // 'pending' | 'completed' | 'cancelled' | 'rejected'
+    description: text('description').notNull(),
+    orderId: uuid('order_id'),
+    orderType: varchar('order_type', { length: 20 }), // 'grocery' | 'food'
+    couponCode: varchar('coupon_code', { length: 50 }),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('wallet_transactions_user_idx').on(table.userId, table.createdAt.desc()),
+    index('wallet_transactions_created_at_idx').on(table.createdAt.desc()),
+  ],
+);
 
 export const withdrawalRequests = pgTable('withdrawal_requests', {
   id: uuid('id').defaultRandom().primaryKey(),

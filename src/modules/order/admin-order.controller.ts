@@ -8,6 +8,7 @@ import { OrderService } from './order.service';
 import { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
 import { AdminAssignPartnerDto, AdminSetStatusDto } from './dto/admin-order-actions.dto';
 import { AdminCreateFoodOrderDto, AdminCreateGroceryOrderDto } from './dto/admin-create-order.dto';
+import { AdminOrderListQueryDto } from './dto/admin-order-list.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -18,6 +19,17 @@ export class AdminOrderController {
   @Get()
   listAll(@Query('includeUnpaid') includeUnpaid?: string) {
     return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
+  }
+
+  // 'page' and 'live' are single-segment, so they can't collide with ':type/:id'.
+  @Get('page')
+  listPage(@Query() query: AdminOrderListQueryDto) {
+    return this.orders.listOrdersPageForAdmin(query);
+  }
+
+  @Get('live')
+  listLive() {
+    return this.orders.listRecentOrdersForAdminWatch();
   }
 
   // Declared before ':type/:id' so "customers" isn't read as an order type.

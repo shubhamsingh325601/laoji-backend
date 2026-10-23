@@ -325,8 +325,12 @@ export class NotificationService {
     const rows = await this.db.select().from(notificationLog).orderBy(desc(notificationLog.createdAt)).limit(limit);
     if (!rows.length) return [];
 
-    const allUsers = await this.db.select().from(users);
-    const byId = new Map(allUsers.map((u) => [u.id, u]));
+    const recipientIds = [...new Set(rows.map((r) => r.userId))];
+    const recipients = await this.db
+      .select({ id: users.id, phone: users.phone, email: users.email })
+      .from(users)
+      .where(inArray(users.id, recipientIds));
+    const byId = new Map(recipients.map((u) => [u.id, u]));
 
     return rows.map((r) => {
       const u = byId.get(r.userId);

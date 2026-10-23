@@ -1,10 +1,14 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, count, desc, eq, ilike, inArray, ne, or, sum } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, ne, or, sum, type SQL } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users, wallets } from '../../../drizzle/schema';
 import { NotificationService } from '../notification/notification.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import { AdminUserListQueryDto } from './dto/admin-user-list.dto';
+import { escapeLike } from '../order/admin-order-filters';
+
+const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class UserService {
@@ -31,6 +35,50 @@ export class UserService {
       );
     }
 
+    return this.withUserDetails(filtered);
+  }
+
+  /**
+   * One page of users for the admin lists. Filtering, counting and paging all
+   * happen in the database, and addresses / wallets / order stats are looked up
+   * for the rows on this page only.
+   */
+  async listUsersPage(q: AdminUserListQueryDto) {
+    const page = Math.max(1, q.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
+
+    const conditions: SQL[] = [];
+    if (q.role && q.role !== 'all') conditions.push(eq(users.role, q.role as typeof users.$inferSelect.role));
+    const term = q.search?.trim();
+    if (term) {
+      const like = `%${escapeLike(term)}%`;
+      conditions.push(or(ilike(users.phone, like), ilike(users.email, like), ilike(users.name, like))!);
+    }
+    const where = conditions.length ? and(...conditions) : undefined;
+
+    const [{ total }] = await this.db.select({ total: count() }).from(users).where(where);
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(where)
+      .orderBy(desc(users.createdAt), desc(users.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    return { items: await this.withUserDetails(rows), total: Number(total), page, pageSize };
+  }
+
+  /** Name and phone for a handful of user ids (e.g. to label KYC documents). */
+  async lookupUsers(ids: string[]) {
+    const clean = [...new Set(ids.map((i) => i.trim()).filter((i) => UUID_RE.test(i)))].slice(0, 200);
+    if (!clean.length) return [];
+    return this.db
+      .select({ id: users.id, name: users.name, phone: users.phone, role: users.role })
+      .from(users)
+      .where(inArray(users.id, clean));
+  }
+
+  private async withUserDetails(filtered: (typeof users.$inferSelect)[]) {
     const userIds = filtered.map((u) => u.id);
     let userAddresses: any[] = [];
     try {
