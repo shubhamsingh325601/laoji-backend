@@ -98,7 +98,7 @@ let CatalogService = class CatalogService {
             return null;
         const [user] = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userId)).limit(1);
         const [rest] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, row.id)).limit(1);
-        let ratingAvg = 4.8;
+        let ratingAvg = 0;
         let ratingCount = 0;
         if (rest) {
             const [agg] = await this.db
@@ -111,10 +111,6 @@ let CatalogService = class CatalogService {
             if (agg && Number(agg.count) > 0) {
                 ratingAvg = Math.round(Number(agg.avg) * 10) / 10;
                 ratingCount = Number(agg.count);
-            }
-            else if (rest.ratingAvg && Number(rest.ratingAvg) > 0) {
-                ratingAvg = Math.round(Number(rest.ratingAvg) * 10) / 10;
-                ratingCount = 0;
             }
         }
         const isOpenNow = (0, catalog_types_1.isVendorOpenNow)(row);
@@ -1206,7 +1202,7 @@ let CatalogService = class CatalogService {
             const v = vendorMap.get(r.vendorId);
             const openNow = (v?.isOpen ?? false) && (v ? (0, catalog_types_1.isVendorOpenNow)(v) : false);
             const agg = ratingsMap.get(r.id);
-            const dynamicRating = agg && agg.count > 0 ? agg.avg : (r.ratingAvg > 0 ? Math.round(r.ratingAvg * 10) / 10 : 4.8);
+            const dynamicRating = agg && agg.count > 0 ? agg.avg : 0;
             const dynamicCount = agg ? agg.count : 0;
             return {
                 ...r,
@@ -1249,15 +1245,15 @@ let CatalogService = class CatalogService {
             avg: (0, drizzle_orm_1.sql) `coalesce(avg(${schema_1.foodOrderRatings.rating}), 0)::float`,
         })
             .from(schema_1.foodOrderRatings)
-            .where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.restaurantId, id));
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.restaurantId, restaurant.id));
         const dynamicRating = ratingsAgg && Number(ratingsAgg.count) > 0
             ? Math.round(Number(ratingsAgg.avg) * 10) / 10
-            : (restaurant.ratingAvg > 0 ? Math.round(restaurant.ratingAvg * 10) / 10 : 4.8);
+            : 0;
         const dynamicCount = ratingsAgg ? Number(ratingsAgg.count) : 0;
         const cats = await this.db
             .select()
             .from(schema_1.menuCategories)
-            .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, id));
+            .where((0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id));
         const items = cats.length
             ? await this.db
                 .select()
@@ -2000,6 +1996,7 @@ let CatalogService = class CatalogService {
                 imageUrl: schema_1.products.imageUrl,
                 categoryId: schema_1.categories.id,
                 categoryName: schema_1.categories.name,
+                attributes: schema_1.products.attributes,
             })
                 .from(schema_1.vendorProducts)
                 .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
@@ -2023,6 +2020,7 @@ let CatalogService = class CatalogService {
                     unit: vp.unit,
                     available: vp.isAvailable,
                     imageUrl: vp.imageUrl ?? null,
+                    isVeg: vp.attributes?.isVeg !== false,
                     stockQty: vp.stockQty,
                     commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
                     customCommissionPct: vp.customCommissionPct ?? null,

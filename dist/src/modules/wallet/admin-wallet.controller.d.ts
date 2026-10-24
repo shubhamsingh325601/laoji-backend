@@ -145,8 +145,8 @@ export declare class AdminWalletController {
             description: string;
             couponCode: string | null;
             amount: number;
-            orderId: string | null;
             walletId: string;
+            orderId: string | null;
             orderType: string | null;
             metadata: unknown;
         };

@@ -58,6 +58,7 @@ export declare class AdminDeliveryController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
+        updatedAt: Date;
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -65,7 +66,6 @@ export declare class AdminDeliveryController {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
-        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateAdminDeliveryPartnerDto): Promise<{
         id: string;

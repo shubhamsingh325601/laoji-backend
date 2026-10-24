@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WalletService = void 0;
 const common_1 = require("@nestjs/common");
+const crypto_1 = require("crypto");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
@@ -151,6 +152,81 @@ let WalletService = class WalletService {
             .update(schema_1.walletTransactions)
             .set({ status: 'pending' })
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.walletTransactions.orderId, orderId), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.type, 'affiliate_commission'), (0, drizzle_orm_1.eq)(schema_1.walletTransactions.status, 'cancelled')));
+    }
+    async issueScratchCard(userId, orderType, orderId) {
+        const [card] = await this.db
+            .insert(schema_1.scratchCards)
+            .values({ userId, orderType, orderId })
+            .onConflictDoNothing()
+            .returning();
+        return card ?? null;
+    }
+    async listScratchCards(userId) {
+        const rows = await this.db
+            .select()
+            .from(schema_1.scratchCards)
+            .where((0, drizzle_orm_1.eq)(schema_1.scratchCards.userId, userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.scratchCards.createdAt))
+            .limit(50);
+        return rows.map((c) => this.toScratchCardView(c));
+    }
+    async scratchCard(userId, cardId) {
+        const wallet = await this.getOrCreateWallet(userId);
+        const result = await this.db.transaction(async (tx) => {
+            const amount = (0, crypto_1.randomInt)(1, 6);
+            const [won] = await tx
+                .update(schema_1.scratchCards)
+                .set({ status: 'scratched', amount, scratchedAt: new Date() })
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.scratchCards.id, cardId), (0, drizzle_orm_1.eq)(schema_1.scratchCards.userId, userId), (0, drizzle_orm_1.eq)(schema_1.scratchCards.status, 'unscratched')))
+                .returning();
+            if (!won) {
+                const [existing] = await tx
+                    .select()
+                    .from(schema_1.scratchCards)
+                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.scratchCards.id, cardId), (0, drizzle_orm_1.eq)(schema_1.scratchCards.userId, userId)))
+                    .limit(1);
+                if (!existing)
+                    throw new common_1.NotFoundException('Scratch card not found');
+                return { card: existing, justScratched: false };
+            }
+            await tx.insert(schema_1.walletTransactions).values({
+                walletId: wallet.id,
+                userId,
+                amount,
+                type: 'scratch_card',
+                status: 'completed',
+                description: `Scratch card reward for ${won.orderType} order #${won.orderId.slice(0, 8).toUpperCase()}`,
+                orderId: won.orderId,
+                orderType: won.orderType,
+                metadata: { scratchCardId: won.id },
+            });
+            await tx
+                .update(schema_1.wallets)
+                .set({
+                balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${amount}`,
+                totalEarned: (0, drizzle_orm_1.sql) `${schema_1.wallets.totalEarned} + ${amount}`,
+                updatedAt: new Date(),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+            return { card: won, justScratched: true };
+        });
+        const summary = await this.getWalletSummary(userId);
+        return {
+            ...this.toScratchCardView(result.card),
+            justScratched: result.justScratched,
+            walletBalance: summary.wallet.balance,
+        };
+    }
+    toScratchCardView(c) {
+        return {
+            id: c.id,
+            orderId: c.orderId,
+            orderType: c.orderType,
+            status: c.status,
+            amount: c.amount,
+            scratchedAt: c.scratchedAt,
+            createdAt: c.createdAt,
+        };
     }
     async requestWithdrawal(userId, dto) {
         const wallet = await this.getOrCreateWallet(userId);

@@ -59,6 +59,12 @@ let SettlementService = class SettlementService {
         if (order.couponCode) {
             await this.confirmAffiliateCommission(order, type, orderId);
         }
+        try {
+            await this.wallet.issueScratchCard(order.customerId, type, orderId);
+        }
+        catch (err) {
+            console.error('[SettlementService] Failed to issue scratch card on order delivery:', err);
+        }
         return settlement;
     }
     async confirmAffiliateCommission(order, type, orderId) {

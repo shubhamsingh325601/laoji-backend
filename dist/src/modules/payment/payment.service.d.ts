@@ -35,8 +35,8 @@ export declare class PaymentService {
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
-        groceryOrderId: string | null;
         foodOrderId: string | null;
+        groceryOrderId: string | null;
         provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;

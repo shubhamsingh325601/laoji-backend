@@ -517,7 +517,7 @@ let DashboardService = class DashboardService {
             };
         })
             .filter((r) => r.orders > 0)
-            .sort((a, b) => b.orders - a.orders || b.gmv - a.gmv)
+            .sort((a, b) => b.orders - a.orders || (b.acceptanceRate ?? 0) - (a.acceptanceRate ?? 0))
             .map((r, index) => ({
             ...r,
             rank: index + 1,

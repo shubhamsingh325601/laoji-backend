@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.vendorWithdrawals = exports.settlements = exports.customerDeliveryFeeTiers = exports.customerFreeDeliveryBonus = exports.newCustomerDeliverySettings = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.platformSettings = exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.foodOrderRatings = void 0;
+exports.platformSettings = exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.scratchCards = exports.foodOrderRatings = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -566,9 +566,11 @@ exports.vendorWithdrawals = (0, pg_core_1.pgTable)('vendor_withdrawals', {
 exports.foodOrderRatings = (0, pg_core_1.pgTable)('food_order_ratings', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     foodOrderId: (0, pg_core_1.uuid)('food_order_id')
-        .notNull()
         .unique()
         .references(() => exports.foodOrders.id, { onDelete: 'cascade' }),
+    groceryOrderId: (0, pg_core_1.uuid)('grocery_order_id')
+        .unique()
+        .references(() => exports.groceryOrders.id, { onDelete: 'cascade' }),
     customerId: (0, pg_core_1.uuid)('customer_id')
         .notNull()
         .references(() => exports.users.id),
@@ -578,7 +580,25 @@ exports.foodOrderRatings = (0, pg_core_1.pgTable)('food_order_ratings', {
     rating: (0, pg_core_1.integer)('rating').notNull(),
     comment: (0, pg_core_1.text)('comment'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [(0, pg_core_1.check)('food_order_ratings_rating_range', (0, drizzle_orm_1.sql) `${table.rating} between 1 and 5`)]);
+}, (table) => [
+    (0, pg_core_1.check)('food_order_ratings_rating_range', (0, drizzle_orm_1.sql) `${table.rating} between 1 and 5`),
+    (0, pg_core_1.check)('food_order_ratings_one_order', (0, drizzle_orm_1.sql) `(${table.foodOrderId} is not null) <> (${table.groceryOrderId} is not null)`),
+]);
+exports.scratchCards = (0, pg_core_1.pgTable)('scratch_cards', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    userId: (0, pg_core_1.uuid)('user_id')
+        .notNull()
+        .references(() => exports.users.id, { onDelete: 'cascade' }),
+    orderId: (0, pg_core_1.uuid)('order_id').notNull(),
+    orderType: (0, pg_core_1.varchar)('order_type', { length: 20 }).notNull(),
+    status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('unscratched'),
+    amount: (0, pg_core_1.integer)('amount'),
+    scratchedAt: (0, pg_core_1.timestamp)('scratched_at', { withTimezone: true }),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    (0, pg_core_1.uniqueIndex)('scratch_cards_order_idx').on(table.orderType, table.orderId),
+    (0, pg_core_1.check)('scratch_cards_amount_range', (0, drizzle_orm_1.sql) `${table.amount} is null or ${table.amount} between 1 and 5`),
+]);
 exports.areaManagers = (0, pg_core_1.pgTable)('area_managers', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     name: (0, pg_core_1.varchar)('name', { length: 200 }).notNull(),

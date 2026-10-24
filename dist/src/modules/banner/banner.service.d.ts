@@ -490,7 +490,7 @@ export declare class BannerService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "partial", Record<"banners", "not-null">, false, "orderBy" | "where", {
+    }, "partial", Record<"banners", "not-null">, false, "where" | "orderBy", {
         id: string;
         title: string;
         subtitle: string | null;
@@ -584,19 +584,19 @@ export declare class BannerService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     create(dto: CreateBannerDto): Promise<{
         id: string;
-        title: string;
-        subtitle: string | null;
         link: string | null;
+        createdAt: Date;
         imageUrl: string;
-        placement: string;
         sortOrder: number;
+        title: string;
         isActive: boolean;
         startsAt: Date | null;
+        subtitle: string | null;
+        placement: string;
         endsAt: Date | null;
-        createdAt: Date;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{
         id: string;

@@ -35,8 +35,8 @@ export declare class AreaManagerService {
         email: string;
         createdAt: Date;
         updatedAt: Date;
-        pincode: string;
         isActive: boolean;
+        pincode: string;
     }>;
     update(id: string, dto: UpdateAreaManagerDto): Promise<{
         id: string;

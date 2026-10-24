@@ -495,7 +495,12 @@ let OrderService = class OrderService {
             .orderBy(schema_1.orderStatusHistory.changedAt);
         const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
         const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner }, requester);
+        const [rating] = await this.db
+            .select()
+            .from(schema_1.foodOrderRatings)
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.groceryOrderId, id))
+            .limit(1);
+        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null }, requester);
     }
     async getFoodOrder(id, requester) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, id)).limit(1);
@@ -552,6 +557,37 @@ let OrderService = class OrderService {
         })
             .returning();
         await this.catalog.recalcRestaurantRating(order.restaurantId);
+        return row;
+    }
+    async rateGroceryOrder(customerId, groceryOrderId, dto) {
+        const [order] = await this.db.select().from(schema_1.groceryOrders).where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.id, groceryOrderId)).limit(1);
+        if (!order)
+            throw new common_1.NotFoundException('Order not found');
+        if (order.customerId !== customerId)
+            throw new common_1.ForbiddenException('Not your order');
+        if (order.status !== 'delivered')
+            throw new common_1.BadRequestException('Order has not been delivered yet');
+        if (!order.vendorId)
+            throw new common_1.BadRequestException('This order has no vendor to rate');
+        const [existing] = await this.db
+            .select()
+            .from(schema_1.foodOrderRatings)
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.groceryOrderId, groceryOrderId))
+            .limit(1);
+        if (existing)
+            throw new common_1.BadRequestException('Order already rated');
+        const restaurant = await this.catalog.getOrCreateRestaurant(order.vendorId);
+        const [row] = await this.db
+            .insert(schema_1.foodOrderRatings)
+            .values({
+            groceryOrderId,
+            customerId,
+            restaurantId: restaurant.id,
+            rating: dto.rating,
+            comment: dto.comment,
+        })
+            .returning();
+        await this.catalog.recalcRestaurantRating(restaurant.id);
         return row;
     }
     withOtpVisibility(order, requester) {

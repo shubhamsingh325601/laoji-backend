@@ -62,14 +62,45 @@ export declare class WalletService {
         description: string;
         couponCode: string | null;
         amount: number;
-        orderId: string | null;
         walletId: string;
+        orderId: string | null;
         orderType: string | null;
         metadata: unknown;
     } | null>;
     confirmCommissionOnDelivery(orderType: 'grocery' | 'food', orderId: string): Promise<void>;
     cancelPendingCommission(orderType: 'grocery' | 'food', orderId: string): Promise<void>;
     restorePendingCommission(orderType: 'grocery' | 'food', orderId: string): Promise<void>;
+    issueScratchCard(userId: string, orderType: 'grocery' | 'food', orderId: string): Promise<{
+        id: string;
+        status: string;
+        createdAt: Date;
+        userId: string;
+        amount: number | null;
+        orderId: string;
+        orderType: string;
+        scratchedAt: Date | null;
+    }>;
+    listScratchCards(userId: string): Promise<{
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched";
+        amount: number | null;
+        scratchedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    scratchCard(userId: string, cardId: string): Promise<{
+        justScratched: boolean;
+        walletBalance: number;
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched";
+        amount: number | null;
+        scratchedAt: Date | null;
+        createdAt: Date;
+    }>;
+    private toScratchCardView;
     requestWithdrawal(userId: string, dto: RequestWithdrawalDto): Promise<{
         success: boolean;
         message: string;
@@ -82,9 +113,9 @@ export declare class WalletService {
             bankIfsc: string | null;
             upiId: string | null;
             amount: number;
+            walletId: string;
             payoutMethod: string;
             processedAt: Date | null;
-            walletId: string;
             accountHolderName: string | null;
             adminNotes: string | null;
         };
@@ -244,8 +275,8 @@ export declare class WalletService {
             description: string;
             couponCode: string | null;
             amount: number;
-            orderId: string | null;
             walletId: string;
+            orderId: string | null;
             orderType: string | null;
             metadata: unknown;
         };
