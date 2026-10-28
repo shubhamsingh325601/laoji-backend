@@ -26,6 +26,12 @@ let WalletController = class WalletController {
     async getMyWallet(user) {
         return this.wallet.getWalletSummary(user.sub);
     }
+    async myScratchCards(user) {
+        return this.wallet.listScratchCards(user.sub);
+    }
+    async scratchCard(user, id) {
+        return this.wallet.scratchCard(user.sub, id);
+    }
     async requestWithdrawal(user, dto) {
         return this.wallet.requestWithdrawal(user.sub, dto);
     }
@@ -38,6 +44,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], WalletController.prototype, "getMyWallet", null);
+__decorate([
+    (0, common_1.Get)('scratch-cards'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "myScratchCards", null);
+__decorate([
+    (0, common_1.Post)('scratch-cards/:id/scratch'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "scratchCard", null);
 __decorate([
     (0, common_1.Post)('withdraw'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

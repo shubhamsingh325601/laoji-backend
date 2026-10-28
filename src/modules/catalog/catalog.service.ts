@@ -1693,7 +1693,7 @@ export class CatalogService {
         avg: sql<number>`coalesce(avg(${foodOrderRatings.rating}), 0)::float`,
       })
       .from(foodOrderRatings)
-      .where(eq(foodOrderRatings.restaurantId, id));
+      .where(eq(foodOrderRatings.restaurantId, restaurant.id));
 
     const dynamicRating = ratingsAgg && Number(ratingsAgg.count) > 0
       ? Math.round(Number(ratingsAgg.avg) * 10) / 10
@@ -1703,7 +1703,7 @@ export class CatalogService {
     const cats = await this.db
       .select()
       .from(menuCategories)
-      .where(eq(menuCategories.restaurantId, id));
+      .where(eq(menuCategories.restaurantId, restaurant.id));
 
     const items = cats.length
       ? await this.db
@@ -2667,8 +2667,12 @@ export class CatalogService {
           imageUrl: products.imageUrl,
           categoryId: categories.id,
           categoryName: categories.name,
+<<<<<<< HEAD
           variantGroupId: products.variantGroupId,
           variantLabel: products.variantLabel,
+=======
+          attributes: products.attributes,
+>>>>>>> origin/main
         })
         .from(vendorProducts)
         .innerJoin(products, eq(vendorProducts.productId, products.id))
@@ -2693,6 +2697,7 @@ export class CatalogService {
           unit: vp.unit,
           available: vp.isAvailable,
           imageUrl: vp.imageUrl ?? null,
+          isVeg: (vp.attributes as any)?.isVeg !== false,
           stockQty: vp.stockQty,
           commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
           customCommissionPct: vp.customCommissionPct ?? null,

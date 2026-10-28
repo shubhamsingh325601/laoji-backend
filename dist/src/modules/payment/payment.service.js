@@ -145,8 +145,19 @@ let PaymentService = class PaymentService {
     async initiate(type, orderId, customerId, method, useWallet = false) {
         const order = await this.requireOwnOrder(type, orderId, customerId);
         const existing = await this.latestPayment(type, orderId);
-        if (existing && existing.status !== 'failed')
-            return existing;
+        if (existing && existing.status !== 'failed') {
+            const abandonedOnline = existing.status === 'pending' && existing.provider !== 'cod' && existing.provider !== 'wallet' && method !== 'online';
+            if (!abandonedOnline)
+                return existing;
+            const dropped = await this.db
+                .update(schema_1.payments)
+                .set({ status: 'failed' })
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, existing.id), (0, drizzle_orm_1.eq)(schema_1.payments.status, 'pending')))
+                .returning({ id: schema_1.payments.id });
+            if (!dropped.length)
+                return (await this.latestPayment(type, orderId)) ?? existing;
+            await this.refundWalletPortion(type, orderId, customerId);
+        }
         if (useWallet && method !== 'wallet') {
             const w = await this.wallet.getOrCreateWallet(customerId);
             if (Math.round(w.balance * 100) / 100 >= order.total)

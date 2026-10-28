@@ -43,6 +43,9 @@ let CustomerOrderController = class CustomerOrderController {
     groceryOrder(user, id) {
         return this.orders.getGroceryOrder(id, { userId: user.sub, role: user.role });
     }
+    rateGroceryOrder(user, id, dto) {
+        return this.orders.rateGroceryOrder(user.sub, id, dto);
+    }
     createFood(user, dto) {
         return this.orders.createFoodOrder(user.sub, dto);
     }
@@ -100,6 +103,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], CustomerOrderController.prototype, "groceryOrder", null);
+__decorate([
+    (0, common_1.Post)('grocery/:id/rating'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, rate_food_order_dto_1.RateFoodOrderDto]),
+    __metadata("design:returntype", void 0)
+], CustomerOrderController.prototype, "rateGroceryOrder", null);
 __decorate([
     (0, throttler_1.Throttle)({ orderCreate: { limit: 10, ttl: 60_000 } }),
     (0, common_1.Post)('food'),

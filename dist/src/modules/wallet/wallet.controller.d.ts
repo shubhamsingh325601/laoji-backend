@@ -36,6 +36,26 @@ export declare class WalletController {
             createdAt: Date;
         }[];
     }>;
+    myScratchCards(user: JwtAccessPayload): Promise<{
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched";
+        amount: number | null;
+        scratchedAt: Date | null;
+        createdAt: Date;
+    }[]>;
+    scratchCard(user: JwtAccessPayload, id: string): Promise<{
+        justScratched: boolean;
+        walletBalance: number;
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched";
+        amount: number | null;
+        scratchedAt: Date | null;
+        createdAt: Date;
+    }>;
     requestWithdrawal(user: JwtAccessPayload, dto: RequestWithdrawalDto): Promise<{
         success: boolean;
         message: string;
@@ -48,9 +68,9 @@ export declare class WalletController {
             bankIfsc: string | null;
             upiId: string | null;
             amount: number;
+            walletId: string;
             payoutMethod: string;
             processedAt: Date | null;
-            walletId: string;
             accountHolderName: string | null;
             adminNotes: string | null;
         };

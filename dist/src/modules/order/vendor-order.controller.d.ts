@@ -204,8 +204,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -223,6 +223,16 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        myRating: {
+            id: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
+            customerId: string;
+            restaurantId: string;
+            rating: number;
+            comment: string | null;
+            createdAt: Date;
+        };
         id: string;
         customerId: string;
         idempotencyKey: string | null;
@@ -261,8 +271,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -280,6 +290,16 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        myRating: {
+            id: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
+            customerId: string;
+            restaurantId: string;
+            rating: number;
+            comment: string | null;
+            createdAt: Date;
+        };
         id: string;
         customerId: string;
         idempotencyKey: string | null;
@@ -321,8 +341,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -340,6 +360,16 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        myRating: {
+            id: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
+            customerId: string;
+            restaurantId: string;
+            rating: number;
+            comment: string | null;
+            createdAt: Date;
+        };
         id: string;
         customerId: string;
         idempotencyKey: string | null;
@@ -378,8 +408,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -397,6 +427,16 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        myRating: {
+            id: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
+            customerId: string;
+            restaurantId: string;
+            rating: number;
+            comment: string | null;
+            createdAt: Date;
+        };
         id: string;
         customerId: string;
         idempotencyKey: string | null;
@@ -611,8 +651,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -632,7 +672,8 @@ export declare class VendorOrderController {
         } | null;
         myRating: {
             id: string;
-            foodOrderId: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
             customerId: string;
             restaurantId: string;
             rating: number;
@@ -676,8 +717,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -697,7 +738,8 @@ export declare class VendorOrderController {
         } | null;
         myRating: {
             id: string;
-            foodOrderId: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
             customerId: string;
             restaurantId: string;
             rating: number;
@@ -741,8 +783,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -762,7 +804,8 @@ export declare class VendorOrderController {
         } | null;
         myRating: {
             id: string;
-            foodOrderId: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
             customerId: string;
             restaurantId: string;
             rating: number;
@@ -806,8 +849,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -827,7 +870,8 @@ export declare class VendorOrderController {
         } | null;
         myRating: {
             id: string;
-            foodOrderId: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
             customerId: string;
             restaurantId: string;
             rating: number;
@@ -871,8 +915,8 @@ export declare class VendorOrderController {
             actorName: string;
             id: string;
             status: "placed" | "vendor_accepted" | "preparing" | "ready" | "handed_over" | "delivery_assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
-            groceryOrderId: string | null;
             foodOrderId: string | null;
+            groceryOrderId: string | null;
             actorRole: "customer" | "vendor" | "delivery_partner" | "admin" | "system";
             changedBy: string | null;
             changedAt: Date;
@@ -892,7 +936,8 @@ export declare class VendorOrderController {
         } | null;
         myRating: {
             id: string;
-            foodOrderId: string;
+            foodOrderId: string | null;
+            groceryOrderId: string | null;
             customerId: string;
             restaurantId: string;
             rating: number;
