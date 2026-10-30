@@ -191,14 +191,19 @@ export class PaymentService {
         );
       }
 
-      // Atomically deduct order amount from customer wallet
-      await this.db
+      // Atomically deduct with a balance guard so two concurrent full-wallet
+      // payments cannot both succeed and overdraw the balance.
+      const deducted = await this.db
         .update(wallets)
         .set({
           balance: sql`${wallets.balance} - ${order.total}`,
           updatedAt: new Date(),
         })
-        .where(eq(wallets.id, wallet.id));
+        .where(and(eq(wallets.id, wallet.id), sql`${wallets.balance} >= ${order.total}`))
+        .returning({ id: wallets.id });
+      if (!deducted.length) {
+        throw new BadRequestException('Wallet balance changed — please refresh and try again.');
+      }
 
       const orderCode = orderId.slice(0, 8).toUpperCase();
       await this.db.insert(walletTransactions).values({
@@ -434,7 +439,14 @@ export class PaymentService {
       if (order && order.walletAmount > 0) await this.refundWalletPortion(type, orderId, order.customerId);
     }
     if (status === 'paid') {
-      this.paymentSatisfied$.next({ type, orderId });
+      // Guard: don't fire paymentSatisfied$ if the order was already
+      // cancelled or failed — it would create orphaned allocation rows and
+      // phantom vendor push notifications.
+      const table = this.orderTable(type);
+      const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+      if (order && !['cancelled', 'failed'].includes(order.status)) {
+        this.paymentSatisfied$.next({ type, orderId });
+      }
     }
     return updated;
   }

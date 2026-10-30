@@ -27,8 +27,7 @@ import {
   settlements,
   users,
   vendors,
-} from '../../../drizzle/schema';
-import { haversineKm } from '../catalog/catalog.types';
+} from '../../../drizzle/schema';import { haversineKm } from '../catalog/catalog.types';
 import { JobQueueService } from '../allocation/job-queue.service';
 import { PaymentService } from '../payment/payment.service';
 import { NotificationService } from '../notification/notification.service';
@@ -41,7 +40,7 @@ import { SettlementService } from '../revenue/settlement.service';
 import { RiderPayoutService } from '../revenue/rider-payout.service';
 import { settlementSummaryEmail } from '../notification/templates/email/settlement-summary';
 import { AreaManagerService } from '../area-manager/area-manager.service';
-import { DELIVERY_SLA_SECONDS, PARTNER_HEARTBEAT_MAX_AGE_MS } from './delivery.constants';
+import { DELIVERY_SLA_SECONDS, MAX_CONCURRENT_DELIVERIES, PARTNER_HEARTBEAT_MAX_AGE_MS } from './delivery.constants';
 
 type OrderType = 'grocery' | 'food';
 
@@ -179,6 +178,22 @@ export class DeliveryService {
       .set({ isOnline, updatedAt: new Date() })
       .where(eq(deliveryPartners.id, partner.id))
       .returning();
+
+    if (!isOnline) {
+      // Cancel any pending assignment offers so they don't burn their SLA window
+      // while this partner is offline and can't respond.
+      const pending = await this.db
+        .select()
+        .from(deliveryAssignments)
+        .where(and(eq(deliveryAssignments.deliveryPartnerId, partner.id), eq(deliveryAssignments.outcome, 'pending')));
+      for (const a of pending) {
+        this.jobQueue.cancel(a.id);
+        await this.db.update(deliveryAssignments).set({ outcome: 'timeout' }).where(eq(deliveryAssignments.id, a.id));
+        // Immediately re-offer to other available partners
+        await this.reassign(a);
+      }
+    }
+
     if (isOnline) {
       this.assignWaitingOrders().catch((e) => this.logger.error('Failed checking waiting orders on partner online', e));
     }
@@ -307,12 +322,11 @@ export class DeliveryService {
     const notExcluded = online.filter((p) => !excludePartnerIds.includes(p.id));
     if (notExcluded.length === 0) return null;
 
-    // The partner app shows one delivery at a time and stops looking for offers
-    // while one is active, so an offer sent to a partner mid-delivery can't be
-    // seen and just burns its whole window. Skip them; the order waits for the
-    // next partner who frees up (see assignWaitingOrders).
-    const busy = await this.partnersWithActiveDelivery(notExcluded.map((p) => p.id));
-    const available = notExcluded.filter((p) => !busy.has(p.id));
+    // A partner can carry up to MAX_CONCURRENT_DELIVERIES orders simultaneously.
+    // Count active (delivery_assigned / picked_up / out_for_delivery) orders per
+    // partner and exclude those who have hit the cap.
+    const activeCounts = await this.partnersActiveDeliveryCounts(notExcluded.map((p) => p.id));
+    const available = notExcluded.filter((p) => (activeCounts.get(p.id) ?? 0) < MAX_CONCURRENT_DELIVERIES);
     if (available.length === 0) return null;
 
     // Prefer partners whose app was heard from recently. If every online
@@ -341,8 +355,9 @@ export class DeliveryService {
     return candidates[0];
   }
 
-  private async partnersWithActiveDelivery(partnerIds: string[]): Promise<Set<string>> {
-    if (partnerIds.length === 0) return new Set();
+  /** Returns the number of in-flight orders (delivery_assigned / picked_up / out_for_delivery) per partner id. */
+  private async partnersActiveDeliveryCounts(partnerIds: string[]): Promise<Map<string, number>> {
+    if (partnerIds.length === 0) return new Map();
     const inFlight = ['delivery_assigned', 'picked_up', 'out_for_delivery'] as const;
     const [grocery, food] = await Promise.all([
       this.db
@@ -354,7 +369,18 @@ export class DeliveryService {
         .from(foodOrders)
         .where(and(inArray(foodOrders.deliveryPartnerId, partnerIds), inArray(foodOrders.status, [...inFlight]))),
     ]);
-    return new Set([...grocery, ...food].map((r) => r.partnerId).filter((id): id is string => !!id));
+    const counts = new Map<string, number>();
+    for (const { partnerId } of [...grocery, ...food]) {
+      if (!partnerId) continue;
+      counts.set(partnerId, (counts.get(partnerId) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  /** @deprecated use partnersActiveDeliveryCounts instead */
+  private async partnersWithActiveDelivery(partnerIds: string[]): Promise<Set<string>> {
+    const counts = await this.partnersActiveDeliveryCounts(partnerIds);
+    return new Set([...counts.entries()].filter(([, c]) => c >= MAX_CONCURRENT_DELIVERIES).map(([id]) => id));
   }
 
   private async pickupPoint(type: OrderType, orderId: string): Promise<{ lat: number; lng: number } | null> {
@@ -784,11 +810,33 @@ export class DeliveryService {
       throw new BadRequestException('Order must be out for delivery before it can be marked delivered');
     }
     if (!order.deliveryOtp || order.deliveryOtp !== otp) {
+      // Rate-limit: count recent failed OTP attempts stored in orderStatusHistory
+      // (we reuse the existing infra — a failed attempt is just a noop, we track
+      // it in memory via a simple in-process counter keyed on orderId).
+      // A lightweight guard: 5 wrong attempts locks out further tries for 60s.
+      const key = `otp-attempts:${orderId}`;
+      const attempts = DeliveryService.otpAttempts.get(key) ?? { count: 0, firstAt: Date.now() };
+      if (Date.now() - attempts.firstAt > 60_000) {
+        // Window expired — reset
+        DeliveryService.otpAttempts.set(key, { count: 1, firstAt: Date.now() });
+      } else {
+        attempts.count += 1;
+        DeliveryService.otpAttempts.set(key, attempts);
+        if (attempts.count >= 5) {
+          throw new BadRequestException('Too many incorrect OTP attempts — please wait 60 seconds and try again');
+        }
+      }
       throw new BadRequestException('Incorrect OTP');
     }
+    // Clear attempt counter on success
+    DeliveryService.otpAttempts.delete(`otp-attempts:${orderId}`);
     await this.completeDelivery(type, orderId, order, userId, { role: 'delivery_partner', userId });
     return { ok: true };
   }
+
+  // In-process OTP attempt tracker (restarted on server restart, which is acceptable
+  // for a 60-second window — the main guard is the 6-digit code itself).
+  private static readonly otpAttempts = new Map<string, { count: number; firstAt: number }>();
 
   // ---------- Admin overrides ----------
 
@@ -949,12 +997,39 @@ export class DeliveryService {
     const userRows = userIds.length ? await this.db.select().from(users).where(inArray(users.id, userIds)) : [];
     const userMap = new Map(userRows.map((u) => [u.id, u]));
 
+    // Real delivered counts per partner (no stubs)
+    const partnerIds = rows.map((r) => r.id);
+    const [groceryDone, foodDone] = partnerIds.length
+      ? await Promise.all([
+          this.db.select({ partnerId: groceryOrders.deliveryPartnerId }).from(groceryOrders)
+            .where(and(inArray(groceryOrders.deliveryPartnerId, partnerIds), eq(groceryOrders.status, 'delivered'))),
+          this.db.select({ partnerId: foodOrders.deliveryPartnerId }).from(foodOrders)
+            .where(and(inArray(foodOrders.deliveryPartnerId, partnerIds), eq(foodOrders.status, 'delivered'))),
+        ])
+      : [[], []];
+    const deliveryCountById = new Map<string, number>();
+    for (const { partnerId } of [...groceryDone, ...foodDone]) {
+      if (partnerId) deliveryCountById.set(partnerId, (deliveryCountById.get(partnerId) ?? 0) + 1);
+    }
+
+    // Real today earnings from settlements
+    const settlementsRows = partnerIds.length
+      ? await this.db.select().from(settlements).where(inArray(settlements.deliveryPartnerId, partnerIds))
+      : [];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayEarningsById = new Map<string, number>();
+    for (const s of settlementsRows) {
+      if (s.deliveryPartnerId && Date.now() - s.createdAt.getTime() < dayMs) {
+        todayEarningsById.set(s.deliveryPartnerId, (todayEarningsById.get(s.deliveryPartnerId) ?? 0) + s.deliveryPayout);
+      }
+    }
+
     return rows.map((r) => {
       const u = userMap.get(r.userId);
       return {
         id: r.id,
         userId: r.userId,
-        name: `Rider +91 ${u?.phone ?? '••••'}`,
+        name: u?.name ?? `Rider +91 ${u?.phone ?? '••••'}`,
         phone: u?.phone ?? '',
         email: u?.email ?? '',
         vehicleType: r.vehicleType,
@@ -962,8 +1037,8 @@ export class DeliveryService {
         online: r.isOnline,
         activity: u?.status === 'active' ? 'active' : 'inactive',
         zone: 'Main City / Rural Hub',
-        todayEarnings: 450,
-        totalDeliveries: 28,
+        todayEarnings: Math.round((todayEarningsById.get(r.id) ?? 0) * 100) / 100,
+        totalDeliveries: deliveryCountById.get(r.id) ?? 0,
         createdAt: r.createdAt,
       };
     });
@@ -976,10 +1051,27 @@ export class DeliveryService {
     const [user] = await this.db.select().from(users).where(eq(users.id, partner.userId)).limit(1);
     const docs = await this.db.select().from(kycDocuments).where(eq(kycDocuments.userId, partner.userId));
 
+    const [groceryDone, foodDone] = await Promise.all([
+      this.db.select({ id: groceryOrders.id }).from(groceryOrders)
+        .where(and(eq(groceryOrders.deliveryPartnerId, partner.id), eq(groceryOrders.status, 'delivered'))),
+      this.db.select({ id: foodOrders.id }).from(foodOrders)
+        .where(and(eq(foodOrders.deliveryPartnerId, partner.id), eq(foodOrders.status, 'delivered'))),
+    ]);
+    const totalDeliveries = groceryDone.length + foodDone.length;
+
+    const allOrderIds = [...groceryDone.map((o) => o.id), ...foodDone.map((o) => o.id)];
+    const settlementsRows = allOrderIds.length
+      ? await this.db.select().from(settlements).where(inArray(settlements.deliveryPartnerId, [partner.id]))
+      : [];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayEarnings = settlementsRows
+      .filter((s) => Date.now() - s.createdAt.getTime() < dayMs)
+      .reduce((sum, s) => sum + s.deliveryPayout, 0);
+
     return {
       id: partner.id,
       userId: partner.userId,
-      name: `Rider +91 ${user?.phone ?? '••••'}`,
+      name: user?.name ?? `Rider +91 ${user?.phone ?? '••••'}`,
       phone: user?.phone ?? '',
       email: user?.email ?? '',
       vehicleType: partner.vehicleType,
@@ -988,8 +1080,8 @@ export class DeliveryService {
       activity: user?.status === 'active' ? 'active' : 'inactive',
       zone: 'Main City / Rural Hub',
       kycDocuments: docs,
-      todayEarnings: 450,
-      totalDeliveries: 28,
+      todayEarnings: Math.round(todayEarnings * 100) / 100,
+      totalDeliveries,
       createdAt: partner.createdAt,
     };
   }

@@ -5,6 +5,9 @@
 // Re-assignment SLA timeout: 5 minutes (300 seconds)
 export const DELIVERY_SLA_SECONDS = Number(process.env.DELIVERY_SLA_SECONDS ?? 300);
 
+// Maximum number of orders a single delivery partner can hold simultaneously.
+// Configurable via env; defaults to 5.
+export const MAX_CONCURRENT_DELIVERIES = Number(process.env.MAX_CONCURRENT_DELIVERIES ?? 5);
+
 // Heartbeat / Doze mode / GPS location staleness window: 10 minutes (600 seconds)
 export const PARTNER_HEARTBEAT_MAX_AGE_MS = Number(process.env.PARTNER_HEARTBEAT_MAX_AGE_SECONDS ?? 600) * 1000;
-

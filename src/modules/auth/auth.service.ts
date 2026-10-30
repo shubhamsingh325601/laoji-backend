@@ -113,6 +113,9 @@ export class AuthService {
     await this.db.update(otpCodes).set({ consumedAt: new Date() }).where(eq(otpCodes.id, otp.id));
 
     const user = await this.findOrCreateByPhone(phone, role);
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This account has been suspended. Please contact support.');
+    }
     const tokens = await this.issueTokens(user.id, user.role, deviceId);
     return { tokens, userId: user.id, role: user.role };
   }
@@ -159,28 +162,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    let matches = await bcrypt.compare(password, user.passwordHash);
-
-    // If password didn't match user's current hash, also check all other existing admin password hashes
-    // so any previous admin password (e.g. Admin@123 or legacy hash) works seamlessly
-    if (!matches) {
-      const otherAdmins = await this.db
-        .select({ passwordHash: users.passwordHash })
-        .from(users)
-        .where(and(eq(users.role, 'admin'), isNotNull(users.passwordHash)));
-
-      for (const adminRow of otherAdmins) {
-        if (adminRow.passwordHash && adminRow.passwordHash !== user.passwordHash) {
-          if (await bcrypt.compare(password, adminRow.passwordHash)) {
-            matches = true;
-            // Upgrade this user's passwordHash so future logins match directly
-            const upgradedHash = await bcrypt.hash(password, 10);
-            await this.db.update(users).set({ passwordHash: upgradedHash }).where(eq(users.id, user.id));
-            break;
-          }
-        }
-      }
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This account has been suspended');
     }
+
+    const matches = await bcrypt.compare(password, user.passwordHash);
 
     if (!matches) {
       throw new UnauthorizedException('Invalid email or password');
@@ -208,6 +194,10 @@ export class AuthService {
 
     if (!user.passwordHash) {
       throw new UnauthorizedException('Password is not set for this account. Please sign up or reset your password.');
+    }
+
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This account has been suspended. Please contact support.');
     }
 
     const matches = await bcrypt.compare(password, user.passwordHash);
@@ -308,6 +298,10 @@ export class AuthService {
 
     if (!user.passwordHash) {
       throw new UnauthorizedException('Password is not set for this account. Please reset password or contact support.');
+    }
+
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This account has been suspended. Please contact support.');
     }
 
     const matches = await bcrypt.compare(password, user.passwordHash);
@@ -446,6 +440,10 @@ export class AuthService {
 
     if (!user.passwordHash) {
       throw new UnauthorizedException('Password not set for this account. Please use Forgot Password to set one.');
+    }
+
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('This account has been suspended. Please contact support.');
     }
 
     const matches = await bcrypt.compare(password, user.passwordHash);

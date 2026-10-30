@@ -26,8 +26,8 @@ async function main() {
   const businessHours = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
     day,
     isOpen: true,
-    openTime: '06:00',
-    closeTime: '23:30',
+    openTime: '06:30',
+    closeTime: '21:00',
   }));
 
   const ganpatiUpdate = await client.query(`
