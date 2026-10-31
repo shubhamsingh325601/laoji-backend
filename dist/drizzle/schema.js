@@ -25,10 +25,14 @@ exports.users = (0, pg_core_1.pgTable)('users', {
     notifyKyc: (0, pg_core_1.boolean)('notify_kyc').notNull().default(true),
     supportNotes: (0, pg_core_1.text)('support_notes'),
     mustChangePassword: (0, pg_core_1.boolean)('must_change_password').notNull().default(false),
+    referralCode: (0, pg_core_1.varchar)('referral_code', { length: 12 }),
+    referredBy: (0, pg_core_1.uuid)('referred_by').references(() => exports.users.id, { onDelete: 'set null' }),
+    referralRewardedAt: (0, pg_core_1.timestamp)('referral_rewarded_at', { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     (0, pg_core_1.uniqueIndex)('users_phone_role_idx').on(table.phone, table.role),
     (0, pg_core_1.uniqueIndex)('users_email_idx').on(table.email),
+    (0, pg_core_1.uniqueIndex)('users_referral_code_idx').on(table.referralCode),
 ]);
 exports.authTokens = (0, pg_core_1.pgTable)('auth_tokens', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
@@ -164,6 +168,8 @@ exports.products = (0, pg_core_1.pgTable)('products', {
     templateProductId: (0, pg_core_1.uuid)('template_product_id').references(() => exports.products.id, {
         onDelete: 'set null',
     }),
+    variantGroupId: (0, pg_core_1.uuid)('variant_group_id'),
+    variantLabel: (0, pg_core_1.varchar)('variant_label', { length: 50 }),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.vendorProducts = (0, pg_core_1.pgTable)('vendor_products', {
@@ -594,6 +600,10 @@ exports.scratchCards = (0, pg_core_1.pgTable)('scratch_cards', {
     status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('unscratched'),
     amount: (0, pg_core_1.integer)('amount'),
     scratchedAt: (0, pg_core_1.timestamp)('scratched_at', { withTimezone: true }),
+    expiresAt: (0, pg_core_1.timestamp)('expires_at', { withTimezone: true }),
+    expiredAt: (0, pg_core_1.timestamp)('expired_at', { withTimezone: true }),
+    restoredAt: (0, pg_core_1.timestamp)('restored_at', { withTimezone: true }),
+    adminNotes: (0, pg_core_1.text)('admin_notes'),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     (0, pg_core_1.uniqueIndex)('scratch_cards_order_idx').on(table.orderType, table.orderId),
@@ -704,6 +714,10 @@ exports.walletTransactions = (0, pg_core_1.pgTable)('wallet_transactions', {
         .notNull()
         .references(() => exports.users.id, { onDelete: 'cascade' }),
     amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    remainingAmount: (0, pg_core_1.doublePrecision)('remaining_amount'),
+    expiresAt: (0, pg_core_1.timestamp)('expires_at', { withTimezone: true }),
+    expiredAt: (0, pg_core_1.timestamp)('expired_at', { withTimezone: true }),
+    restoredAt: (0, pg_core_1.timestamp)('restored_at', { withTimezone: true }),
     type: (0, pg_core_1.varchar)('type', { length: 30 }).notNull(),
     status: (0, pg_core_1.varchar)('status', { length: 20 }).notNull().default('completed'),
     description: (0, pg_core_1.text)('description').notNull(),

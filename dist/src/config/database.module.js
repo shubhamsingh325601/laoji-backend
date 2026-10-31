@@ -199,6 +199,12 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         `INSERT INTO "platform_settings" ("key", "value", "description")
            VALUES ('vendor_min_withdrawal_limit', '500', 'Default minimum withdrawal limit for vendors in INR')
            ON CONFLICT ("key") DO NOTHING`,
+                        `INSERT INTO "platform_settings" ("key", "value", "description")
+           VALUES ('customer_upi_vpa', '8005949152-3@ybl', 'Default customer UPI payment VPA address')
+           ON CONFLICT ("key") DO NOTHING`,
+                        `INSERT INTO "platform_settings" ("key", "value", "description")
+           VALUES ('customer_upi_payee_name', 'Laoji', 'Default customer UPI payee name')
+           ON CONFLICT ("key") DO NOTHING`,
                         `CREATE TABLE IF NOT EXISTS "new_customer_delivery_settings" (
             "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
             "enabled" boolean DEFAULT true NOT NULL,
@@ -252,6 +258,9 @@ exports.DatabaseModule = DatabaseModule = __decorate([
           )`,
                         `CREATE UNIQUE INDEX IF NOT EXISTS "scratch_cards_order_idx" ON "scratch_cards" ("order_type", "order_id")`,
                         `CREATE INDEX IF NOT EXISTS "scratch_cards_user_idx" ON "scratch_cards" ("user_id", "created_at")`,
+                        `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variant_group_id" uuid`,
+                        `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variant_label" varchar(50)`,
+                        `CREATE INDEX IF NOT EXISTS "products_variant_group_idx" ON "products" ("variant_group_id")`,
                     ];
                     for (const stmt of statements) {
                         await runQuery(stmt);

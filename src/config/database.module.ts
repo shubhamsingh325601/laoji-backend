@@ -156,6 +156,12 @@ export type Db = NodePgDatabase<typeof schema>;
           `INSERT INTO "platform_settings" ("key", "value", "description")
            VALUES ('vendor_min_withdrawal_limit', '500', 'Default minimum withdrawal limit for vendors in INR')
            ON CONFLICT ("key") DO NOTHING`,
+          `INSERT INTO "platform_settings" ("key", "value", "description")
+           VALUES ('customer_upi_vpa', '8005949152-3@ybl', 'Default customer UPI payment VPA address')
+           ON CONFLICT ("key") DO NOTHING`,
+          `INSERT INTO "platform_settings" ("key", "value", "description")
+           VALUES ('customer_upi_payee_name', 'Laoji', 'Default customer UPI payee name')
+           ON CONFLICT ("key") DO NOTHING`,
           `CREATE TABLE IF NOT EXISTS "new_customer_delivery_settings" (
             "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
             "enabled" boolean DEFAULT true NOT NULL,

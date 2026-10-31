@@ -17,6 +17,7 @@ import {
   check,
   date,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -979,6 +980,10 @@ export const scratchCards = pgTable(
     status: varchar('status', { length: 20 }).notNull().default('unscratched'), // 'unscratched' | 'scratched'
     amount: integer('amount'), // null until scratched
     scratchedAt: timestamp('scratched_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    expiredAt: timestamp('expired_at', { withTimezone: true }),
+    restoredAt: timestamp('restored_at', { withTimezone: true }),
+    adminNotes: text('admin_notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -1123,6 +1128,10 @@ export const walletTransactions = pgTable('wallet_transactions', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   amount: doublePrecision('amount').notNull(),
+  remainingAmount: doublePrecision('remaining_amount'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  expiredAt: timestamp('expired_at', { withTimezone: true }),
+  restoredAt: timestamp('restored_at', { withTimezone: true }),
   type: varchar('type', { length: 30 }).notNull(), // 'affiliate_commission' | 'withdrawal' | 'adjustment'
   status: varchar('status', { length: 20 }).notNull().default('completed'), // 'pending' | 'completed' | 'cancelled' | 'rejected'
   description: text('description').notNull(),
