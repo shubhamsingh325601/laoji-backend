@@ -18,6 +18,9 @@ export declare class UserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateEmail(user: JwtAccessPayload, dto: UpdateEmailDto): Promise<{
@@ -33,6 +36,9 @@ export declare class UserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateProfile(user: JwtAccessPayload, dto: UpdateProfileDto): Promise<{
@@ -48,6 +54,9 @@ export declare class UserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateProfileDirect(user: JwtAccessPayload, dto: UpdateProfileDto): Promise<{
@@ -63,6 +72,9 @@ export declare class UserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     deleteAccount(user: JwtAccessPayload): Promise<{

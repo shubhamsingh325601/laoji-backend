@@ -46,6 +46,9 @@ export declare class AdminUserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     update(id: string, dto: UpdateAdminUserDto): Promise<{
@@ -62,6 +65,9 @@ export declare class AdminUserController {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     delete(id: string): Promise<{

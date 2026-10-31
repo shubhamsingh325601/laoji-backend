@@ -7,7 +7,7 @@ import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @UseGuards(JwtAuthGuard)
-@Controller('users')
+@Controller(['users', '', 'admin'])
 export class UserController {
   constructor(private readonly auth: AuthService) {}
 

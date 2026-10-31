@@ -48,6 +48,9 @@ export declare class UserService {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateUser(id: string, dto: UpdateAdminUserDto): Promise<{
@@ -64,6 +67,9 @@ export declare class UserService {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     deleteUser(id: string): Promise<{

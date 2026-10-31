@@ -81,7 +81,7 @@ __decorate([
 ], UserController.prototype, "deleteAccount", null);
 exports.UserController = UserController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, common_1.Controller)('users'),
+    (0, common_1.Controller)(['users', '', 'admin']),
     __metadata("design:paramtypes", [auth_service_1.AuthService])
 ], UserController);
 //# sourceMappingURL=user.controller.js.map
