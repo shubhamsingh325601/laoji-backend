@@ -10,7 +10,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateGroceryProductDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const admin_vendor_item_dto_1 = require("./admin-vendor-item.dto");
 class CreateGroceryProductDto {
     categoryId;
     name;
@@ -28,6 +30,7 @@ class CreateGroceryProductDto {
     isAvailable;
     restockEta;
     attributes;
+    sizes;
 }
 exports.CreateGroceryProductDto = CreateGroceryProductDto;
 __decorate([
@@ -114,4 +117,12 @@ __decorate([
     (0, class_validator_1.IsObject)(),
     __metadata("design:type", Object)
 ], CreateGroceryProductDto.prototype, "attributes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(20),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => admin_vendor_item_dto_1.GrocerySizeInput),
+    __metadata("design:type", Array)
+], CreateGroceryProductDto.prototype, "sizes", void 0);
 //# sourceMappingURL=create-grocery-product.dto.js.map

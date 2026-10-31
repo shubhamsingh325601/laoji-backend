@@ -24,7 +24,7 @@ export declare class AdminPaymentController {
         type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
+        provider: "upi_deeplink" | "razorpay" | "cod" | "wallet";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -34,7 +34,7 @@ export declare class AdminPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
+        provider: "upi_deeplink" | "razorpay" | "cod" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;
@@ -49,7 +49,7 @@ export declare class AdminPaymentController {
         type: import("./payment.service").OrderType;
         orderId: string;
         orderCode: string;
-        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
+        provider: "upi_deeplink" | "razorpay" | "cod" | "wallet";
         amount: number;
         upiDeepLink: string | null;
         customerPhone: string;
@@ -59,7 +59,7 @@ export declare class AdminPaymentController {
         id: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
-        provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
+        provider: "upi_deeplink" | "razorpay" | "cod" | "wallet";
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         amount: number;
         upiDeepLink: string | null;

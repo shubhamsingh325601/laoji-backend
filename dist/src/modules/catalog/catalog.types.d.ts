@@ -13,6 +13,7 @@ export declare const DEFAULT_PICKUP: {
     readonly lat: 24.924;
     readonly lng: 76.283;
 };
+export declare const DEFAULT_VENDOR_RADIUS_KM = 4;
 export declare function isDefaultPickup(lat: number, lng: number): boolean;
 export declare const CORE_DELIVERY_RADIUS_KM = 2;
 export declare const OUTER_ZONE_DELIVERY_FEE = 15;

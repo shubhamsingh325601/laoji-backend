@@ -17,6 +17,7 @@ const vendor_catalog_controller_1 = require("./vendor-catalog.controller");
 const vendor_menu_controller_1 = require("./vendor-menu.controller");
 const public_catalog_controller_1 = require("./public-catalog.controller");
 const vendor_schedule_service_1 = require("./vendor-schedule.service");
+const grocery_sizes_service_1 = require("./grocery-sizes.service");
 let CatalogModule = class CatalogModule {
 };
 exports.CatalogModule = CatalogModule;
@@ -24,7 +25,7 @@ exports.CatalogModule = CatalogModule = __decorate([
     (0, common_1.Module)({
         imports: [notification_module_1.NotificationModule, vendor_discounts_module_1.VendorDiscountsModule, revenue_module_1.RevenueModule],
         controllers: [admin_catalog_controller_1.AdminCatalogController, vendor_catalog_controller_1.VendorCatalogController, vendor_menu_controller_1.VendorMenuController, public_catalog_controller_1.PublicCatalogController],
-        providers: [catalog_service_1.CatalogService, vendor_schedule_service_1.VendorScheduleService],
+        providers: [catalog_service_1.CatalogService, vendor_schedule_service_1.VendorScheduleService, grocery_sizes_service_1.GrocerySizesService],
         exports: [catalog_service_1.CatalogService],
     })
 ], CatalogModule);

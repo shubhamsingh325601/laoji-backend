@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OUTER_ZONE_DELIVERY_FEE = exports.CORE_DELIVERY_RADIUS_KM = exports.DEFAULT_PICKUP = exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
+exports.OUTER_ZONE_DELIVERY_FEE = exports.CORE_DELIVERY_RADIUS_KM = exports.DEFAULT_VENDOR_RADIUS_KM = exports.DEFAULT_PICKUP = exports.BUSINESS_TYPE_ROOT_CATEGORY = exports.BUSINESS_TYPES = void 0;
 exports.haversineKm = haversineKm;
 exports.roundKm = roundKm;
 exports.categoryBusinessType = categoryBusinessType;
@@ -53,6 +53,7 @@ function isCategoryVisibleTo(categoryType, vendorBusinessType) {
     return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
 }
 exports.DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 };
+exports.DEFAULT_VENDOR_RADIUS_KM = 4;
 const FALLBACK_PICKUPS = [exports.DEFAULT_PICKUP, { lat: 16.705, lng: 74.2433 }];
 function isDefaultPickup(lat, lng) {
     return FALLBACK_PICKUPS.some((p) => p.lat === lat && p.lng === lng);

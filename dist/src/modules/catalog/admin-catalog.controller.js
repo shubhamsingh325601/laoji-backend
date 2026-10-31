@@ -25,10 +25,20 @@ const product_suggestion_dto_1 = require("./dto/product-suggestion.dto");
 const category_suggestion_dto_1 = require("./dto/category-suggestion.dto");
 const admin_vendor_dto_1 = require("./dto/admin-vendor.dto");
 const admin_vendor_item_dto_1 = require("./dto/admin-vendor-item.dto");
+const catalog_features_dto_1 = require("./dto/catalog-features.dto");
+const grocery_sizes_service_1 = require("./grocery-sizes.service");
 let AdminCatalogController = class AdminCatalogController {
     catalog;
-    constructor(catalog) {
+    grocerySizes;
+    constructor(catalog, grocerySizes) {
         this.catalog = catalog;
+        this.grocerySizes = grocerySizes;
+    }
+    async getCatalogFeatures() {
+        return { grocerySizes: await this.grocerySizes.isEnabled() };
+    }
+    updateCatalogFeatures(user, dto) {
+        return this.grocerySizes.setEnabled(dto.grocerySizes, user.sub);
     }
     listCategories() {
         return this.catalog.listCategoriesTree();
@@ -119,6 +129,20 @@ let AdminCatalogController = class AdminCatalogController {
     }
 };
 exports.AdminCatalogController = AdminCatalogController;
+__decorate([
+    (0, common_1.Get)('catalog/features'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminCatalogController.prototype, "getCatalogFeatures", null);
+__decorate([
+    (0, common_1.Put)('catalog/features'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, catalog_features_dto_1.UpdateCatalogFeaturesDto]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "updateCatalogFeatures", null);
 __decorate([
     (0, common_1.Get)('categories'),
     __metadata("design:type", Function),
@@ -339,6 +363,7 @@ exports.AdminCatalogController = AdminCatalogController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('admin'),
-    __metadata("design:paramtypes", [catalog_service_1.CatalogService])
+    __metadata("design:paramtypes", [catalog_service_1.CatalogService,
+        grocery_sizes_service_1.GrocerySizesService])
 ], AdminCatalogController);
 //# sourceMappingURL=admin-catalog.controller.js.map

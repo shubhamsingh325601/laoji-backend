@@ -152,12 +152,12 @@ export declare class AdminWalletController {
         success: boolean;
         message: string;
         transaction: {
+            type: string;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
             expiresAt: Date | null;
-            type: string;
             description: string;
             couponCode: string | null;
             amount: number;
@@ -329,12 +329,12 @@ export declare class AdminWalletController {
         success: boolean;
         message: string;
         transaction: {
+            type: string;
             id: string;
             status: string;
             createdAt: Date;
             userId: string;
             expiresAt: Date | null;
-            type: string;
             description: string;
             couponCode: string | null;
             amount: number;

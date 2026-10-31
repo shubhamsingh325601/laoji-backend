@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateAdminVendorItemDto = exports.CreateAdminVendorItemDto = exports.BulkDeleteAdminVendorItemsDto = void 0;
+exports.UpdateAdminVendorItemDto = exports.CreateAdminVendorItemDto = exports.GrocerySizeInput = exports.BulkDeleteAdminVendorItemsDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const menu_dto_1 = require("./menu.dto");
@@ -23,6 +23,40 @@ __decorate([
     (0, class_validator_1.ArrayNotEmpty)(),
     __metadata("design:type", Array)
 ], BulkDeleteAdminVendorItemsDto.prototype, "itemIds", void 0);
+class GrocerySizeInput {
+    listingId;
+    label;
+    price;
+    stockQty;
+    isAvailable;
+}
+exports.GrocerySizeInput = GrocerySizeInput;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], GrocerySizeInput.prototype, "listingId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(1, 50),
+    __metadata("design:type", String)
+], GrocerySizeInput.prototype, "label", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], GrocerySizeInput.prototype, "price", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], GrocerySizeInput.prototype, "stockQty", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], GrocerySizeInput.prototype, "isAvailable", void 0);
 class CreateAdminVendorItemDto {
     itemType;
     name;
@@ -40,6 +74,7 @@ class CreateAdminVendorItemDto {
     isCustomisable;
     variants;
     addons;
+    sizes;
 }
 exports.CreateAdminVendorItemDto = CreateAdminVendorItemDto;
 __decorate([
@@ -129,6 +164,14 @@ __decorate([
     (0, class_transformer_1.Type)(() => menu_dto_1.MenuItemAddonInput),
     __metadata("design:type", Array)
 ], CreateAdminVendorItemDto.prototype, "addons", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(20),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => GrocerySizeInput),
+    __metadata("design:type", Array)
+], CreateAdminVendorItemDto.prototype, "sizes", void 0);
 class UpdateAdminVendorItemDto {
     name;
     description;
@@ -144,6 +187,7 @@ class UpdateAdminVendorItemDto {
     isCustomisable;
     variants;
     addons;
+    sizes;
 }
 exports.UpdateAdminVendorItemDto = UpdateAdminVendorItemDto;
 __decorate([
@@ -225,4 +269,12 @@ __decorate([
     (0, class_transformer_1.Type)(() => menu_dto_1.MenuItemAddonInput),
     __metadata("design:type", Array)
 ], UpdateAdminVendorItemDto.prototype, "addons", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(20),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => GrocerySizeInput),
+    __metadata("design:type", Array)
+], UpdateAdminVendorItemDto.prototype, "sizes", void 0);
 //# sourceMappingURL=admin-vendor-item.dto.js.map

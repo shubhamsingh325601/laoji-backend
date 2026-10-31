@@ -7,5 +7,6 @@ export declare class CustomerRegisterDto {
     phone: string;
     password: string;
     name?: string;
+    referralCode?: string;
     deviceId?: string;
 }

@@ -4329,7 +4329,7 @@ export declare const payments: import("drizzle-orm/pg-core").PgTableWithColumns<
             tableName: "payments";
             dataType: "string";
             columnType: "PgEnumColumn";
-            data: "upi_deeplink" | "cod" | "razorpay" | "wallet";
+            data: "upi_deeplink" | "razorpay" | "cod" | "wallet";
             driverParam: string;
             notNull: true;
             hasDefault: false;

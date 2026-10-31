@@ -26,6 +26,9 @@ let WalletController = class WalletController {
     async getMyWallet(user) {
         return this.wallet.getWalletSummary(user.sub);
     }
+    async myReferral(user) {
+        return this.wallet.getReferralSummary(user.sub);
+    }
     async myScratchCards(user) {
         return this.wallet.listScratchCards(user.sub);
     }
@@ -44,6 +47,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], WalletController.prototype, "getMyWallet", null);
+__decorate([
+    (0, common_1.Get)('referral'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], WalletController.prototype, "myReferral", null);
 __decorate([
     (0, common_1.Get)('scratch-cards'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

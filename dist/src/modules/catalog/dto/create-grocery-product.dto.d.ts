@@ -1,3 +1,4 @@
+import { GrocerySizeInput } from './admin-vendor-item.dto';
 export declare class CreateGroceryProductDto {
     categoryId: string;
     name: string;
@@ -15,4 +16,5 @@ export declare class CreateGroceryProductDto {
     isAvailable?: boolean;
     restockEta?: string | null;
     attributes?: Record<string, unknown>;
+    sizes?: GrocerySizeInput[];
 }

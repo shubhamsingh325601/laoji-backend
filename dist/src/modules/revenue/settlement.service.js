@@ -50,7 +50,7 @@ let SettlementService = class SettlementService {
             .insert(schema_1.settlements)
             .values({
             ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
-            vendorPayout: order.subtotal - order.platformCommission,
+            vendorPayout: Math.round((order.subtotal - order.platformCommission) * 100) / 100,
             deliveryPayout: riderPayout,
             platformShare: order.platformCommission,
             commissionPctSnapshot: order.commissionPct,
@@ -64,6 +64,12 @@ let SettlementService = class SettlementService {
         }
         catch (err) {
             console.error('[SettlementService] Failed to issue scratch card on order delivery:', err);
+        }
+        try {
+            await this.wallet.creditReferralReward(order.customerId, type, orderId, order.subtotal);
+        }
+        catch (err) {
+            console.error('[SettlementService] Failed to credit referral reward on order delivery:', err);
         }
         return settlement;
     }

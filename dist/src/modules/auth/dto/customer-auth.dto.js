@@ -36,6 +36,7 @@ class CustomerRegisterDto {
     phone;
     password;
     name;
+    referralCode;
     deviceId;
 }
 exports.CustomerRegisterDto = CustomerRegisterDto;
@@ -54,6 +55,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CustomerRegisterDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(20),
+    __metadata("design:type", String)
+], CustomerRegisterDto.prototype, "referralCode", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

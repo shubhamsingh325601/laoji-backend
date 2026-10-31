@@ -16,6 +16,7 @@ exports.PublicCatalogController = void 0;
 const common_1 = require("@nestjs/common");
 const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const catalog_service_1 = require("./catalog.service");
+const grocery_sizes_service_1 = require("./grocery-sizes.service");
 function parseCoord(lat, lng) {
     let latNum = Number(lat);
     let lngNum = Number(lng);
@@ -30,8 +31,13 @@ function parseCoord(lat, lng) {
 }
 let PublicCatalogController = class PublicCatalogController {
     catalog;
-    constructor(catalog) {
+    grocerySizes;
+    constructor(catalog, grocerySizes) {
         this.catalog = catalog;
+        this.grocerySizes = grocerySizes;
+    }
+    async features() {
+        return { grocerySizes: await this.grocerySizes.isEnabled() };
     }
     categories() {
         return this.catalog.listCustomerCategories();
@@ -60,6 +66,12 @@ let PublicCatalogController = class PublicCatalogController {
     }
 };
 exports.PublicCatalogController = PublicCatalogController;
+__decorate([
+    (0, common_1.Get)('features'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], PublicCatalogController.prototype, "features", null);
 __decorate([
     (0, common_1.Get)('categories'),
     __metadata("design:type", Function),
@@ -120,6 +132,7 @@ __decorate([
 exports.PublicCatalogController = PublicCatalogController = __decorate([
     (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Controller)('catalog'),
-    __metadata("design:paramtypes", [catalog_service_1.CatalogService])
+    __metadata("design:paramtypes", [catalog_service_1.CatalogService,
+        grocery_sizes_service_1.GrocerySizesService])
 ], PublicCatalogController);
 //# sourceMappingURL=public-catalog.controller.js.map

@@ -1,3 +1,4 @@
+import { GrocerySizeInput } from './admin-vendor-item.dto';
 export declare class VendorProductDetailsDto {
     name?: string;
     brand?: string;
@@ -19,6 +20,7 @@ export declare class UpsertVendorProductDto extends VendorProductDetailsDto {
     offerTag?: string;
     lowStockThreshold?: number;
     restockEta?: string | null;
+    sizes?: GrocerySizeInput[];
 }
 export declare class UpdateVendorProductDto extends VendorProductDetailsDto {
     price?: number;
@@ -27,6 +29,7 @@ export declare class UpdateVendorProductDto extends VendorProductDetailsDto {
     offerTag?: string;
     lowStockThreshold?: number;
     restockEta?: string | null;
+    sizes?: GrocerySizeInput[];
 }
 export declare class RestockVendorProductDto {
     qty: number;

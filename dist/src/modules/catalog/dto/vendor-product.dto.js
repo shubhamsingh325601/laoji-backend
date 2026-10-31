@@ -10,7 +10,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateVendorCustomProductDto = exports.CreateVendorCustomProductDto = exports.RestockVendorProductDto = exports.UpdateVendorProductDto = exports.UpsertVendorProductDto = exports.VendorProductDetailsDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const admin_vendor_item_dto_1 = require("./admin-vendor-item.dto");
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 class VendorProductDetailsDto {
     name;
@@ -92,6 +94,7 @@ class UpsertVendorProductDto extends VendorProductDetailsDto {
     offerTag;
     lowStockThreshold;
     restockEta;
+    sizes;
 }
 exports.UpsertVendorProductDto = UpsertVendorProductDto;
 __decorate([
@@ -131,6 +134,14 @@ __decorate([
     (0, class_validator_1.IsISO8601)({ strict: true }),
     __metadata("design:type", Object)
 ], UpsertVendorProductDto.prototype, "restockEta", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(20),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => admin_vendor_item_dto_1.GrocerySizeInput),
+    __metadata("design:type", Array)
+], UpsertVendorProductDto.prototype, "sizes", void 0);
 class UpdateVendorProductDto extends VendorProductDetailsDto {
     price;
     stockQty;
@@ -138,6 +149,7 @@ class UpdateVendorProductDto extends VendorProductDetailsDto {
     offerTag;
     lowStockThreshold;
     restockEta;
+    sizes;
 }
 exports.UpdateVendorProductDto = UpdateVendorProductDto;
 __decorate([
@@ -175,6 +187,14 @@ __decorate([
     (0, class_validator_1.IsISO8601)({ strict: true }),
     __metadata("design:type", Object)
 ], UpdateVendorProductDto.prototype, "restockEta", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(20),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => admin_vendor_item_dto_1.GrocerySizeInput),
+    __metadata("design:type", Array)
+], UpdateVendorProductDto.prototype, "sizes", void 0);
 class RestockVendorProductDto {
     qty;
 }

