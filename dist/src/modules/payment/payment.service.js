@@ -83,28 +83,7 @@ let PaymentService = class PaymentService {
             .where((0, drizzle_orm_1.eq)(table.id, orderId));
     }
     async debitWalletForOrder(type, orderId, customerId, maxAmount) {
-        const wallet = await this.wallet.getOrCreateWallet(customerId);
-        const amount = Math.min(Math.floor(wallet.balance * 100) / 100, maxAmount);
-        if (amount <= 0)
-            return 0;
-        const updated = await this.db
-            .update(schema_1.wallets)
-            .set({ balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} - ${amount}`, updatedAt: new Date() })
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id), (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} >= ${amount}`))
-            .returning({ id: schema_1.wallets.id });
-        if (!updated.length)
-            throw new common_1.BadRequestException('Wallet balance changed. Please try again.');
-        await this.db.insert(schema_1.walletTransactions).values({
-            walletId: wallet.id,
-            userId: customerId,
-            amount,
-            type: 'order_payment',
-            status: 'completed',
-            description: `Payment for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
-            orderId,
-            orderType: type,
-        });
-        return amount;
+        return this.wallet.debitCustomerForOrder(customerId, maxAmount, orderId, type);
     }
     async refundWalletPortion(type, orderId, customerId) {
         const txs = await this.db
@@ -115,21 +94,7 @@ let PaymentService = class PaymentService {
         const amount = Math.round(net * 100) / 100;
         if (amount <= 0)
             return;
-        const wallet = await this.wallet.getOrCreateWallet(customerId);
-        await this.db
-            .update(schema_1.wallets)
-            .set({ balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} + ${amount}`, updatedAt: new Date() })
-            .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
-        await this.db.insert(schema_1.walletTransactions).values({
-            walletId: wallet.id,
-            userId: customerId,
-            amount,
-            type: 'order_refund',
-            status: 'completed',
-            description: `Refund for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
-            orderId,
-            orderType: type,
-        });
+        await this.wallet.refundCustomerForOrder(customerId, amount, orderId, type);
         const table = this.orderTable(type);
         await this.db.update(table).set({ walletAmount: 0 }).where((0, drizzle_orm_1.eq)(table.id, orderId));
     }
@@ -169,13 +134,17 @@ let PaymentService = class PaymentService {
             if (currentBalance < order.total) {
                 throw new common_1.BadRequestException(`Insufficient wallet balance. Available balance is ₹${currentBalance}, but order total is ₹${order.total}`);
             }
-            await this.db
+            const deducted = await this.db
                 .update(schema_1.wallets)
                 .set({
                 balance: (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} - ${order.total}`,
                 updatedAt: new Date(),
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id));
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.wallets.id, wallet.id), (0, drizzle_orm_1.sql) `${schema_1.wallets.balance} >= ${order.total}`))
+                .returning({ id: schema_1.wallets.id });
+            if (!deducted.length) {
+                throw new common_1.BadRequestException('Wallet balance changed — please refresh and try again.');
+            }
             const orderCode = orderId.slice(0, 8).toUpperCase();
             await this.db.insert(schema_1.walletTransactions).values({
                 walletId: wallet.id,
@@ -378,7 +347,11 @@ let PaymentService = class PaymentService {
                 await this.refundWalletPortion(type, orderId, order.customerId);
         }
         if (status === 'paid') {
-            this.paymentSatisfied$.next({ type, orderId });
+            const table = this.orderTable(type);
+            const [order] = await this.db.select().from(table).where((0, drizzle_orm_1.eq)(table.id, orderId)).limit(1);
+            if (order && !['cancelled', 'failed'].includes(order.status)) {
+                this.paymentSatisfied$.next({ type, orderId });
+            }
         }
         return updated;
     }
@@ -401,6 +374,76 @@ let PaymentService = class PaymentService {
         const type = payment.groceryOrderId ? 'grocery' : 'food';
         await this.setOrderPaymentStatus(type, (payment.groceryOrderId ?? payment.foodOrderId), 'refunded');
         return updated;
+    }
+    async getPaymentSettings() {
+        let upiId = this.config.get('UPI_VPA') || '8005949152-3@ybl';
+        let payeeName = this.config.get('UPI_PAYEE_NAME') || 'Laoji';
+        try {
+            const rows = await this.db
+                .select({ key: schema_1.platformSettings.key, value: schema_1.platformSettings.value })
+                .from(schema_1.platformSettings)
+                .where((0, drizzle_orm_1.inArray)(schema_1.platformSettings.key, [
+                upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_VPA,
+                upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_PAYEE,
+            ]));
+            for (const r of rows) {
+                if (r.key === upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_VPA && r.value?.trim()) {
+                    upiId = r.value.trim();
+                }
+                else if (r.key === upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_PAYEE && r.value?.trim()) {
+                    payeeName = r.value.trim();
+                }
+            }
+        }
+        catch {
+        }
+        return { upiId, payeeName };
+    }
+    async updatePaymentSettings(dto, adminUserId) {
+        const trimmedUpi = dto.upiId?.trim();
+        if (!trimmedUpi || !trimmedUpi.includes('@') || trimmedUpi.length < 5) {
+            throw new common_1.BadRequestException('A valid UPI ID (e.g. store@bank or 8005949152-3@ybl) is required.');
+        }
+        const trimmedPayee = dto.payeeName?.trim() || 'Laoji';
+        await this.db
+            .insert(schema_1.platformSettings)
+            .values({
+            key: upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_VPA,
+            value: trimmedUpi,
+            description: 'Customer UPI payment VPA / address',
+            updatedAt: new Date(),
+            updatedBy: adminUserId || null,
+        })
+            .onConflictDoUpdate({
+            target: schema_1.platformSettings.key,
+            set: {
+                value: trimmedUpi,
+                updatedAt: new Date(),
+                updatedBy: adminUserId || null,
+            },
+        });
+        await this.db
+            .insert(schema_1.platformSettings)
+            .values({
+            key: upi_deeplink_provider_1.PLATFORM_KEY_CUSTOMER_UPI_PAYEE,
+            value: trimmedPayee,
+            description: 'Customer UPI payee name',
+            updatedAt: new Date(),
+            updatedBy: adminUserId || null,
+        })
+            .onConflictDoUpdate({
+            target: schema_1.platformSettings.key,
+            set: {
+                value: trimmedPayee,
+                updatedAt: new Date(),
+                updatedBy: adminUserId || null,
+            },
+        });
+        return {
+            upiId: trimmedUpi,
+            payeeName: trimmedPayee,
+            message: `Customer payment UPI ID updated to ${trimmedUpi}`,
+        };
     }
 };
 exports.PaymentService = PaymentService;

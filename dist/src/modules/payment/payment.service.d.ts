@@ -35,8 +35,8 @@ export declare class PaymentService {
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
-        foodOrderId: string | null;
         groceryOrderId: string | null;
+        foodOrderId: string | null;
         provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;
@@ -125,5 +125,17 @@ export declare class PaymentService {
         reconciledAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+    }>;
+    getPaymentSettings(): Promise<{
+        upiId: string;
+        payeeName: string;
+    }>;
+    updatePaymentSettings(dto: {
+        upiId: string;
+        payeeName?: string;
+    }, adminUserId?: string): Promise<{
+        upiId: string;
+        payeeName: string;
+        message: string;
     }>;
 }

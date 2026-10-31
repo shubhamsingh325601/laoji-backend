@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { inArray } from 'drizzle-orm';
+import type { Db } from '../../../config/database.module';
+import { DRIZZLE } from '../../../config/database.module';
+import { platformSettings } from '../../../../drizzle/schema';
 import type {
   PaymentInitiateParams,
   PaymentInitiateResult,
@@ -10,6 +14,9 @@ import type {
   PaymentVerifyResult,
 } from '../payment.types';
 
+export const PLATFORM_KEY_CUSTOMER_UPI_VPA = 'customer_upi_vpa';
+export const PLATFORM_KEY_CUSTOMER_UPI_PAYEE = 'customer_upi_payee_name';
+
 // The only real implementation at MVP (TRD Section 4). Builds a plain
 // upi://pay deep link — no PSP integration, no webhook, so `verify()` is
 // honestly unimplementable here: there is no reliable way for this provider
@@ -19,11 +26,38 @@ import type {
 // calls verify() on this provider, only initiate().
 @Injectable()
 export class UpiDeepLinkProvider implements PaymentProvider {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() @Inject(DRIZZLE) private readonly db?: Db,
+  ) {}
 
   async initiate({ orderId, amount }: PaymentInitiateParams): Promise<PaymentInitiateResult> {
-    const vpa = this.config.get<string>('UPI_VPA')!;
-    const payeeName = this.config.get<string>('UPI_PAYEE_NAME')!;
+    let vpa = this.config.get<string>('UPI_VPA') || '8005949152-3@ybl';
+    let payeeName = this.config.get<string>('UPI_PAYEE_NAME') || 'Laoji';
+
+    if (this.db) {
+      try {
+        const rows = await this.db
+          .select({ key: platformSettings.key, value: platformSettings.value })
+          .from(platformSettings)
+          .where(
+            inArray(platformSettings.key, [
+              PLATFORM_KEY_CUSTOMER_UPI_VPA,
+              PLATFORM_KEY_CUSTOMER_UPI_PAYEE,
+            ]),
+          );
+        for (const r of rows) {
+          if (r.key === PLATFORM_KEY_CUSTOMER_UPI_VPA && r.value?.trim()) {
+            vpa = r.value.trim();
+          } else if (r.key === PLATFORM_KEY_CUSTOMER_UPI_PAYEE && r.value?.trim()) {
+            payeeName = r.value.trim();
+          }
+        }
+      } catch {
+        // Fall back to config values if database query fails
+      }
+    }
+
     // Built by hand rather than with URLSearchParams: that writes spaces as "+",
     // which UPI apps show literally ("Laoji+Order+AB12CD34") or reject. There is
     // no `url` return link either: it must be an https URL per the UPI spec and

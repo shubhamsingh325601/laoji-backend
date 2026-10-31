@@ -14,6 +14,11 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 export class CustomerPaymentController {
   constructor(private readonly payments: PaymentService) {}
 
+  @Get('config')
+  getConfig() {
+    return this.payments.getPaymentSettings();
+  }
+
   @Throttle({ paymentInitiate: { limit: 10, ttl: 60_000 } })
   @Post(':type/:orderId/initiate')
   initiate(

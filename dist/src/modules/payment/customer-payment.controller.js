@@ -26,6 +26,9 @@ let CustomerPaymentController = class CustomerPaymentController {
     constructor(payments) {
         this.payments = payments;
     }
+    getConfig() {
+        return this.payments.getPaymentSettings();
+    }
     initiate(user, type, orderId, dto) {
         return this.payments.initiate(type, orderId, user.sub, dto.method, dto.useWallet ?? false);
     }
@@ -37,6 +40,12 @@ let CustomerPaymentController = class CustomerPaymentController {
     }
 };
 exports.CustomerPaymentController = CustomerPaymentController;
+__decorate([
+    (0, common_1.Get)('config'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CustomerPaymentController.prototype, "getConfig", null);
 __decorate([
     (0, throttler_1.Throttle)({ paymentInitiate: { limit: 10, ttl: 60_000 } }),
     (0, common_1.Post)(':type/:orderId/initiate'),

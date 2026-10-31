@@ -4,13 +4,17 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 export declare class CustomerPaymentController {
     private readonly payments;
     constructor(payments: PaymentService);
+    getConfig(): Promise<{
+        upiId: string;
+        payeeName: string;
+    }>;
     initiate(user: JwtAccessPayload, type: 'grocery' | 'food', orderId: string, dto: InitiatePaymentDto): Promise<{
         id: string;
         status: "pending" | "failed" | "paid" | "pending_cod" | "collected" | "refund_pending" | "refunded";
         createdAt: Date;
         updatedAt: Date;
-        foodOrderId: string | null;
         groceryOrderId: string | null;
+        foodOrderId: string | null;
         provider: "upi_deeplink" | "cod" | "razorpay" | "wallet";
         amount: number;
         upiDeepLink: string | null;

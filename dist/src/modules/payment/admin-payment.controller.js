@@ -20,10 +20,20 @@ const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const payment_service_1 = require("./payment.service");
 const reconcile_payment_dto_1 = require("./dto/reconcile-payment.dto");
+const update_payment_settings_dto_1 = require("./dto/update-payment-settings.dto");
 let AdminPaymentController = class AdminPaymentController {
     payments;
     constructor(payments) {
         this.payments = payments;
+    }
+    getSettings() {
+        return this.payments.getPaymentSettings();
+    }
+    updateSettings(user, dto) {
+        return this.payments.updatePaymentSettings(dto, user.sub);
+    }
+    putSettings(user, dto) {
+        return this.payments.updatePaymentSettings(dto, user.sub);
     }
     listPending() {
         return this.payments.listPendingForAdmin();
@@ -39,6 +49,28 @@ let AdminPaymentController = class AdminPaymentController {
     }
 };
 exports.AdminPaymentController = AdminPaymentController;
+__decorate([
+    (0, common_1.Get)('settings'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminPaymentController.prototype, "getSettings", null);
+__decorate([
+    (0, common_1.Patch)('settings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_payment_settings_dto_1.UpdatePaymentSettingsDto]),
+    __metadata("design:returntype", void 0)
+], AdminPaymentController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Put)('settings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_payment_settings_dto_1.UpdatePaymentSettingsDto]),
+    __metadata("design:returntype", void 0)
+], AdminPaymentController.prototype, "putSettings", null);
 __decorate([
     (0, common_1.Get)('pending'),
     __metadata("design:type", Function),

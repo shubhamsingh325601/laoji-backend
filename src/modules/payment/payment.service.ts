@@ -4,8 +4,8 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Subject } from 'rxjs';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
-import { foodOrders, groceryOrders, payments, restaurants, users, wallets, walletTransactions } from '../../../drizzle/schema';
-import { UpiDeepLinkProvider } from './providers/upi-deeplink.provider';
+import { foodOrders, groceryOrders, payments, platformSettings, restaurants, users, wallets, walletTransactions } from '../../../drizzle/schema';
+import { PLATFORM_KEY_CUSTOMER_UPI_PAYEE, PLATFORM_KEY_CUSTOMER_UPI_VPA, UpiDeepLinkProvider } from './providers/upi-deeplink.provider';
 import { CodProvider } from './providers/cod.provider';
 import { RazorpayProvider } from './providers/razorpay.provider';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
@@ -88,28 +88,7 @@ export class PaymentService {
   // only succeeds while the balance still covers it, so two requests at once
   // can't overdraw the wallet.
   private async debitWalletForOrder(type: OrderType, orderId: string, customerId: string, maxAmount: number) {
-    const wallet = await this.wallet.getOrCreateWallet(customerId);
-    const amount = Math.min(Math.floor(wallet.balance * 100) / 100, maxAmount);
-    if (amount <= 0) return 0;
-
-    const updated = await this.db
-      .update(wallets)
-      .set({ balance: sql`${wallets.balance} - ${amount}`, updatedAt: new Date() })
-      .where(and(eq(wallets.id, wallet.id), sql`${wallets.balance} >= ${amount}`))
-      .returning({ id: wallets.id });
-    if (!updated.length) throw new BadRequestException('Wallet balance changed. Please try again.');
-
-    await this.db.insert(walletTransactions).values({
-      walletId: wallet.id,
-      userId: customerId,
-      amount,
-      type: 'order_payment',
-      status: 'completed',
-      description: `Payment for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
-      orderId,
-      orderType: type,
-    });
-    return amount;
+    return this.wallet.debitCustomerForOrder(customerId, maxAmount, orderId, type);
   }
 
   // Puts back whatever the wallet still holds for this order (paid minus
@@ -123,21 +102,7 @@ export class PaymentService {
     const amount = Math.round(net * 100) / 100;
     if (amount <= 0) return;
 
-    const wallet = await this.wallet.getOrCreateWallet(customerId);
-    await this.db
-      .update(wallets)
-      .set({ balance: sql`${wallets.balance} + ${amount}`, updatedAt: new Date() })
-      .where(eq(wallets.id, wallet.id));
-    await this.db.insert(walletTransactions).values({
-      walletId: wallet.id,
-      userId: customerId,
-      amount,
-      type: 'order_refund',
-      status: 'completed',
-      description: `Refund for ${type} order #${orderId.slice(0, 8).toUpperCase()}`,
-      orderId,
-      orderType: type,
-    });
+    await this.wallet.refundCustomerForOrder(customerId, amount, orderId, type);
     const table = this.orderTable(type);
     await this.db.update(table).set({ walletAmount: 0 }).where(eq(table.id, orderId));
   }
@@ -477,5 +442,88 @@ export class PaymentService {
     const type: OrderType = payment.groceryOrderId ? 'grocery' : 'food';
     await this.setOrderPaymentStatus(type, (payment.groceryOrderId ?? payment.foodOrderId)!, 'refunded');
     return updated;
+  }
+  // ---------- Admin: payment settings (Customer UPI VPA & Payee Name) ----------
+
+  async getPaymentSettings(): Promise<{ upiId: string; payeeName: string }> {
+    let upiId = this.config.get<string>('UPI_VPA') || '8005949152-3@ybl';
+    let payeeName = this.config.get<string>('UPI_PAYEE_NAME') || 'Laoji';
+
+    try {
+      const rows = await this.db
+        .select({ key: platformSettings.key, value: platformSettings.value })
+        .from(platformSettings)
+        .where(
+          inArray(platformSettings.key, [
+            PLATFORM_KEY_CUSTOMER_UPI_VPA,
+            PLATFORM_KEY_CUSTOMER_UPI_PAYEE,
+          ]),
+        );
+      for (const r of rows) {
+        if (r.key === PLATFORM_KEY_CUSTOMER_UPI_VPA && r.value?.trim()) {
+          upiId = r.value.trim();
+        } else if (r.key === PLATFORM_KEY_CUSTOMER_UPI_PAYEE && r.value?.trim()) {
+          payeeName = r.value.trim();
+        }
+      }
+    } catch {
+      // Fallback to config values
+    }
+
+    return { upiId, payeeName };
+  }
+
+  async updatePaymentSettings(
+    dto: { upiId: string; payeeName?: string },
+    adminUserId?: string,
+  ): Promise<{ upiId: string; payeeName: string; message: string }> {
+    const trimmedUpi = dto.upiId?.trim();
+    if (!trimmedUpi || !trimmedUpi.includes('@') || trimmedUpi.length < 5) {
+      throw new BadRequestException('A valid UPI ID (e.g. store@bank or 8005949152-3@ybl) is required.');
+    }
+
+    const trimmedPayee = dto.payeeName?.trim() || 'Laoji';
+
+    await this.db
+      .insert(platformSettings)
+      .values({
+        key: PLATFORM_KEY_CUSTOMER_UPI_VPA,
+        value: trimmedUpi,
+        description: 'Customer UPI payment VPA / address',
+        updatedAt: new Date(),
+        updatedBy: adminUserId || null,
+      })
+      .onConflictDoUpdate({
+        target: platformSettings.key,
+        set: {
+          value: trimmedUpi,
+          updatedAt: new Date(),
+          updatedBy: adminUserId || null,
+        },
+      });
+
+    await this.db
+      .insert(platformSettings)
+      .values({
+        key: PLATFORM_KEY_CUSTOMER_UPI_PAYEE,
+        value: trimmedPayee,
+        description: 'Customer UPI payee name',
+        updatedAt: new Date(),
+        updatedBy: adminUserId || null,
+      })
+      .onConflictDoUpdate({
+        target: platformSettings.key,
+        set: {
+          value: trimmedPayee,
+          updatedAt: new Date(),
+          updatedBy: adminUserId || null,
+        },
+      });
+
+    return {
+      upiId: trimmedUpi,
+      payeeName: trimmedPayee,
+      message: `Customer payment UPI ID updated to ${trimmedUpi}`,
+    };
   }
 }
