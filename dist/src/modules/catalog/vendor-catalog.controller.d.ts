@@ -201,9 +201,12 @@ export declare class VendorCatalogController {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }[]>;
     myListings(user: JwtAccessPayload): Promise<{
+        sizes: import("./grocery-sizes.service").AdminGrocerySize[];
         commissionPct: any;
         product: {
             categoryId: string;
@@ -222,6 +225,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -256,6 +261,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -290,6 +297,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -324,6 +333,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -358,6 +369,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -429,6 +442,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -463,6 +478,8 @@ export declare class VendorCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;

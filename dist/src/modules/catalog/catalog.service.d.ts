@@ -1,4 +1,5 @@
 import type { Db } from '../../config/database.module';
+import { GrocerySizesService, type AdminGrocerySize } from './grocery-sizes.service';
 import { mealTimingsView } from './meal-slots';
 import type { UpdateBusinessHoursDto } from './dto/business-hours.dto';
 import type { UpdateMealTimingsDto } from './dto/meal-timings.dto';
@@ -25,7 +26,8 @@ export declare class CatalogService {
     private readonly notifications;
     private readonly vendorDiscounts;
     private readonly revenueConfig?;
-    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService, revenueConfig?: RevenueConfigService | undefined);
+    private readonly grocerySizes?;
+    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService, revenueConfig?: RevenueConfigService | undefined, grocerySizes?: GrocerySizesService | undefined);
     private resolveVendorCommissionPct;
     getVendorByUserId(userId: string): Promise<{
         commissionPct: number;
@@ -782,6 +784,42 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        variantGroupId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_group_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        variantLabel: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_label";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -815,6 +853,8 @@ export declare class CatalogService {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -1082,6 +1122,42 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        variantGroupId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_group_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        variantLabel: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_label";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -1116,6 +1192,8 @@ export declare class CatalogService {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }>;
     createProduct(dto: CreateProductDto & {
@@ -1138,6 +1216,8 @@ export declare class CatalogService {
         sellingPrice: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -1155,6 +1235,8 @@ export declare class CatalogService {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }>;
     deleteProduct(id: string): Promise<{
@@ -1221,9 +1303,12 @@ export declare class CatalogService {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }[]>;
     listVendorProducts(vendorId: string): Promise<{
+        sizes: AdminGrocerySize[];
         commissionPct: any;
         product: {
             categoryId: string;
@@ -1242,6 +1327,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1284,6 +1371,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1318,6 +1407,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1333,6 +1424,8 @@ export declare class CatalogService {
         lastRestockedAt: Date | null;
         updatedAt: Date;
     }>;
+    private vendorSizesToSave;
+    private saveVendorSizes;
     private requireOwnVendorProduct;
     updateVendorProduct(vendor: VendorRef, id: string, dto: UpdateVendorProductDto): Promise<{
         commissionPct: any;
@@ -1353,6 +1446,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1387,6 +1482,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1424,6 +1521,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1459,6 +1558,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         isOwnProduct: boolean;
         id: string;
@@ -1499,15 +1600,18 @@ export declare class CatalogService {
         sellingPrice: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
     }[]>;
     customerCategoryId(categoryId: string): Promise<string>;
     publicGetProduct(id: string, lat: number, lng: number): Promise<{
         categoryId: string;
-        price: number;
+        price: number | null;
         mrp: number | null;
         offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
+        sizes: unknown;
         id: string;
         brand: string | null;
         name: string;
@@ -1521,6 +1625,8 @@ export declare class CatalogService {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }>;
     private aggregateByProduct;
@@ -1641,6 +1747,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         }[];
         restaurants: (Omit<{
             id: string;
@@ -2326,6 +2434,8 @@ export declare class CatalogService {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         id: string;
         vendorId: string;
@@ -2915,6 +3025,9 @@ export declare class CatalogService {
         commissionPct?: number;
         customCommissionPct?: number | null;
         wholesalePrice?: number | null;
+        variantGroupId?: string | null;
+        variantLabel?: string | null;
+        sizes?: AdminGrocerySize[];
     }[]>;
     addAdminVendorItem(vendorId: string, dto: CreateAdminVendorItemDto): Promise<{
         id: string;
@@ -2949,6 +3062,7 @@ export declare class CatalogService {
         isVeg?: undefined;
         isCustomisable?: undefined;
     }>;
+    private saveGrocerySizes;
     updateAdminVendorItem(vendorId: string, itemId: string, dto: UpdateAdminVendorItemDto): Promise<{
         success: boolean;
     }>;

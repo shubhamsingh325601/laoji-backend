@@ -1,7 +1,12 @@
 import { CatalogService } from './catalog.service';
+import { GrocerySizesService } from './grocery-sizes.service';
 export declare class PublicCatalogController {
     private readonly catalog;
-    constructor(catalog: CatalogService);
+    private readonly grocerySizes;
+    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService);
+    features(): Promise<{
+        grocerySizes: boolean;
+    }>;
     categories(): Promise<{
         id: string;
         parentId: string | null;
@@ -32,14 +37,17 @@ export declare class PublicCatalogController {
         sellingPrice: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
     }[]>;
     product(id: string, lat?: string, lng?: string): Promise<{
         categoryId: string;
-        price: number;
+        price: number | null;
         mrp: number | null;
         offerTag: string | null;
         inStock: boolean;
         restockEta: string | null;
+        sizes: unknown;
         id: string;
         brand: string | null;
         name: string;
@@ -53,6 +61,8 @@ export declare class PublicCatalogController {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }>;
     restaurants(lat?: string, lng?: string): Promise<{
@@ -170,6 +180,9 @@ export declare class PublicCatalogController {
         commissionPct?: number;
         customCommissionPct?: number | null;
         wholesalePrice?: number | null;
+        variantGroupId?: string | null;
+        variantLabel?: string | null;
+        sizes?: import("./grocery-sizes.service").AdminGrocerySize[];
     }[]>;
     search(lat?: string, lng?: string, q?: string): Promise<{
         products: {
@@ -193,6 +206,8 @@ export declare class PublicCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         }[];
         restaurants: (Omit<{
             id: string;

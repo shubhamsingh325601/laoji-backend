@@ -187,6 +187,7 @@ export declare class DeliveryService {
     }>;
     private assignWaitingOrders;
     private findNearestOnlinePartner;
+    private partnersActiveDeliveryCounts;
     private partnersWithActiveDelivery;
     private pickupPoint;
     triggerAssignment(type: OrderType, orderId: string): Promise<void>;
@@ -298,6 +299,7 @@ export declare class DeliveryService {
     verifyDelivery(userId: string, type: OrderType, orderId: string, otp: string): Promise<{
         ok: boolean;
     }>;
+    private static readonly otpAttempts;
     adminCompleteDelivery(adminUserId: string, type: OrderType, orderId: string): Promise<void>;
     adminAssignPartner(adminUserId: string, type: OrderType, orderId: string, partnerId: string): Promise<void>;
     private completeDelivery;
@@ -358,19 +360,19 @@ export declare class DeliveryService {
         id: string;
         createdAt: Date;
         userId: string;
-        aadhaarNumber: string | null;
-        bankAccount: string | null;
-        bankIfsc: string | null;
-        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        updatedAt: Date;
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
+        aadhaarNumber: string | null;
         drivingLicense: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;

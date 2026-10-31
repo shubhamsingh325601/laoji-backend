@@ -2667,12 +2667,9 @@ export class CatalogService {
           imageUrl: products.imageUrl,
           categoryId: categories.id,
           categoryName: categories.name,
-<<<<<<< HEAD
           variantGroupId: products.variantGroupId,
           variantLabel: products.variantLabel,
-=======
           attributes: products.attributes,
->>>>>>> origin/main
         })
         .from(vendorProducts)
         .innerJoin(products, eq(vendorProducts.productId, products.id))

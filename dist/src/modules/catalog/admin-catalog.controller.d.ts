@@ -6,9 +6,18 @@ import { RejectProductSuggestionDto } from './dto/product-suggestion.dto';
 import { ApproveCategorySuggestionDto } from './dto/category-suggestion.dto';
 import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, UpdateAdminVendorDto } from './dto/admin-vendor.dto';
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
+import { UpdateCatalogFeaturesDto } from './dto/catalog-features.dto';
+import { GrocerySizesService } from './grocery-sizes.service';
 export declare class AdminCatalogController {
     private readonly catalog;
-    constructor(catalog: CatalogService);
+    private readonly grocerySizes;
+    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService);
+    getCatalogFeatures(): Promise<{
+        grocerySizes: boolean;
+    }>;
+    updateCatalogFeatures(user: JwtAccessPayload, dto: UpdateCatalogFeaturesDto): Promise<{
+        grocerySizes: boolean;
+    }>;
     listCategories(): Promise<{
         id: string;
         name: string;
@@ -311,6 +320,42 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        variantGroupId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_group_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        variantLabel: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_label";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -344,6 +389,8 @@ export declare class AdminCatalogController {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }[], {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -611,6 +658,42 @@ export declare class AdminCatalogController {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        variantGroupId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_group_id";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        variantLabel: import("drizzle-orm/pg-core").PgColumn<{
+            name: "variant_label";
+            tableName: "products";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: 50;
+        }>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "products";
@@ -646,6 +729,8 @@ export declare class AdminCatalogController {
         sellingPrice: number | null;
         attributes: Record<string, string | number | boolean> | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
     }>;
     updateProduct(id: string, dto: UpdateProductDto): Promise<{
         id: string;
@@ -663,6 +748,8 @@ export declare class AdminCatalogController {
         status: "active" | "inactive";
         ownerVendorId: string | null;
         templateProductId: string | null;
+        variantGroupId: string | null;
+        variantLabel: string | null;
         createdAt: Date;
     }>;
     deleteProduct(id: string): Promise<{
@@ -768,6 +855,9 @@ export declare class AdminCatalogController {
         commissionPct?: number;
         customCommissionPct?: number | null;
         wholesalePrice?: number | null;
+        variantGroupId?: string | null;
+        variantLabel?: string | null;
+        sizes?: import("./grocery-sizes.service").AdminGrocerySize[];
     }[]>;
     createVendor(dto: CreateAdminVendorDto, user?: JwtAccessPayload): Promise<{
         id: string;
@@ -973,6 +1063,8 @@ export declare class AdminCatalogController {
             sellingPrice: number | null;
             attributes: Record<string, string | number | boolean> | null;
             templateProductId: string | null;
+            variantGroupId: string | null;
+            variantLabel: string | null;
         };
         id: string;
         vendorId: string;

@@ -54,6 +54,7 @@ const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const catalog_types_1 = require("./catalog.types");
 const product_forms_1 = require("./product-forms");
+const grocery_sizes_service_1 = require("./grocery-sizes.service");
 const catalog_ownership_1 = require("./catalog-ownership");
 const meal_slots_1 = require("./meal-slots");
 const notification_service_1 = require("../notification/notification.service");
@@ -67,11 +68,13 @@ let CatalogService = class CatalogService {
     notifications;
     vendorDiscounts;
     revenueConfig;
-    constructor(db, notifications, vendorDiscounts, revenueConfig) {
+    grocerySizes;
+    constructor(db, notifications, vendorDiscounts, revenueConfig, grocerySizes) {
         this.db = db;
         this.notifications = notifications;
         this.vendorDiscounts = vendorDiscounts;
         this.revenueConfig = revenueConfig;
+        this.grocerySizes = grocerySizes;
     }
     async resolveVendorCommissionPct(vendorId) {
         try {
@@ -179,7 +182,7 @@ let CatalogService = class CatalogService {
             upiId: dto.upiId ?? null,
             pickupLat,
             pickupLng,
-            ...(dto.radiusKm !== undefined ? { radiusKm: dto.radiusKm } : {}),
+            radiusKm: catalog_types_1.DEFAULT_VENDOR_RADIUS_KM,
             imageUrl: dto.imageUrl ?? null,
             businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
         })
@@ -774,7 +777,20 @@ let CatalogService = class CatalogService {
             this.ownCategoryCopies(vendorId),
             this.resolveVendorCommissionPct(vendorId),
         ]);
-        return rows.map((r) => this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct));
+        const sizeRows = rows.map((r) => ({
+            id: r.vendorProduct.id,
+            productId: r.product.id,
+            variantGroupId: r.product.variantGroupId,
+            variantLabel: r.product.variantLabel,
+            unit: r.product.unit,
+            price: r.vendorProduct.price,
+            stockQty: r.vendorProduct.stockQty,
+            isAvailable: r.vendorProduct.isAvailable,
+        }));
+        return rows.map((r, i) => ({
+            ...this.listingView(vendorId, r.vendorProduct, r.product, copies, vendorCommissionPct),
+            sizes: this.grocerySizes ? this.grocerySizes.adminSizesFor(sizeRows[i], sizeRows) : [],
+        }));
     }
     listingView(vendorId, listing, product, copies, vendorCommissionPct) {
         return {
@@ -872,6 +888,7 @@ let CatalogService = class CatalogService {
             return this.updateVendorProduct(vendor, existing.id, dto);
         this.assertRestockEtaNotPast(dto.restockEta);
         await this.assertListableBy(vendor, product);
+        const sizes = await this.vendorSizesToSave(vendor, dto.unit?.trim() || product.unit, dto.sizes);
         const listed = await this.productForListing(vendor, product, dto);
         const isAvailable = dto.isAvailable ?? true;
         const [created] = await this.db
@@ -889,10 +906,13 @@ let CatalogService = class CatalogService {
             lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
         })
             .returning();
+        if (sizes)
+            return this.saveVendorSizes(vendor.id, created.id, sizes);
         return this.listingResponse(vendor.id, created, listed);
     }
     async createVendorProduct(vendor, dto) {
         this.assertRestockEtaNotPast(dto.restockEta);
+        const sizes = await this.vendorSizesToSave(vendor, dto.unit.trim(), dto.sizes);
         const scope = await this.vendorCategories(vendor);
         const categoryId = scope.usable(dto.categoryId);
         const attributes = dto.attributes === undefined
@@ -928,7 +948,22 @@ let CatalogService = class CatalogService {
             lastRestockedAt: dto.stockQty > 0 ? new Date() : null,
         })
             .returning();
+        if (sizes)
+            return this.saveVendorSizes(vendor.id, listing.id, sizes);
         return this.listingResponse(vendor.id, listing, product);
+    }
+    async vendorSizesToSave(vendor, unit, sizes) {
+        if (sizes === undefined || !this.grocerySizes || vendor.businessType === 'restaurant')
+            return undefined;
+        if (!(await this.grocerySizes.isEnabled()))
+            return undefined;
+        this.grocerySizes.assertValidLabels(unit, sizes);
+        return sizes;
+    }
+    async saveVendorSizes(vendorId, listingId, sizes) {
+        await this.grocerySizes.syncSizes(vendorId, listingId, sizes);
+        const listing = await this.requireOwnVendorProduct(vendorId, listingId);
+        return this.listingResponse(vendorId, listing, await this.getProduct(listing.productId));
     }
     async requireOwnVendorProduct(vendorId, id) {
         const [row] = await this.db.select().from(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id)).limit(1);
@@ -941,7 +976,9 @@ let CatalogService = class CatalogService {
     async updateVendorProduct(vendor, id, dto) {
         const existing = await this.requireOwnVendorProduct(vendor.id, id);
         this.assertRestockEtaNotPast(dto.restockEta);
-        const product = await this.productForListing(vendor, await this.getProduct(existing.productId), dto);
+        const current = await this.getProduct(existing.productId);
+        const sizes = await this.vendorSizesToSave(vendor, dto.unit?.trim() || current.unit, dto.sizes);
+        const product = await this.productForListing(vendor, current, dto);
         const stockQty = dto.stockQty ?? existing.stockQty;
         const isAvailable = dto.isAvailable ?? existing.isAvailable;
         const restockEta = dto.restockEta !== undefined ? dto.restockEta : existing.restockEta;
@@ -961,6 +998,8 @@ let CatalogService = class CatalogService {
         })
             .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, id))
             .returning();
+        if (sizes)
+            return this.saveVendorSizes(vendor.id, id, sizes);
         return this.listingResponse(vendor.id, updated, product);
     }
     async restockVendorProduct(vendorId, id, qty) {
@@ -991,6 +1030,12 @@ let CatalogService = class CatalogService {
                 .limit(1);
             if (!orderItem)
                 await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, product.id));
+            else if (product.variantGroupId) {
+                await this.db
+                    .update(schema_1.products)
+                    .set({ variantGroupId: null, variantLabel: null })
+                    .where((0, drizzle_orm_1.eq)(schema_1.products.id, product.id));
+            }
         }
         return { success: true };
     }
@@ -1088,14 +1133,15 @@ let CatalogService = class CatalogService {
         const { byId } = await this.categoryIndex();
         const inRadius = await this.vendorsInRadius(lat, lng);
         const vendorIds = inRadius.map((v) => v.id);
+        const siblingIds = this.grocerySizes ? await this.grocerySizes.siblingProductIds(product) : [];
         const rows = vendorIds.length === 0
             ? []
             : await this.db
                 .select({ vendorProduct: schema_1.vendorProducts, product: schema_1.products })
                 .from(schema_1.vendorProducts)
                 .innerJoin(schema_1.products, (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, schema_1.products.id))
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, id), (0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true)));
-        const [aggregated] = await this.aggregateByProduct(rows, byId);
+                .where((0, drizzle_orm_1.and)(siblingIds.length ? (0, drizzle_orm_1.inArray)(schema_1.vendorProducts.productId, [id, ...siblingIds]) : (0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, id), (0, drizzle_orm_1.inArray)(schema_1.vendorProducts.vendorId, vendorIds), (0, drizzle_orm_1.eq)(schema_1.vendorProducts.isAvailable, true)));
+        const aggregated = (await this.aggregateByProduct(rows, byId)).find((p) => p.id === id);
         return {
             ...product,
             categoryId: (0, catalog_ownership_1.laojiCategoryId)(product.categoryId, byId),
@@ -1104,6 +1150,7 @@ let CatalogService = class CatalogService {
             offerTag: aggregated?.offerTag ?? null,
             inStock: aggregated?.inStock ?? false,
             restockEta: aggregated?.restockEta ?? null,
+            sizes: aggregated && 'sizes' in aggregated ? aggregated.sizes : [],
         };
     }
     async aggregateByProduct(rows, categoriesById) {
@@ -1137,7 +1184,7 @@ let CatalogService = class CatalogService {
             if (eta && (!current.restockEta || eta < current.restockEta))
                 current.restockEta = eta;
         }
-        return [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
+        const aggregated = [...byProduct.values()].map(({ product, price, mrp, offerTag, inStock, restockEta }) => ({
             ...product,
             categoryId: (0, catalog_ownership_1.laojiCategoryId)(product.categoryId, categoriesById),
             price,
@@ -1146,6 +1193,7 @@ let CatalogService = class CatalogService {
             inStock,
             restockEta: inStock ? null : restockEta,
         }));
+        return this.grocerySizes ? this.grocerySizes.withPublicSizes(aggregated) : aggregated;
     }
     async publicListRestaurants(lat, lng) {
         const allVendors = await this.db.select().from(schema_1.vendors);
@@ -1996,6 +2044,8 @@ let CatalogService = class CatalogService {
                 imageUrl: schema_1.products.imageUrl,
                 categoryId: schema_1.categories.id,
                 categoryName: schema_1.categories.name,
+                variantGroupId: schema_1.products.variantGroupId,
+                variantLabel: schema_1.products.variantLabel,
                 attributes: schema_1.products.attributes,
             })
                 .from(schema_1.vendorProducts)
@@ -2024,6 +2074,9 @@ let CatalogService = class CatalogService {
                     stockQty: vp.stockQty,
                     commissionPct: vp.customCommissionPct != null ? vp.customCommissionPct : vendorCommissionPct,
                     customCommissionPct: vp.customCommissionPct ?? null,
+                    variantGroupId: vp.variantGroupId ?? null,
+                    variantLabel: vp.variantLabel ?? null,
+                    sizes: this.grocerySizes ? this.grocerySizes.adminSizesFor(vp, vProds) : [],
                 });
             }
         }
@@ -2215,6 +2268,7 @@ let CatalogService = class CatalogService {
                 })
                     .where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.id, existingListing.id))
                     .returning();
+                await this.saveGrocerySizes(vendor.id, updated.id, dto.sizes);
                 const [prod] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, productId)).limit(1);
                 return {
                     id: updated.id,
@@ -2245,6 +2299,7 @@ let CatalogService = class CatalogService {
                 updatedAt: new Date(),
             })
                 .returning();
+            await this.saveGrocerySizes(vendor.id, createdListing.id, dto.sizes);
             const [prod] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, productId)).limit(1);
             return {
                 id: createdListing.id,
@@ -2262,6 +2317,13 @@ let CatalogService = class CatalogService {
                 customCommissionPct: createdListing.commissionPct ?? null,
             };
         }
+    }
+    async saveGrocerySizes(vendorId, listingId, sizes) {
+        if (sizes === undefined || !this.grocerySizes)
+            return;
+        if (!(await this.grocerySizes.isEnabled()))
+            return;
+        await this.grocerySizes.syncSizes(vendorId, listingId, sizes);
     }
     async updateAdminVendorItem(vendorId, itemId, dto) {
         const [vendor] = await this.db.select().from(schema_1.vendors).where((0, drizzle_orm_1.eq)(schema_1.vendors.id, vendorId)).limit(1);
@@ -2333,6 +2395,7 @@ let CatalogService = class CatalogService {
                     }
                 }
             }
+            await this.saveGrocerySizes(vendorId, vp.id, dto.sizes);
             return { success: true };
         }
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
@@ -2805,8 +2868,10 @@ exports.CatalogService = CatalogService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
     __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, notification_service_1.NotificationService,
         vendor_discounts_service_1.VendorDiscountsService,
-        revenue_config_service_1.RevenueConfigService])
+        revenue_config_service_1.RevenueConfigService,
+        grocery_sizes_service_1.GrocerySizesService])
 ], CatalogService);
 //# sourceMappingURL=catalog.service.js.map

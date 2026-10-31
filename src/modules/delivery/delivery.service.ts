@@ -1001,26 +1001,41 @@ export class DeliveryService {
     const partnerIds = rows.map((r) => r.id);
     const [groceryDone, foodDone] = partnerIds.length
       ? await Promise.all([
-          this.db.select({ partnerId: groceryOrders.deliveryPartnerId }).from(groceryOrders)
+          this.db.select({ id: groceryOrders.id, partnerId: groceryOrders.deliveryPartnerId }).from(groceryOrders)
             .where(and(inArray(groceryOrders.deliveryPartnerId, partnerIds), eq(groceryOrders.status, 'delivered'))),
-          this.db.select({ partnerId: foodOrders.deliveryPartnerId }).from(foodOrders)
+          this.db.select({ id: foodOrders.id, partnerId: foodOrders.deliveryPartnerId }).from(foodOrders)
             .where(and(inArray(foodOrders.deliveryPartnerId, partnerIds), eq(foodOrders.status, 'delivered'))),
         ])
       : [[], []];
     const deliveryCountById = new Map<string, number>();
-    for (const { partnerId } of [...groceryDone, ...foodDone]) {
-      if (partnerId) deliveryCountById.set(partnerId, (deliveryCountById.get(partnerId) ?? 0) + 1);
+    const partnerByOrderId = new Map<string, string>();
+    for (const { id, partnerId } of [...groceryDone, ...foodDone]) {
+      if (partnerId) {
+        deliveryCountById.set(partnerId, (deliveryCountById.get(partnerId) ?? 0) + 1);
+        partnerByOrderId.set(id, partnerId);
+      }
     }
 
     // Real today earnings from settlements
-    const settlementsRows = partnerIds.length
-      ? await this.db.select().from(settlements).where(inArray(settlements.deliveryPartnerId, partnerIds))
+    const allOrderIds = Array.from(partnerByOrderId.keys());
+    const settlementsRows = allOrderIds.length
+      ? await this.db
+          .select()
+          .from(settlements)
+          .where(
+            or(
+              inArray(settlements.groceryOrderId, allOrderIds),
+              inArray(settlements.foodOrderId, allOrderIds),
+            ),
+          )
       : [];
     const dayMs = 24 * 60 * 60 * 1000;
     const todayEarningsById = new Map<string, number>();
     for (const s of settlementsRows) {
-      if (s.deliveryPartnerId && Date.now() - s.createdAt.getTime() < dayMs) {
-        todayEarningsById.set(s.deliveryPartnerId, (todayEarningsById.get(s.deliveryPartnerId) ?? 0) + s.deliveryPayout);
+      const orderId = s.groceryOrderId ?? s.foodOrderId;
+      const partnerId = orderId ? partnerByOrderId.get(orderId) : null;
+      if (partnerId && Date.now() - s.createdAt.getTime() < dayMs) {
+        todayEarningsById.set(partnerId, (todayEarningsById.get(partnerId) ?? 0) + s.deliveryPayout);
       }
     }
 
@@ -1061,7 +1076,15 @@ export class DeliveryService {
 
     const allOrderIds = [...groceryDone.map((o) => o.id), ...foodDone.map((o) => o.id)];
     const settlementsRows = allOrderIds.length
-      ? await this.db.select().from(settlements).where(inArray(settlements.deliveryPartnerId, [partner.id]))
+      ? await this.db
+          .select()
+          .from(settlements)
+          .where(
+            or(
+              inArray(settlements.groceryOrderId, allOrderIds),
+              inArray(settlements.foodOrderId, allOrderIds),
+            ),
+          )
       : [];
     const dayMs = 24 * 60 * 60 * 1000;
     const todayEarnings = settlementsRows

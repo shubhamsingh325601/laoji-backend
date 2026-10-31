@@ -53,19 +53,19 @@ export declare class AdminDeliveryController {
         id: string;
         createdAt: Date;
         userId: string;
-        aadhaarNumber: string | null;
-        bankAccount: string | null;
-        bankIfsc: string | null;
-        upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        updatedAt: Date;
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
+        aadhaarNumber: string | null;
         drivingLicense: string | null;
+        bankAccount: string | null;
+        bankIfsc: string | null;
+        upiId: string | null;
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateAdminDeliveryPartnerDto): Promise<{
         id: string;
