@@ -4,4 +4,5 @@ export declare class AdjustWalletDto {
     action: 'credit' | 'debit';
     amount: number;
     description: string;
+    validityDays?: number;
 }

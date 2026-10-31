@@ -11,10 +11,15 @@ export declare class WalletController {
             totalEarned: number;
             totalWithdrawn: number;
             pendingEarnings: number;
+            expiringSoon: number;
         };
         transactions: {
             id: string;
             amount: number;
+            remainingAmount: number | null;
+            expiresAt: Date | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
             type: string;
             status: string;
             description: string;
@@ -36,13 +41,32 @@ export declare class WalletController {
             createdAt: Date;
         }[];
     }>;
+    myReferral(user: JwtAccessPayload): Promise<{
+        code: string;
+        rewardPct: number;
+        rewardMax: number;
+        totalReferrals: number;
+        rewardedReferrals: number;
+        totalEarned: number;
+        referrals: {
+            id: string;
+            name: string;
+            joinedAt: Date;
+            status: "rewarded" | "joined";
+            reward: number | null;
+        }[];
+    }>;
     myScratchCards(user: JwtAccessPayload): Promise<{
         id: string;
         orderId: string;
         orderType: "grocery" | "food";
-        status: "unscratched" | "scratched";
+        status: "unscratched" | "scratched" | "expired";
         amount: number | null;
         scratchedAt: Date | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        adminNotes: string | null;
         createdAt: Date;
     }[]>;
     scratchCard(user: JwtAccessPayload, id: string): Promise<{
@@ -51,9 +75,13 @@ export declare class WalletController {
         id: string;
         orderId: string;
         orderType: "grocery" | "food";
-        status: "unscratched" | "scratched";
+        status: "unscratched" | "scratched" | "expired";
         amount: number | null;
         scratchedAt: Date | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        adminNotes: string | null;
         createdAt: Date;
     }>;
     requestWithdrawal(user: JwtAccessPayload, dto: RequestWithdrawalDto): Promise<{
@@ -68,11 +96,11 @@ export declare class WalletController {
             bankIfsc: string | null;
             upiId: string | null;
             amount: number;
-            walletId: string;
             payoutMethod: string;
             processedAt: Date | null;
-            accountHolderName: string | null;
             adminNotes: string | null;
+            walletId: string;
+            accountHolderName: string | null;
         };
     }>;
 }

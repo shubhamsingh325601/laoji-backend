@@ -31,8 +31,8 @@ export declare class AdminAreaManagerController {
         email: string;
         createdAt: Date;
         updatedAt: Date;
-        isActive: boolean;
         pincode: string;
+        isActive: boolean;
     }>;
     update(id: string, dto: UpdateAreaManagerDto): Promise<{
         id: string;

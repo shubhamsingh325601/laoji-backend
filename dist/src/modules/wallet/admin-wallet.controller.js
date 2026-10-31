@@ -21,6 +21,7 @@ const current_user_decorator_1 = require("../../common/decorators/current-user.d
 const wallet_service_1 = require("./wallet.service");
 const request_withdrawal_dto_1 = require("./dto/request-withdrawal.dto");
 const adjust_wallet_dto_1 = require("./dto/adjust-wallet.dto");
+const expiry_admin_dto_1 = require("./dto/expiry-admin.dto");
 let AdminWalletController = class AdminWalletController {
     wallet;
     constructor(wallet) {
@@ -49,6 +50,38 @@ let AdminWalletController = class AdminWalletController {
     }
     async rejectRequest(id, dto) {
         return this.wallet.rejectWithdrawal(id, dto?.adminNotes);
+    }
+    async listScratchCards(userId, status, search, limit) {
+        return this.wallet.listAllScratchCards({
+            userId,
+            status,
+            search,
+            limit: limit ? parseInt(limit, 10) : 100,
+        });
+    }
+    async restoreScratchCard(id, dto) {
+        return this.wallet.restoreScratchCard(id, dto);
+    }
+    async adjustScratchCardExpiry(id, dto) {
+        return this.wallet.adjustScratchCardExpiry(id, dto);
+    }
+    async getCustomerCredits(userId) {
+        return this.wallet.getCustomerCredits(userId);
+    }
+    async restoreWalletCredit(id, dto, admin) {
+        return this.wallet.restoreWalletCredit(id, dto, admin?.sub);
+    }
+    async adjustWalletCreditExpiry(id, dto) {
+        return this.wallet.adjustWalletCreditExpiry(id, dto);
+    }
+    async getExpirySettings() {
+        return this.wallet.getExpirySettings();
+    }
+    async updateExpirySettings(dto) {
+        return this.wallet.updateExpirySettings(dto);
+    }
+    async processExpiries() {
+        return this.wallet.processAllExpirations();
     }
 };
 exports.AdminWalletController = AdminWalletController;
@@ -112,6 +145,75 @@ __decorate([
     __metadata("design:paramtypes", [String, request_withdrawal_dto_1.ProcessWithdrawalDto]),
     __metadata("design:returntype", Promise)
 ], AdminWalletController.prototype, "rejectRequest", null);
+__decorate([
+    (0, common_1.Get)('scratch-cards'),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('search')),
+    __param(3, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "listScratchCards", null);
+__decorate([
+    (0, common_1.Post)('scratch-cards/:id/restore'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, expiry_admin_dto_1.RestoreScratchCardDto]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "restoreScratchCard", null);
+__decorate([
+    (0, common_1.Post)('scratch-cards/:id/adjust-expiry'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, expiry_admin_dto_1.AdjustScratchCardExpiryDto]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "adjustScratchCardExpiry", null);
+__decorate([
+    (0, common_1.Get)('customer/:userId/credits'),
+    __param(0, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "getCustomerCredits", null);
+__decorate([
+    (0, common_1.Post)('credits/:id/restore'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, expiry_admin_dto_1.RestoreWalletCreditDto, Object]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "restoreWalletCredit", null);
+__decorate([
+    (0, common_1.Post)('credits/:id/adjust-expiry'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, expiry_admin_dto_1.AdjustWalletCreditExpiryDto]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "adjustWalletCreditExpiry", null);
+__decorate([
+    (0, common_1.Get)('settings/expiry'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "getExpirySettings", null);
+__decorate([
+    (0, common_1.Post)('settings/expiry'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [expiry_admin_dto_1.UpdateExpirySettingsDto]),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "updateExpirySettings", null);
+__decorate([
+    (0, common_1.Post)('process-expiries'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminWalletController.prototype, "processExpiries", null);
 exports.AdminWalletController = AdminWalletController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),

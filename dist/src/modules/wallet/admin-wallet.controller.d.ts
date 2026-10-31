@@ -2,6 +2,7 @@ import type { JwtAccessPayload } from '../auth/auth.types';
 import { WalletService } from './wallet.service';
 import { ProcessWithdrawalDto } from './dto/request-withdrawal.dto';
 import { AdjustWalletDto } from './dto/adjust-wallet.dto';
+import { AdjustScratchCardExpiryDto, AdjustWalletCreditExpiryDto, RestoreScratchCardDto, RestoreWalletCreditDto, UpdateExpirySettingsDto } from './dto/expiry-admin.dto';
 export declare class AdminWalletController {
     private readonly wallet;
     constructor(wallet: WalletService);
@@ -25,6 +26,10 @@ export declare class AdminWalletController {
         walletId: string;
         userId: string;
         amount: number;
+        remainingAmount: number | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
         type: string;
         status: string;
         description: string;
@@ -60,10 +65,15 @@ export declare class AdminWalletController {
             totalEarned: number;
             totalWithdrawn: number;
             pendingEarnings: number;
+            expiringSoon: number;
         };
         transactions: {
             id: string;
             amount: number;
+            remainingAmount: number | null;
+            expiresAt: Date | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
             type: string;
             status: string;
             description: string;
@@ -108,10 +118,15 @@ export declare class AdminWalletController {
             totalEarned: number;
             totalWithdrawn: number;
             pendingEarnings: number;
+            expiringSoon: number;
         };
         transactions: {
             id: string;
             amount: number;
+            remainingAmount: number | null;
+            expiresAt: Date | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
             type: string;
             status: string;
             description: string;
@@ -141,13 +156,17 @@ export declare class AdminWalletController {
             status: string;
             createdAt: Date;
             userId: string;
+            expiresAt: Date | null;
             type: string;
             description: string;
             couponCode: string | null;
             amount: number;
-            walletId: string;
             orderId: string | null;
             orderType: string | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
+            walletId: string;
+            remainingAmount: number | null;
             metadata: unknown;
         };
         summary: {
@@ -157,10 +176,15 @@ export declare class AdminWalletController {
                 totalEarned: number;
                 totalWithdrawn: number;
                 pendingEarnings: number;
+                expiringSoon: number;
             };
             transactions: {
                 id: string;
                 amount: number;
+                remainingAmount: number | null;
+                expiresAt: Date | null;
+                expiredAt: Date | null;
+                restoredAt: Date | null;
                 type: string;
                 status: string;
                 description: string;
@@ -231,5 +255,127 @@ export declare class AdminWalletController {
         adminNotes: string | null;
         processedAt: Date | null;
         createdAt: Date;
+    }>;
+    listScratchCards(userId?: string, status?: string, search?: string, limit?: string): Promise<{
+        id: string;
+        userId: string;
+        orderId: string;
+        orderType: string;
+        status: string;
+        amount: number | null;
+        scratchedAt: Date | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        adminNotes: string | null;
+        createdAt: Date;
+        userName: string | null;
+        userPhone: string | null;
+        userEmail: string | null;
+        userRole: "customer" | "vendor" | "delivery_partner" | "admin";
+    }[]>;
+    restoreScratchCard(id: string, dto: RestoreScratchCardDto): Promise<{
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched" | "expired";
+        amount: number | null;
+        scratchedAt: Date | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        adminNotes: string | null;
+        createdAt: Date;
+    }>;
+    adjustScratchCardExpiry(id: string, dto: AdjustScratchCardExpiryDto): Promise<{
+        id: string;
+        orderId: string;
+        orderType: "grocery" | "food";
+        status: "unscratched" | "scratched" | "expired";
+        amount: number | null;
+        scratchedAt: Date | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        adminNotes: string | null;
+        createdAt: Date;
+    }>;
+    getCustomerCredits(userId: string): Promise<{
+        customer: {
+            id: string;
+            name: string | null;
+            phone: string | null;
+            email: string | null;
+            walletBalance: number;
+        };
+        credits: {
+            id: string;
+            amount: number;
+            remainingAmount: number | null;
+            expiresAt: Date | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
+            type: string;
+            status: string;
+            description: string;
+            orderId: string | null;
+            orderType: string | null;
+            metadata: unknown;
+            createdAt: Date;
+            isExpired: boolean;
+        }[];
+    }>;
+    restoreWalletCredit(id: string, dto: RestoreWalletCreditDto, admin?: JwtAccessPayload): Promise<{
+        success: boolean;
+        message: string;
+        transaction: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            userId: string;
+            expiresAt: Date | null;
+            type: string;
+            description: string;
+            couponCode: string | null;
+            amount: number;
+            orderId: string | null;
+            orderType: string | null;
+            expiredAt: Date | null;
+            restoredAt: Date | null;
+            walletId: string;
+            remainingAmount: number | null;
+            metadata: unknown;
+        };
+    }>;
+    adjustWalletCreditExpiry(id: string, dto: AdjustWalletCreditExpiryDto): Promise<{
+        id: string;
+        walletId: string;
+        userId: string;
+        amount: number;
+        remainingAmount: number | null;
+        expiresAt: Date | null;
+        expiredAt: Date | null;
+        restoredAt: Date | null;
+        type: string;
+        status: string;
+        description: string;
+        orderId: string | null;
+        orderType: string | null;
+        couponCode: string | null;
+        metadata: unknown;
+        createdAt: Date;
+    }>;
+    getExpirySettings(): Promise<{
+        scratchCardExpiryDays: number;
+        walletAmountExpiryDays: number;
+    }>;
+    updateExpirySettings(dto: UpdateExpirySettingsDto): Promise<{
+        scratchCardExpiryDays: number;
+        walletAmountExpiryDays: number;
+    }>;
+    processExpiries(): Promise<{
+        scratchCardsExpired: number;
+        walletCreditsExpired: number;
+        totalWalletAmountExpired: number;
     }>;
 }

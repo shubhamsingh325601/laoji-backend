@@ -17,6 +17,7 @@ class AdjustWalletDto {
     action;
     amount;
     description;
+    validityDays;
 }
 exports.AdjustWalletDto = AdjustWalletDto;
 __decorate([
@@ -44,4 +45,9 @@ __decorate([
     (0, class_validator_1.MinLength)(2, { message: 'Reason/description must be at least 2 characters' }),
     __metadata("design:type", String)
 ], AdjustWalletDto.prototype, "description", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], AdjustWalletDto.prototype, "validityDays", void 0);
 //# sourceMappingURL=adjust-wallet.dto.js.map

@@ -20,4 +20,8 @@ export class AdjustWalletDto {
   @IsString()
   @MinLength(2, { message: 'Reason/description must be at least 2 characters' })
   description: string;
+
+  @IsOptional()
+  @IsNumber()
+  validityDays?: number;
 }

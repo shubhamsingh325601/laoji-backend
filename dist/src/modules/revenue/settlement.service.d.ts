@@ -12,8 +12,8 @@ export declare class SettlementService {
     generateForDeliveredOrder(type: OrderType, orderId: string): Promise<{
         id: string;
         createdAt: Date;
-        foodOrderId: string | null;
         groceryOrderId: string | null;
+        foodOrderId: string | null;
         vendorPayout: number;
         deliveryPayout: number;
         platformShare: number;

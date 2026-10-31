@@ -48,16 +48,16 @@ export declare class AdminCouponController {
     create(dto: CreateCouponDto): Promise<{
         id: string;
         createdAt: Date;
+        expiresAt: Date | null;
         showInApp: boolean;
         description: string | null;
         vendorId: string | null;
+        minOrderValue: number;
+        isActive: boolean;
+        code: string;
         discountType: string;
         discountValue: number;
         maxDiscount: number | null;
-        minOrderValue: number;
-        isActive: boolean;
-        expiresAt: Date | null;
-        code: string;
         isFirstOrderOnly: boolean;
         firstNOrders: number | null;
         beneficiaryUserId: string | null;

@@ -591,9 +591,9 @@ export declare class BannerService {
         createdAt: Date;
         imageUrl: string;
         sortOrder: number;
-        title: string;
         isActive: boolean;
         startsAt: Date | null;
+        title: string;
         subtitle: string | null;
         placement: string;
         endsAt: Date | null;

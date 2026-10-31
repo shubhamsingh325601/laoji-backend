@@ -96,6 +96,9 @@ export declare class AuthService {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateEmail(userId: string, email: string): Promise<{
@@ -111,6 +114,9 @@ export declare class AuthService {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     updateProfile(userId: string, dto: {
@@ -129,6 +135,9 @@ export declare class AuthService {
         notifyKyc: boolean;
         supportNotes: string | null;
         mustChangePassword: boolean;
+        referralCode: string | null;
+        referredBy: string | null;
+        referralRewardedAt: Date | null;
         createdAt: Date;
     }>;
     deleteAccount(userId: string): Promise<{
