@@ -1037,25 +1037,35 @@ let OrderService = class OrderService {
         const customerRows = customerIds.length
             ? await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.inArray)(schema_1.users.id, customerIds))
             : [];
-        const customerPhoneById = new Map(customerRows.map((u) => [u.id, u.phone ?? '']));
+        const customerMap = new Map(customerRows.map((u) => [
+            u.id,
+            {
+                name: u.name?.trim() || null,
+                phone: u.phone?.trim() || '',
+            },
+        ]));
         const attachedGrocery = await this.attachGroceryItems(grocery);
         const attachedFood = await this.attachFoodItems(food);
         return {
             grocery: attachedGrocery.map((o) => {
                 const { deliveryOtp: _otp, ...rest } = o;
+                const cust = customerMap.get(o.customerId);
                 return {
                     ...rest,
                     type: 'grocery',
-                    customerName: customerPhoneById.get(o.customerId) ?? '',
+                    customerName: cust?.name || cust?.phone || 'Customer',
+                    customerPhone: cust?.phone || '',
                     paymentProvider: o.paymentMethod || undefined,
                 };
             }),
             food: attachedFood.map((o) => {
                 const { deliveryOtp: _otp, ...rest } = o;
+                const cust = customerMap.get(o.customerId);
                 return {
                     ...rest,
                     type: 'food',
-                    customerName: customerPhoneById.get(o.customerId) ?? '',
+                    customerName: cust?.name || cust?.phone || 'Customer',
+                    customerPhone: cust?.phone || '',
                     paymentProvider: o.paymentMethod || undefined,
                 };
             }),

@@ -1350,7 +1350,15 @@ export class OrderService {
     const customerRows = customerIds.length
       ? await this.db.select().from(users).where(inArray(users.id, customerIds))
       : [];
-    const customerPhoneById = new Map(customerRows.map((u) => [u.id, u.phone ?? '']));
+    const customerMap = new Map(
+      customerRows.map((u) => [
+        u.id,
+        {
+          name: u.name?.trim() || null,
+          phone: u.phone?.trim() || '',
+        },
+      ]),
+    );
 
     // deliveryOtp is stripped here the same way withOtpVisibility strips it
     // for the single-order admin timeline view — the list endpoint spreads
@@ -1362,19 +1370,23 @@ export class OrderService {
     return {
       grocery: attachedGrocery.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
+        const cust = customerMap.get(o.customerId);
         return {
           ...rest,
           type: 'grocery' as const,
-          customerName: customerPhoneById.get(o.customerId) ?? '',
+          customerName: cust?.name || cust?.phone || 'Customer',
+          customerPhone: cust?.phone || '',
           paymentProvider: o.paymentMethod || undefined,
         };
       }),
       food: attachedFood.map((o) => {
         const { deliveryOtp: _otp, ...rest } = o;
+        const cust = customerMap.get(o.customerId);
         return {
           ...rest,
           type: 'food' as const,
-          customerName: customerPhoneById.get(o.customerId) ?? '',
+          customerName: cust?.name || cust?.phone || 'Customer',
+          customerPhone: cust?.phone || '',
           paymentProvider: o.paymentMethod || undefined,
         };
       }),

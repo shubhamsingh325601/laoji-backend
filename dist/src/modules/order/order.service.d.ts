@@ -504,8 +504,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         rating: number;
@@ -517,8 +517,8 @@ export declare class OrderService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         rating: number;

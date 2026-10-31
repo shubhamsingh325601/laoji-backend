@@ -271,8 +271,8 @@ export declare class CustomerOrderController {
     rateGroceryOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         rating: number;
@@ -472,8 +472,8 @@ export declare class CustomerOrderController {
     rateFoodOrder(user: JwtAccessPayload, id: string, dto: RateFoodOrderDto): Promise<{
         id: string;
         createdAt: Date;
-        customerId: string;
         restaurantId: string;
+        customerId: string;
         groceryOrderId: string | null;
         foodOrderId: string | null;
         rating: number;
