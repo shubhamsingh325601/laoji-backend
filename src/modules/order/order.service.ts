@@ -155,6 +155,15 @@ export class OrderService {
         freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
       };
     }
+    // If the admin has set per-distance free-delivery thresholds, use those
+    // instead of the single global threshold in the revenue config.
+    const perDistanceThreshold = await this.newCustomerDelivery.freeDeliveryThreshold(
+      distanceKm,
+      revenue.freeDeliveryThreshold,
+    );
+    if (perDistanceThreshold !== revenue.freeDeliveryThreshold) {
+      revenue = { ...revenue, freeDeliveryThreshold: perDistanceThreshold };
+    }
     // A customer's first few orders within the admin-set distance get free delivery.
     // Otherwise the admin's km ranges set the fee (revenue-config fees if none are saved).
     const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);

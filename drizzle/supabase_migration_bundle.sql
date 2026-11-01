@@ -175,3 +175,25 @@ ON CONFLICT ("key") DO NOTHING;
 INSERT INTO "platform_settings" ("key", "value", "description")
 VALUES ('wallet_amount_expiry_days', '30', 'Default days before customer wallet credits expire (default 30)')
 ON CONFLICT ("key") DO NOTHING;
+
+-- 11. Customer Refer & Earn
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referral_code" varchar(12);
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referred_by" uuid;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referral_rewarded_at" timestamp with time zone;
+
+DO $$ BEGIN
+  ALTER TABLE "users"
+    ADD CONSTRAINT "users_referred_by_users_id_fk"
+    FOREIGN KEY ("referred_by") REFERENCES "users"("id") ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "users_referral_code_idx" ON "users" ("referral_code");
+CREATE INDEX IF NOT EXISTS "users_referred_by_idx" ON "users" ("referred_by");
+
+INSERT INTO "platform_settings" ("key", "value", "description")
+VALUES ('referral_reward_pct', '5', 'Refer & earn: % of the referred customer''s first order paid to the referrer''s wallet')
+ON CONFLICT ("key") DO NOTHING;
+
+INSERT INTO "platform_settings" ("key", "value", "description")
+VALUES ('referral_reward_max_amount', '15', 'Refer & earn: maximum rupees a single referral can pay the referrer')
+ON CONFLICT ("key") DO NOTHING;

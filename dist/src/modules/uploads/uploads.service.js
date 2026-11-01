@@ -38,12 +38,14 @@ let UploadsService = class UploadsService {
         this.apiKey = this.config.get('CLOUDINARY_API_KEY') ?? '';
         this.apiSecret = this.config.get('CLOUDINARY_API_SECRET') ?? '';
         this.env = this.config.get('NODE_ENV') ?? 'development';
+        if (this.cloudName && this.apiKey && this.apiSecret) {
+            cloudinary_1.v2.config({ cloud_name: this.cloudName, api_key: this.apiKey, api_secret: this.apiSecret });
+        }
+    }
+    signUpload(userId, type) {
         if (!this.cloudName || !this.apiKey || !this.apiSecret) {
             throw new common_1.InternalServerErrorException('Cloudinary is not configured — set CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET');
         }
-        cloudinary_1.v2.config({ cloud_name: this.cloudName, api_key: this.apiKey, api_secret: this.apiSecret });
-    }
-    signUpload(userId, type) {
         const folder = `laoji/${this.env}/${userId}/${type}`;
         const timestamp = Math.round(Date.now() / 1000);
         const signature = cloudinary_1.v2.utils.api_sign_request({ folder, timestamp }, this.apiSecret);
