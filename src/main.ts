@@ -26,7 +26,12 @@ async function bootstrap() {
     'https://laojionline.com',
   ];
   const corsOrigins = rawCors
-    ? Array.from(new Set([...rawCors.split(',').map((s) => s.trim()), 'https://www.laojionline.com', 'https://laojionline.com']))
+    ? Array.from(new Set([
+        ...rawCors.split(',').map((s) => s.trim()),
+        'https://laoji-admin.vercel.app',
+        'https://www.laojionline.com',
+        'https://laojionline.com',
+      ]))
     : defaultOrigins;
   const laojiAdminPreviewOrigin =
     /^https:\/\/laoji-admin-[a-z0-9-]+-shubham-singhs-projects-fad54e54\.vercel\.app$/;
