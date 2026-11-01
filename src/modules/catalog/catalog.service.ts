@@ -1642,10 +1642,27 @@ export class CatalogService {
       }
     }
 
+    // Which kinds of dish each restaurant serves right now, from its menu.
+    const dietMap = new Map<string, { hasVeg: boolean; hasNonVeg: boolean }>();
+    if (restIds.length > 0) {
+      const dietRows = await this.db
+        .selectDistinct({ restaurantId: menuCategories.restaurantId, isVeg: menuItems.isVeg })
+        .from(menuItems)
+        .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
+        .where(and(inArray(menuCategories.restaurantId, restIds), eq(menuItems.isAvailable, true)));
+      for (const d of dietRows) {
+        const cur = dietMap.get(d.restaurantId) ?? { hasVeg: false, hasNonVeg: false };
+        if (d.isVeg) cur.hasVeg = true;
+        else cur.hasNonVeg = true;
+        dietMap.set(d.restaurantId, cur);
+      }
+    }
+
     return rows
       .map((r) => {
         const v = vendorMap.get(r.vendorId);
         const openNow = (v?.isOpen ?? false) && (v ? isVendorOpenNow(v) : false);
+        const diet = dietMap.get(r.id) ?? { hasVeg: false, hasNonVeg: false };
         const agg = ratingsMap.get(r.id);
         const dynamicRating = agg && agg.count > 0 ? agg.avg : 0;
         const dynamicCount = agg ? agg.count : 0;
@@ -1656,6 +1673,8 @@ export class CatalogService {
           ratingAvg: dynamicRating,
           ratingCount: dynamicCount,
           isOpen: openNow,
+          hasVeg: diet.hasVeg,
+          hasNonVeg: diet.hasNonVeg,
           type: v?.type || 'restaurant',
           displayOrder: v?.displayOrder ?? 0,
           distanceKm: roundKm(distanceKm.get(r.vendorId)!),

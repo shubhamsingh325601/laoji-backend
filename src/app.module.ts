@@ -20,6 +20,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AreaManagerModule } from './modules/area-manager/area-manager.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { BannerModule } from './modules/banner/banner.module';
+import { HomeTabModule } from './modules/home-tab/home-tab.module';
 import { VendorDiscountsModule } from './modules/vendor-discounts/vendor-discounts.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -80,6 +81,7 @@ import { ResponseCacheModule } from './common/cache/response-cache.module';
     AreaManagerModule,
     CouponModule,
     BannerModule,
+    HomeTabModule,
     VendorDiscountsModule,
     WalletModule,
   ],
