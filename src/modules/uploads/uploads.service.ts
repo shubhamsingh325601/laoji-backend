@@ -44,6 +44,51 @@ export class UploadsService {
     cloudinary.config({ cloud_name: this.cloudName, api_key: this.apiKey, api_secret: this.apiSecret });
   }
 
+  async deleteMedia(urlOrPublicId?: string | null): Promise<boolean> {
+    if (!urlOrPublicId) return false;
+    const publicId = this.extractPublicId(urlOrPublicId);
+    if (!publicId) return false;
+
+    try {
+      const res = await cloudinary.uploader.destroy(publicId, { invalidate: true });
+      return res.result === 'ok';
+    } catch (err) {
+      console.warn(`[UploadsService] Failed to delete media "${publicId}" from Cloudinary:`, err);
+      return false;
+    }
+  }
+
+  extractPublicId(urlOrPublicId: string): string | null {
+    if (!urlOrPublicId) return null;
+    const trimmed = urlOrPublicId.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (!trimmed.includes('cloudinary.com')) {
+      return null;
+    }
+    const clean = trimmed.split('?')[0].split('#')[0];
+    const uploadIdx = clean.indexOf('/upload/');
+    if (uploadIdx === -1) return null;
+
+    let pathAfterUpload = clean.substring(uploadIdx + '/upload/'.length);
+    const versionMatch = pathAfterUpload.match(/(?:^|\/)v\d+\/(.+)$/);
+    if (versionMatch) {
+      pathAfterUpload = versionMatch[1];
+    } else {
+      const segments = pathAfterUpload.split('/');
+      if (segments.length > 1 && segments[0].includes('_')) {
+        segments.shift();
+        pathAfterUpload = segments.join('/');
+      }
+    }
+    const lastDot = pathAfterUpload.lastIndexOf('.');
+    if (lastDot > 0) {
+      pathAfterUpload = pathAfterUpload.substring(0, lastDot);
+    }
+    return pathAfterUpload || null;
+  }
+
   signUpload(userId: string, type: UploadType): SignatureResponse {
     const folder = `laoji/${this.env}/${userId}/${type}`;
     const timestamp = Math.round(Date.now() / 1000);
@@ -66,6 +111,9 @@ export class UploadsService {
 
     let row;
     if (existing) {
+      if (existing.publicId && existing.publicId !== input.publicId) {
+        await this.deleteMedia(existing.publicId || existing.secureUrl);
+      }
       [row] = await this.db
         .update(kycDocuments)
         .set({
@@ -110,6 +158,7 @@ export class UploadsService {
     if (!doc) throw new NotFoundException('KYC document not found');
 
     await this.db.delete(kycDocuments).where(eq(kycDocuments.id, docId));
+    await this.deleteMedia(doc.publicId || doc.secureUrl);
     const rolledUpStatus = await this.rollUpKycStatus(userId, doc.role);
     return { success: true, deletedId: docId, rolledUpStatus };
   }

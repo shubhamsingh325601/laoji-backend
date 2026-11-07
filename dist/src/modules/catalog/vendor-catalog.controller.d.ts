@@ -14,9 +14,9 @@ export declare class VendorCatalogController {
         id: string;
         createdAt: Date;
         userId: string;
+        type: "grocery" | "restaurant" | "both";
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -215,8 +215,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -230,6 +230,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -240,7 +241,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }[]>;
     upsertListing(user: JwtAccessPayload, dto: UpsertVendorProductDto): Promise<{
         commissionPct: any;
@@ -251,8 +251,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -266,6 +266,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -276,7 +277,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     createNewProduct(user: JwtAccessPayload, dto: CreateGroceryProductDto): Promise<{
         commissionPct: any;
@@ -287,8 +287,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -302,6 +302,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -312,7 +313,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     updateListing(user: JwtAccessPayload, id: string, dto: UpdateVendorProductDto): Promise<{
         commissionPct: any;
@@ -323,8 +323,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -338,6 +338,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -348,7 +349,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     restockListing(user: JwtAccessPayload, id: string, dto: RestockVendorProductDto): Promise<{
         commissionPct: any;
@@ -359,8 +359,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -374,6 +374,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -384,7 +385,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     deleteListing(user: JwtAccessPayload, id: string): Promise<{
         success: boolean;
@@ -432,8 +432,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -447,6 +447,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -457,7 +458,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     updateCustomProduct(user: JwtAccessPayload, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
         commissionPct: any;
@@ -468,8 +468,8 @@ export declare class VendorCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -483,6 +483,7 @@ export declare class VendorCatalogController {
         };
         isOwnProduct: boolean;
         id: string;
+        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -493,7 +494,6 @@ export declare class VendorCatalogController {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
-        updatedAt: Date;
     }>;
     deleteCustomProduct(user: JwtAccessPayload, productId: string): Promise<{
         success: boolean;
@@ -503,15 +503,15 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         imageUrl: string | null;
         vendorId: string;
         categoryId: string;
         unit: string;
         size: string | null;
         productId: string | null;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
     }>;
     myProductSuggestions(user: JwtAccessPayload): Promise<{
         id: string;
@@ -533,12 +533,12 @@ export declare class VendorCatalogController {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        businessType: string;
-        vendorId: string;
-        categoryId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        businessType: string;
+        vendorId: string;
+        categoryId: string | null;
         note: string | null;
     }>;
     myCategorySuggestions(user: JwtAccessPayload): Promise<{

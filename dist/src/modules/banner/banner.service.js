@@ -18,11 +18,14 @@ const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../config/database.module");
 const schema_1 = require("../../../drizzle/schema");
 const response_cache_service_1 = require("../../common/cache/response-cache.service");
+const uploads_service_1 = require("../uploads/uploads.service");
 let BannerService = class BannerService {
     db;
+    uploads;
     cache;
-    constructor(db, cache) {
+    constructor(db, uploads, cache) {
         this.db = db;
+        this.uploads = uploads;
         this.cache = cache;
     }
     listAllForAdmin() {
@@ -61,14 +64,18 @@ let BannerService = class BannerService {
         return row;
     }
     async update(id, dto) {
-        await this.findOrThrow(id);
+        const existing = await this.findOrThrow(id);
         const updates = {};
         if (dto.title !== undefined)
             updates.title = dto.title.trim();
         if (dto.subtitle !== undefined)
             updates.subtitle = dto.subtitle?.trim() || null;
-        if (dto.imageUrl !== undefined)
+        if (dto.imageUrl !== undefined) {
             updates.imageUrl = dto.imageUrl;
+            if (existing.imageUrl && existing.imageUrl !== dto.imageUrl) {
+                await this.uploads?.deleteMedia(existing.imageUrl);
+            }
+        }
         if (dto.link !== undefined)
             updates.link = dto.link?.trim() || null;
         if (dto.placement !== undefined)
@@ -86,8 +93,9 @@ let BannerService = class BannerService {
         return row;
     }
     async delete(id) {
-        await this.findOrThrow(id);
+        const row = await this.findOrThrow(id);
         await this.db.delete(schema_1.banners).where((0, drizzle_orm_1.eq)(schema_1.banners.id, id));
+        await this.uploads?.deleteMedia(row.imageUrl);
         this.cache?.clear();
         return { success: true };
     }
@@ -102,7 +110,9 @@ exports.BannerService = BannerService;
 exports.BannerService = BannerService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
-    __param(1, (0, common_1.Inject)(response_cache_service_1.ResponseCacheService)),
-    __metadata("design:paramtypes", [Object, response_cache_service_1.ResponseCacheService])
+    __param(1, (0, common_1.Optional)()),
+    __param(2, (0, common_1.Inject)(response_cache_service_1.ResponseCacheService)),
+    __metadata("design:paramtypes", [Object, uploads_service_1.UploadsService,
+        response_cache_service_1.ResponseCacheService])
 ], BannerService);
 //# sourceMappingURL=banner.service.js.map

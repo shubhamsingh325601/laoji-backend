@@ -1,15 +1,17 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { and, asc, desc, eq, gte, isNull, lte, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { banners } from '../../../drizzle/schema';
 import { ResponseCacheService } from '../../common/cache/response-cache.service';
+import { UploadsService } from '../uploads/uploads.service';
 import type { BannerPlacement, CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
 
 @Injectable()
 export class BannerService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
+    @Optional() private readonly uploads?: UploadsService,
     @Inject(ResponseCacheService) private readonly cache?: ResponseCacheService,
   ) {}
 
@@ -60,11 +62,16 @@ export class BannerService {
   }
 
   async update(id: string, dto: UpdateBannerDto) {
-    await this.findOrThrow(id);
+    const existing = await this.findOrThrow(id);
     const updates: Partial<typeof banners.$inferInsert> = {};
     if (dto.title !== undefined) updates.title = dto.title.trim();
     if (dto.subtitle !== undefined) updates.subtitle = dto.subtitle?.trim() || null;
-    if (dto.imageUrl !== undefined) updates.imageUrl = dto.imageUrl;
+    if (dto.imageUrl !== undefined) {
+      updates.imageUrl = dto.imageUrl;
+      if (existing.imageUrl && existing.imageUrl !== dto.imageUrl) {
+        await this.uploads?.deleteMedia(existing.imageUrl);
+      }
+    }
     if (dto.link !== undefined) updates.link = dto.link?.trim() || null;
     if (dto.placement !== undefined) updates.placement = dto.placement;
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
@@ -77,8 +84,9 @@ export class BannerService {
   }
 
   async delete(id: string) {
-    await this.findOrThrow(id);
+    const row = await this.findOrThrow(id);
     await this.db.delete(banners).where(eq(banners.id, id));
+    await this.uploads?.deleteMedia(row.imageUrl);
     this.cache?.clear();
     return { success: true };
   }

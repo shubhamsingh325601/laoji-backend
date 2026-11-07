@@ -32,8 +32,8 @@ export declare class PublicCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        imageUrl: string | null;
         description: string | null;
+        imageUrl: string | null;
         ownerVendorId: string | null;
         unit: string;
         size: string | null;
@@ -201,8 +201,8 @@ export declare class PublicCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            imageUrl: string | null;
             description: string | null;
+            imageUrl: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;

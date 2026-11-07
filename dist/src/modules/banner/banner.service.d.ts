@@ -1,10 +1,12 @@
 import type { Db } from '../../config/database.module';
 import { ResponseCacheService } from '../../common/cache/response-cache.service';
+import { UploadsService } from '../uploads/uploads.service';
 import type { BannerPlacement, CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
 export declare class BannerService {
     private readonly db;
+    private readonly uploads?;
     private readonly cache?;
-    constructor(db: Db, cache?: ResponseCacheService | undefined);
+    constructor(db: Db, uploads?: UploadsService | undefined, cache?: ResponseCacheService | undefined);
     listAllForAdmin(): Omit<import("drizzle-orm/pg-core").PgSelectBase<"banners", {
         id: import("drizzle-orm/pg-core").PgColumn<{
             name: "id";
@@ -591,11 +593,11 @@ export declare class BannerService {
         createdAt: Date;
         imageUrl: string;
         sortOrder: number;
-        isActive: boolean;
-        startsAt: Date | null;
         title: string;
+        isActive: boolean;
         subtitle: string | null;
         placement: string;
+        startsAt: Date | null;
         endsAt: Date | null;
     }>;
     update(id: string, dto: UpdateBannerDto): Promise<{

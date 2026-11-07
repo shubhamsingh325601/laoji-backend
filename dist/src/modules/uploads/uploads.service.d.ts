@@ -19,6 +19,8 @@ export declare class UploadsService {
     private readonly apiSecret;
     private readonly env;
     constructor(db: Db, config: ConfigService, notifications: NotificationService);
+    deleteMedia(urlOrPublicId?: string | null): Promise<boolean>;
+    extractPublicId(urlOrPublicId: string): string | null;
     signUpload(userId: string, type: UploadType): SignatureResponse;
     saveKycDocument(userId: string, role: UserRole, input: {
         docType: string;

@@ -60,6 +60,7 @@ const meal_slots_1 = require("./meal-slots");
 const notification_service_1 = require("../notification/notification.service");
 const vendor_discounts_service_1 = require("../vendor-discounts/vendor-discounts.service");
 const revenue_config_service_1 = require("../revenue/revenue-config.service");
+const uploads_service_1 = require("../uploads/uploads.service");
 const product_suggestion_1 = require("../notification/templates/push/product-suggestion");
 const category_suggestion_1 = require("../notification/templates/push/category-suggestion");
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -67,12 +68,14 @@ let CatalogService = class CatalogService {
     db;
     notifications;
     vendorDiscounts;
+    uploads;
     revenueConfig;
     grocerySizes;
-    constructor(db, notifications, vendorDiscounts, revenueConfig, grocerySizes) {
+    constructor(db, notifications, vendorDiscounts, uploads, revenueConfig, grocerySizes) {
         this.db = db;
         this.notifications = notifications;
         this.vendorDiscounts = vendorDiscounts;
+        this.uploads = uploads;
         this.revenueConfig = revenueConfig;
         this.grocerySizes = grocerySizes;
     }
@@ -159,6 +162,9 @@ let CatalogService = class CatalogService {
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, existing.id))
                 .returning();
+            if (dto.imageUrl !== undefined && existing.imageUrl && existing.imageUrl !== dto.imageUrl) {
+                await this.uploads?.deleteMedia(existing.imageUrl);
+            }
             if (dto.imageUrl) {
                 await this.db.update(schema_1.restaurants).set({ imageUrl: dto.imageUrl }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, existing.id));
             }
@@ -357,11 +363,18 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateCategory(id, dto) {
+        const [existing] = await this.db.select().from(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id)).limit(1);
+        if (!existing)
+            throw new common_1.NotFoundException('Category not found');
         const updateData = {};
         if (dto.name !== undefined)
             updateData.name = dto.name.trim();
-        if (dto.imageUrl !== undefined)
+        if (dto.imageUrl !== undefined) {
             updateData.imageUrl = dto.imageUrl?.trim() || null;
+            if (existing.imageUrl && existing.imageUrl !== updateData.imageUrl) {
+                await this.uploads?.deleteMedia(existing.imageUrl);
+            }
+        }
         if (dto.parentId !== undefined) {
             const parentId = dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
                 ? dto.parentId.trim()
@@ -431,21 +444,37 @@ let CatalogService = class CatalogService {
             await this.db
                 .delete(schema_1.products)
                 .where((0, drizzle_orm_1.inArray)(schema_1.products.id, prodIds));
+            for (const p of allProducts) {
+                await this.uploads?.deleteMedia(p.imageUrl);
+            }
         }
         await this.detachStoresFromCategories([cat, ...subcats]);
         await this.db
             .update(schema_1.categorySuggestions)
             .set({ categoryId: null })
             .where((0, drizzle_orm_1.inArray)(schema_1.categorySuggestions.categoryId, allCatIds));
+        const suggestionsToDelete = await this.db
+            .select({ imageUrl: schema_1.productSuggestions.imageUrl })
+            .from(schema_1.productSuggestions)
+            .where((0, drizzle_orm_1.inArray)(schema_1.productSuggestions.categoryId, allCatIds));
         await this.db
             .delete(schema_1.productSuggestions)
             .where((0, drizzle_orm_1.inArray)(schema_1.productSuggestions.categoryId, allCatIds));
+        for (const sugg of suggestionsToDelete) {
+            if (sugg.imageUrl) {
+                await this.uploads?.deleteMedia(sugg.imageUrl);
+            }
+        }
         if (subcats.length > 0) {
             await this.db
                 .delete(schema_1.categories)
                 .where((0, drizzle_orm_1.inArray)(schema_1.categories.id, subcats.map((s) => s.id)));
+            for (const s of subcats) {
+                await this.uploads?.deleteMedia(s.imageUrl);
+            }
         }
         await this.db.delete(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, id));
+        await this.uploads?.deleteMedia(cat.imageUrl);
         return {
             success: true,
             message: `Category "${cat.name}", ${subcats.length} subcategories, and ${allProducts.length} products deleted successfully.`,
@@ -506,6 +535,9 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateProduct(id, dto) {
+        const [existing] = await this.db.select().from(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).limit(1);
+        if (!existing)
+            throw new common_1.NotFoundException('Product not found');
         const updateData = {
             ...dto,
             ...(dto.brand !== undefined ? { brand: dto.brand || null } : {}),
@@ -516,6 +548,9 @@ let CatalogService = class CatalogService {
             ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice ?? null } : {}),
             ...(dto.sellingPrice !== undefined ? { sellingPrice: dto.sellingPrice ?? null } : {}),
         };
+        if (dto.imageUrl !== undefined && existing.imageUrl && existing.imageUrl !== (dto.imageUrl || null)) {
+            await this.uploads?.deleteMedia(existing.imageUrl);
+        }
         const [row] = await this.db.update(schema_1.products).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.products.id, id)).returning();
         if (!row)
             throw new common_1.NotFoundException('Product not found');
@@ -553,6 +588,7 @@ let CatalogService = class CatalogService {
             await this.db.delete(schema_1.vendorProducts).where((0, drizzle_orm_1.eq)(schema_1.vendorProducts.productId, id));
         }
         await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, id));
+        await this.uploads?.deleteMedia(prod.imageUrl);
         return { success: true, message: `Product "${prod.name}" deleted successfully.` };
     }
     async categoryIndex() {
@@ -730,6 +766,9 @@ let CatalogService = class CatalogService {
         const fallback = category.templateCategoryId ?? category.parentId ?? (await this.businessTypeRoot(vendor.businessType)).id;
         await this.db.update(schema_1.products).set({ categoryId: fallback }).where((0, drizzle_orm_1.eq)(schema_1.products.categoryId, category.id));
         await this.db.delete(schema_1.categories).where((0, drizzle_orm_1.eq)(schema_1.categories.id, category.id));
+        if (category.imageUrl) {
+            await this.uploads?.deleteMedia(category.imageUrl);
+        }
         return { success: true, message: `Category "${category.name}" deleted.` };
     }
     async listVendorCatalogProducts(vendor, categoryId) {
@@ -845,6 +884,9 @@ let CatalogService = class CatalogService {
         if (Object.keys(changes).length === 0)
             return product;
         if (product.ownerVendorId === vendor.id) {
+            if (changes.imageUrl !== undefined && product.imageUrl && product.imageUrl !== changes.imageUrl) {
+                await this.uploads?.deleteMedia(product.imageUrl);
+            }
             const [updated] = await this.db.update(schema_1.products).set(changes).where((0, drizzle_orm_1.eq)(schema_1.products.id, product.id)).returning();
             return updated;
         }
@@ -1028,8 +1070,12 @@ let CatalogService = class CatalogService {
                 .from(schema_1.groceryOrderItems)
                 .where((0, drizzle_orm_1.eq)(schema_1.groceryOrderItems.productId, product.id))
                 .limit(1);
-            if (!orderItem)
+            if (!orderItem) {
                 await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, product.id));
+                if (product.imageUrl) {
+                    await this.uploads?.deleteMedia(product.imageUrl);
+                }
+            }
             else if (product.variantGroupId) {
                 await this.db
                     .update(schema_1.products)
@@ -1503,6 +1549,9 @@ let CatalogService = class CatalogService {
     }
     async updateRestaurant(vendorId, dto) {
         const restaurant = await this.getOrCreateRestaurant(vendorId);
+        if (dto.imageUrl !== undefined && restaurant.imageUrl && restaurant.imageUrl !== dto.imageUrl) {
+            await this.uploads?.deleteMedia(restaurant.imageUrl);
+        }
         const [updated] = await this.db
             .update(schema_1.restaurants)
             .set(dto)
@@ -1550,7 +1599,16 @@ let CatalogService = class CatalogService {
     }
     async deleteMenuCategory(vendorId, id) {
         await this.requireOwnMenuCategory(vendorId, id);
+        const items = await this.db
+            .select({ imageUrl: schema_1.menuItems.imageUrl })
+            .from(schema_1.menuItems)
+            .where((0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, id));
         await this.db.delete(schema_1.menuCategories).where((0, drizzle_orm_1.eq)(schema_1.menuCategories.id, id));
+        for (const item of items) {
+            if (item.imageUrl) {
+                await this.uploads?.deleteMedia(item.imageUrl);
+            }
+        }
     }
     async listMenuItems(vendorId, menuCategoryId) {
         const restaurant = await this.getOrCreateRestaurant(vendorId);
@@ -1608,7 +1666,12 @@ let CatalogService = class CatalogService {
         return row;
     }
     async updateMenuItem(vendorId, id, dto) {
-        await this.requireOwnMenuItem(vendorId, id);
+        const existing = await this.requireOwnMenuItem(vendorId, id);
+        if (dto.imageUrl !== undefined &&
+            existing.imageUrl &&
+            existing.imageUrl !== (dto.imageUrl || null)) {
+            await this.uploads?.deleteMedia(existing.imageUrl);
+        }
         const { addons, variants, mealSlots, ...fields } = dto;
         const updateData = {
             ...fields,
@@ -1626,8 +1689,11 @@ let CatalogService = class CatalogService {
         return { ...updated, addons: finalAddons, variants: finalVariants };
     }
     async deleteMenuItem(vendorId, id) {
-        await this.requireOwnMenuItem(vendorId, id);
+        const item = await this.requireOwnMenuItem(vendorId, id);
         await this.db.delete(schema_1.menuItems).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, id));
+        if (item.imageUrl) {
+            await this.uploads?.deleteMedia(item.imageUrl);
+        }
     }
     async replaceAddons(menuItemId, addons) {
         await this.db.delete(schema_1.menuItemAddons).where((0, drizzle_orm_1.eq)(schema_1.menuItemAddons.menuItemId, menuItemId));
@@ -2374,8 +2440,12 @@ let CatalogService = class CatalogService {
                         prodUpdates.description = dto.description?.trim() || null;
                     if (dto.unit !== undefined)
                         prodUpdates.unit = dto.unit.trim();
-                    if (dto.imageUrl !== undefined)
+                    if (dto.imageUrl !== undefined) {
                         prodUpdates.imageUrl = dto.imageUrl?.trim() || null;
+                        if (prod.imageUrl && prod.imageUrl !== prodUpdates.imageUrl) {
+                            await this.uploads?.deleteMedia(prod.imageUrl);
+                        }
+                    }
                     if (dto.categoryId !== undefined)
                         prodUpdates.categoryId = dto.categoryId;
                     if (Object.keys(prodUpdates).length > 0) {
@@ -2418,7 +2488,7 @@ let CatalogService = class CatalogService {
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
         if (restaurant) {
             const [mi] = await this.db
-                .select({ id: schema_1.menuItems.id, price: schema_1.menuItems.price })
+                .select({ id: schema_1.menuItems.id, price: schema_1.menuItems.price, imageUrl: schema_1.menuItems.imageUrl })
                 .from(schema_1.menuItems)
                 .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.menuItems.id, itemId), (0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id)))
@@ -2431,8 +2501,12 @@ let CatalogService = class CatalogService {
                     miUpdates.description = dto.description?.trim() || null;
                 if (dto.price !== undefined)
                     miUpdates.price = dto.price;
-                if (dto.imageUrl !== undefined)
+                if (dto.imageUrl !== undefined) {
                     miUpdates.imageUrl = dto.imageUrl?.trim() || null;
+                    if (mi.imageUrl && mi.imageUrl !== miUpdates.imageUrl) {
+                        await this.uploads?.deleteMedia(mi.imageUrl);
+                    }
+                }
                 if (dto.isVeg !== undefined)
                     miUpdates.isVeg = dto.isVeg;
                 if (dto.isAvailable !== undefined)
@@ -2479,6 +2553,9 @@ let CatalogService = class CatalogService {
                     .limit(1);
                 if (!ordered) {
                     await this.db.delete(schema_1.products).where((0, drizzle_orm_1.eq)(schema_1.products.id, prod.id));
+                    if (prod.imageUrl) {
+                        await this.uploads?.deleteMedia(prod.imageUrl);
+                    }
                 }
             }
             return { success: true };
@@ -2486,13 +2563,16 @@ let CatalogService = class CatalogService {
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, vendorId)).limit(1);
         if (restaurant) {
             const [mi] = await this.db
-                .select({ id: schema_1.menuItems.id })
+                .select({ id: schema_1.menuItems.id, imageUrl: schema_1.menuItems.imageUrl })
                 .from(schema_1.menuItems)
                 .innerJoin(schema_1.menuCategories, (0, drizzle_orm_1.eq)(schema_1.menuItems.menuCategoryId, schema_1.menuCategories.id))
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.menuItems.id, itemId), (0, drizzle_orm_1.eq)(schema_1.menuCategories.restaurantId, restaurant.id)))
                 .limit(1);
             if (mi) {
                 await this.db.delete(schema_1.menuItems).where((0, drizzle_orm_1.eq)(schema_1.menuItems.id, mi.id));
+                if (mi.imageUrl) {
+                    await this.uploads?.deleteMedia(mi.imageUrl);
+                }
                 return { success: true };
             }
         }
@@ -2755,6 +2835,9 @@ let CatalogService = class CatalogService {
             updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
         if (dto.imageUrl !== undefined) {
             updateFields.imageUrl = dto.imageUrl ? dto.imageUrl.trim() : null;
+            if (v.imageUrl && v.imageUrl !== updateFields.imageUrl) {
+                await this.uploads?.deleteMedia(v.imageUrl);
+            }
             await this.db.update(schema_1.restaurants).set({ imageUrl: updateFields.imageUrl }).where((0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, id));
         }
         if (Object.keys(updateFields).length > 0) {
@@ -2862,7 +2945,17 @@ let CatalogService = class CatalogService {
         if (activeGrocery.length > 0 || activeFood.length > 0) {
             throw new common_1.BadRequestException('Cannot delete vendor while active orders are in progress. Please complete or cancel remaining orders first.');
         }
+        const kycDocs = await this.db.select().from(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, v.userId));
         await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, v.userId));
+        for (const doc of kycDocs) {
+            await this.uploads?.deleteMedia(doc.publicId || doc.secureUrl);
+        }
+        if (v.imageUrl) {
+            await this.uploads?.deleteMedia(v.imageUrl);
+        }
+        if (restaurant?.imageUrl) {
+            await this.uploads?.deleteMedia(restaurant.imageUrl);
+        }
         await this.db
             .update(schema_1.authTokens)
             .set({ revokedAt: new Date() })
@@ -2889,8 +2982,10 @@ exports.CatalogService = CatalogService = __decorate([
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
     __param(3, (0, common_1.Optional)()),
     __param(4, (0, common_1.Optional)()),
+    __param(5, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, notification_service_1.NotificationService,
         vendor_discounts_service_1.VendorDiscountsService,
+        uploads_service_1.UploadsService,
         revenue_config_service_1.RevenueConfigService,
         grocery_sizes_service_1.GrocerySizesService])
 ], CatalogService);

@@ -1,4 +1,5 @@
 import { NotificationService } from '../notification/notification.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Db } from '../../config/database.module';
@@ -11,7 +12,8 @@ export declare class AuthService {
     private readonly jwt;
     private readonly config;
     private readonly notifications?;
-    constructor(db: Db, jwt: JwtService, config: ConfigService, notifications?: NotificationService | undefined);
+    private readonly uploads?;
+    constructor(db: Db, jwt: JwtService, config: ConfigService, notifications?: NotificationService | undefined, uploads?: UploadsService | undefined);
     requestOtp(phone: string, role: OtpRole): Promise<{
         devOtp?: string;
     }>;
