@@ -1238,7 +1238,7 @@ let OrderService = class OrderService {
         const created = type === 'grocery'
             ? await this.createGroceryOrder(customerId, dto, actor)
             : await this.createFoodOrder(customerId, dto, actor);
-        if (created.paymentStatus === 'pending') {
+        if (!created.paymentStatus || created.paymentStatus === 'pending') {
             await this.payments.initiate(type, created.id, customerId, paymentMethod === 'cod' ? 'cod' : 'online');
             if (paymentMethod === 'paid')
                 await this.payments.confirmByCustomer(type, created.id, customerId);

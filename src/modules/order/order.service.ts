@@ -1633,7 +1633,7 @@ export class OrderService {
         : await this.createFoodOrder(customerId, dto as CreateFoodOrderDto, actor);
 
     // An idempotent replay returns the existing order — don't initiate payment twice.
-    if (created.paymentStatus === 'pending') {
+    if (!created.paymentStatus || created.paymentStatus === 'pending') {
       await this.payments.initiate(type, created.id, customerId, paymentMethod === 'cod' ? 'cod' : 'online');
       if (paymentMethod === 'paid') await this.payments.confirmByCustomer(type, created.id, customerId);
     }
