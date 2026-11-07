@@ -16,8 +16,18 @@ export class AdminOrderController {
   constructor(private readonly orders: OrderService) {}
 
   @Get()
-  listAll(@Query('includeUnpaid') includeUnpaid?: string) {
-    return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
+  listAll(
+    @Query('includeUnpaid') includeUnpaid?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.orders.listAllOrdersForAdmin({
+      includeUnpaid: includeUnpaid === 'true',
+      page: pageNum && pageNum > 0 ? pageNum : undefined,
+      limit: limitNum && limitNum > 0 ? limitNum : undefined,
+    });
   }
 
   // Declared before ':type/:id' so "customers" isn't read as an order type.

@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateBannerDto = exports.CreateBannerDto = exports.BANNER_PLACEMENTS = void 0;
 const class_validator_1 = require("class-validator");
-exports.BANNER_PLACEMENTS = ['home', 'promo', 'order'];
+exports.BANNER_PLACEMENTS = ['home', 'promo', 'order', 'splash'];
 class CreateBannerDto {
     title;
     subtitle;

@@ -298,6 +298,10 @@ export declare class DeliveryService {
     }>;
     verifyDelivery(userId: string, type: OrderType, orderId: string, otp: string): Promise<{
         ok: boolean;
+        alreadyDelivered: boolean;
+    } | {
+        ok: boolean;
+        alreadyDelivered?: undefined;
     }>;
     private static readonly otpAttempts;
     adminCompleteDelivery(adminUserId: string, type: OrderType, orderId: string): Promise<void>;

@@ -99,6 +99,10 @@ let OrderService = class OrderService {
                 freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
             };
         }
+        const perDistanceThreshold = await this.newCustomerDelivery.freeDeliveryThreshold(distanceKm, revenue.freeDeliveryThreshold);
+        if (perDistanceThreshold !== revenue.freeDeliveryThreshold) {
+            revenue = { ...revenue, freeDeliveryThreshold: perDistanceThreshold };
+        }
         const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
         let baseFee = 0;
         if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {
@@ -1046,29 +1050,47 @@ let OrderService = class OrderService {
         ]));
         const attachedGrocery = await this.attachGroceryItems(grocery);
         const attachedFood = await this.attachFoodItems(food);
+        const mappedGrocery = attachedGrocery.map((o) => {
+            const { deliveryOtp: _otp, ...rest } = o;
+            const cust = customerMap.get(o.customerId);
+            return {
+                ...rest,
+                type: 'grocery',
+                customerName: cust?.name || cust?.phone || 'Customer',
+                customerPhone: cust?.phone || '',
+                paymentProvider: o.paymentMethod || undefined,
+            };
+        });
+        const mappedFood = attachedFood.map((o) => {
+            const { deliveryOtp: _otp, ...rest } = o;
+            const cust = customerMap.get(o.customerId);
+            return {
+                ...rest,
+                type: 'food',
+                customerName: cust?.name || cust?.phone || 'Customer',
+                customerPhone: cust?.phone || '',
+                paymentProvider: o.paymentMethod || undefined,
+            };
+        });
+        const total = mappedGrocery.length + mappedFood.length;
+        let paginatedGrocery = mappedGrocery;
+        let paginatedFood = mappedFood;
+        if (opts.page && opts.limit) {
+            const offset = (opts.page - 1) * opts.limit;
+            const combined = [...mappedGrocery, ...mappedFood].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const sliced = combined.slice(offset, offset + opts.limit);
+            paginatedGrocery = sliced.filter((o) => o.type === 'grocery');
+            paginatedFood = sliced.filter((o) => o.type === 'food');
+        }
         return {
-            grocery: attachedGrocery.map((o) => {
-                const { deliveryOtp: _otp, ...rest } = o;
-                const cust = customerMap.get(o.customerId);
-                return {
-                    ...rest,
-                    type: 'grocery',
-                    customerName: cust?.name || cust?.phone || 'Customer',
-                    customerPhone: cust?.phone || '',
-                    paymentProvider: o.paymentMethod || undefined,
-                };
-            }),
-            food: attachedFood.map((o) => {
-                const { deliveryOtp: _otp, ...rest } = o;
-                const cust = customerMap.get(o.customerId);
-                return {
-                    ...rest,
-                    type: 'food',
-                    customerName: cust?.name || cust?.phone || 'Customer',
-                    customerPhone: cust?.phone || '',
-                    paymentProvider: o.paymentMethod || undefined,
-                };
-            }),
+            grocery: paginatedGrocery,
+            food: paginatedFood,
+            pagination: {
+                page: opts.page || 1,
+                limit: opts.limit || total,
+                total,
+                totalPages: opts.limit ? Math.ceil(total / opts.limit) : 1,
+            },
         };
     }
     async getOrderTimelineForAdmin(type, id) {
@@ -1220,7 +1242,7 @@ let OrderService = class OrderService {
         const created = type === 'grocery'
             ? await this.createGroceryOrder(customerId, dto, actor)
             : await this.createFoodOrder(customerId, dto, actor);
-        if (created.paymentStatus === 'pending') {
+        if (!created.paymentStatus || created.paymentStatus === 'pending') {
             await this.payments.initiate(type, created.id, customerId, paymentMethod === 'cod' ? 'cod' : 'online');
             if (paymentMethod === 'paid')
                 await this.payments.confirmByCustomer(type, created.id, customerId);

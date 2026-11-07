@@ -25,6 +25,10 @@ export class CreateAdminVendorDto {
 
   @IsOptional()
   @IsString()
+  businessType?: string;
+
+  @IsOptional()
+  @IsString()
   shopAddress?: string;
 
   @IsOptional()
@@ -103,6 +107,10 @@ export class UpdateAdminVendorDto {
   @IsOptional()
   @IsIn(['grocery', 'restaurant', 'both'])
   type?: 'grocery' | 'restaurant' | 'both';
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
 
   @IsOptional()
   @IsString()

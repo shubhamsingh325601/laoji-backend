@@ -42,6 +42,53 @@ let UploadsService = class UploadsService {
             cloudinary_1.v2.config({ cloud_name: this.cloudName, api_key: this.apiKey, api_secret: this.apiSecret });
         }
     }
+    async deleteMedia(urlOrPublicId) {
+        if (!urlOrPublicId)
+            return false;
+        const publicId = this.extractPublicId(urlOrPublicId);
+        if (!publicId)
+            return false;
+        try {
+            const res = await cloudinary_1.v2.uploader.destroy(publicId, { invalidate: true });
+            return res.result === 'ok';
+        }
+        catch (err) {
+            console.warn(`[UploadsService] Failed to delete media "${publicId}" from Cloudinary:`, err);
+            return false;
+        }
+    }
+    extractPublicId(urlOrPublicId) {
+        if (!urlOrPublicId)
+            return null;
+        const trimmed = urlOrPublicId.trim();
+        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+            return trimmed;
+        }
+        if (!trimmed.includes('cloudinary.com')) {
+            return null;
+        }
+        const clean = trimmed.split('?')[0].split('#')[0];
+        const uploadIdx = clean.indexOf('/upload/');
+        if (uploadIdx === -1)
+            return null;
+        let pathAfterUpload = clean.substring(uploadIdx + '/upload/'.length);
+        const versionMatch = pathAfterUpload.match(/(?:^|\/)v\d+\/(.+)$/);
+        if (versionMatch) {
+            pathAfterUpload = versionMatch[1];
+        }
+        else {
+            const segments = pathAfterUpload.split('/');
+            if (segments.length > 1 && segments[0].includes('_')) {
+                segments.shift();
+                pathAfterUpload = segments.join('/');
+            }
+        }
+        const lastDot = pathAfterUpload.lastIndexOf('.');
+        if (lastDot > 0) {
+            pathAfterUpload = pathAfterUpload.substring(0, lastDot);
+        }
+        return pathAfterUpload || null;
+    }
     signUpload(userId, type) {
         if (!this.cloudName || !this.apiKey || !this.apiSecret) {
             throw new common_1.InternalServerErrorException('Cloudinary is not configured — set CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET');
@@ -59,6 +106,9 @@ let UploadsService = class UploadsService {
             .limit(1);
         let row;
         if (existing) {
+            if (existing.publicId && existing.publicId !== input.publicId) {
+                await this.deleteMedia(existing.publicId || existing.secureUrl);
+            }
             [row] = await this.db
                 .update(schema_1.kycDocuments)
                 .set({
@@ -96,6 +146,7 @@ let UploadsService = class UploadsService {
         if (!doc)
             throw new common_1.NotFoundException('KYC document not found');
         await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.id, docId));
+        await this.deleteMedia(doc.publicId || doc.secureUrl);
         const rolledUpStatus = await this.rollUpKycStatus(userId, doc.role);
         return { success: true, deletedId: docId, rolledUpStatus };
     }

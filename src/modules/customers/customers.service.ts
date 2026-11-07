@@ -15,7 +15,7 @@ type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 export class CustomersService {
   constructor(@Inject(DRIZZLE) private readonly db: Db) {}
 
-  async getCustomersWithStats() {
+  async getCustomersWithStats(opts: { page?: number; limit?: number } = {}) {
     // Fetch all users who have a customer role
     const userRows = await this.db.select().from(users).where(eq(users.role, 'customer'));
 
@@ -81,6 +81,20 @@ export class CustomersService {
         supportNotes: user.supportNotes ?? '',
       };
     });
+
+    if (opts.page && opts.limit) {
+      const offset = (opts.page - 1) * opts.limit;
+      const sliced = customersWithStats.slice(offset, offset + opts.limit);
+      return {
+        customers: sliced,
+        pagination: {
+          page: opts.page,
+          limit: opts.limit,
+          total: customersWithStats.length,
+          totalPages: Math.ceil(customersWithStats.length / opts.limit),
+        },
+      };
+    }
 
     return customersWithStats;
   }

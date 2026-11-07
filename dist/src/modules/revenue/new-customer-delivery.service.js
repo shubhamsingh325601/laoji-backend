@@ -142,6 +142,62 @@ let NewCustomerDeliveryService = class NewCustomerDeliveryService {
         const [status] = await this.statuses([user], await this.get());
         return status;
     }
+    async listFreeThresholdTiers() {
+        const rows = await this.db.select().from(schema_1.deliveryFreeThresholdTiers).orderBy((0, drizzle_orm_1.asc)(schema_1.deliveryFreeThresholdTiers.fromKm));
+        return rows.map((r) => ({ fromKm: r.fromKm, toKm: r.toKm, minOrderAmount: r.minOrderAmount }));
+    }
+    async replaceFreeThresholdTiers(tiers) {
+        if (!Array.isArray(tiers) || tiers.length === 0) {
+            await this.db.delete(schema_1.deliveryFreeThresholdTiers);
+            return [];
+        }
+        const validated = this.validateFreeThresholdTiers(tiers);
+        await this.db.transaction(async (tx) => {
+            await tx.delete(schema_1.deliveryFreeThresholdTiers);
+            await tx.insert(schema_1.deliveryFreeThresholdTiers).values(validated);
+        });
+        return validated;
+    }
+    validateFreeThresholdTiers(tiers) {
+        const out = tiers.map((t, i) => {
+            const fromKm = Number(t?.fromKm);
+            const toKm = t?.toKm === null || t?.toKm === undefined ? null : Number(t.toKm);
+            const minOrderAmount = Number(t?.minOrderAmount);
+            const label = `Band ${i + 1}`;
+            if (!Number.isFinite(fromKm) || fromKm < 0)
+                throw new common_1.BadRequestException(`${label}: "from" km must be 0 or more`);
+            if (toKm !== null && (!Number.isFinite(toKm) || toKm <= fromKm)) {
+                throw new common_1.BadRequestException(`${label}: "to" km must be greater than "from" km`);
+            }
+            if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0) {
+                throw new common_1.BadRequestException(`${label}: minimum order amount must be 0 or more`);
+            }
+            return { fromKm, toKm, minOrderAmount: Math.round(minOrderAmount * 100) / 100 };
+        });
+        if (out[0].fromKm !== 0)
+            throw new common_1.BadRequestException('The first band must start at 0 km');
+        for (let i = 0; i < out.length; i++) {
+            const last = i === out.length - 1;
+            if (last && out[i].toKm !== null)
+                throw new common_1.BadRequestException('The last band must have no upper limit');
+            if (!last) {
+                if (out[i].toKm === null)
+                    throw new common_1.BadRequestException(`Band ${i + 1}: only the last band can have no upper limit`);
+                if (out[i + 1].fromKm !== out[i].toKm) {
+                    throw new common_1.BadRequestException(`Band ${i + 2} must start at ${out[i].toKm} km — no gaps or overlaps`);
+                }
+            }
+        }
+        return out;
+    }
+    async freeDeliveryThreshold(distanceKm, globalThreshold) {
+        const tiers = await this.listFreeThresholdTiers();
+        if (!tiers.length)
+            return globalThreshold;
+        const sorted = [...tiers].sort((a, b) => a.fromKm - b.fromKm);
+        const hit = sorted.find((t, i) => (i === 0 || distanceKm > t.fromKm) && (t.toKm === null || distanceKm <= t.toKm));
+        return (hit ?? sorted[sorted.length - 1]).minOrderAmount;
+    }
 };
 exports.NewCustomerDeliveryService = NewCustomerDeliveryService;
 exports.NewCustomerDeliveryService = NewCustomerDeliveryService = __decorate([

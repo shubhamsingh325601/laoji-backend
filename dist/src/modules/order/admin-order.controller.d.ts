@@ -6,9 +6,15 @@ import { AdminCreateFoodOrderDto, AdminCreateGroceryOrderDto } from './dto/admin
 export declare class AdminOrderController {
     private readonly orders;
     constructor(orders: OrderService);
-    listAll(includeUnpaid?: string): Promise<{
+    listAll(includeUnpaid?: string, page?: string, limit?: string): Promise<{
         grocery: any[];
         food: any[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
     }>;
     customerAddresses(customerId: string): Promise<{
         id: string;

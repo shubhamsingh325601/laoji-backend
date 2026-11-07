@@ -22,7 +22,7 @@ let CustomersService = class CustomersService {
     constructor(db) {
         this.db = db;
     }
-    async getCustomersWithStats() {
+    async getCustomersWithStats(opts = {}) {
         const userRows = await this.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.role, 'customer'));
         if (userRows.length === 0)
             return [];
@@ -75,6 +75,19 @@ let CustomersService = class CustomersService {
                 supportNotes: user.supportNotes ?? '',
             };
         });
+        if (opts.page && opts.limit) {
+            const offset = (opts.page - 1) * opts.limit;
+            const sliced = customersWithStats.slice(offset, offset + opts.limit);
+            return {
+                customers: sliced,
+                pagination: {
+                    page: opts.page,
+                    limit: opts.limit,
+                    total: customersWithStats.length,
+                    totalPages: Math.ceil(customersWithStats.length / opts.limit),
+                },
+            };
+        }
         return customersWithStats;
     }
 };

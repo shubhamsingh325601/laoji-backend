@@ -1371,9 +1371,17 @@ export declare class OrderService {
     private assertCorrection;
     listAllOrdersForAdmin(opts?: {
         includeUnpaid?: boolean;
+        page?: number;
+        limit?: number;
     }): Promise<{
         grocery: any[];
         food: any[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
     }>;
     getOrderTimelineForAdmin(type: 'grocery' | 'food', id: string): Promise<{
         items: {

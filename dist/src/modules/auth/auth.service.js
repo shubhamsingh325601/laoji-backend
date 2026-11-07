@@ -48,6 +48,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const notification_service_1 = require("../notification/notification.service");
+const uploads_service_1 = require("../uploads/uploads.service");
 const vendor_onboarding_1 = require("../notification/templates/push/vendor-onboarding");
 const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
@@ -66,11 +67,13 @@ let AuthService = class AuthService {
     jwt;
     config;
     notifications;
-    constructor(db, jwt, config, notifications) {
+    uploads;
+    constructor(db, jwt, config, notifications, uploads) {
         this.db = db;
         this.jwt = jwt;
         this.config = config;
         this.notifications = notifications;
+        this.uploads = uploads;
     }
     async requestOtp(phone, role) {
         const testMode = this.config.get('NODE_ENV') !== 'production' ||
@@ -702,6 +705,12 @@ let AuthService = class AuthService {
                         .set({ isOpen: false })
                         .where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, restaurant.id));
                 }
+                if (vendor.imageUrl) {
+                    await this.uploads?.deleteMedia(vendor.imageUrl);
+                }
+                if (restaurant?.imageUrl) {
+                    await this.uploads?.deleteMedia(restaurant.imageUrl);
+                }
             }
         }
         else if (user.role === 'delivery_partner') {
@@ -710,7 +719,11 @@ let AuthService = class AuthService {
                 .set({ isOnline: false })
                 .where((0, drizzle_orm_1.eq)(schema_1.deliveryPartners.userId, userId));
         }
+        const kycDocs = await this.db.select().from(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
         await this.db.delete(schema_1.kycDocuments).where((0, drizzle_orm_1.eq)(schema_1.kycDocuments.userId, userId));
+        for (const doc of kycDocs) {
+            await this.uploads?.deleteMedia(doc.publicId || doc.secureUrl);
+        }
         await this.db
             .update(schema_1.users)
             .set({ status: 'suspended', phone: null, email: null, name: null })
@@ -768,9 +781,11 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE)),
     __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, jwt_1.JwtService,
         config_1.ConfigService,
-        notification_service_1.NotificationService])
+        notification_service_1.NotificationService,
+        uploads_service_1.UploadsService])
 ], AuthService);
 function hashToken(token) {
     return (0, crypto_1.createHash)('sha256').update(token).digest('hex');

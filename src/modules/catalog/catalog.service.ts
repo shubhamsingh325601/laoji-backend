@@ -85,6 +85,7 @@ import type {
 import { NotificationService } from '../notification/notification.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { UploadsService } from '../uploads/uploads.service';
 import {
   productSuggestionApprovedVendorPush,
   productSuggestionCreatedAdminPush,
@@ -109,6 +110,7 @@ export class CatalogService {
     @Inject(DRIZZLE) private readonly db: Db,
     private readonly notifications: NotificationService,
     private readonly vendorDiscounts: VendorDiscountsService,
+    @Optional() private readonly uploads?: UploadsService,
     @Optional() private readonly revenueConfig?: RevenueConfigService,
     @Optional() private readonly grocerySizes?: GrocerySizesService,
   ) {}
@@ -211,6 +213,10 @@ export class CatalogService {
         })
         .where(eq(vendors.id, existing.id))
         .returning();
+
+      if (dto.imageUrl !== undefined && existing.imageUrl && existing.imageUrl !== dto.imageUrl) {
+        await this.uploads?.deleteMedia(existing.imageUrl);
+      }
 
       if (dto.imageUrl) {
         await this.db.update(restaurants).set({ imageUrl: dto.imageUrl }).where(eq(restaurants.vendorId, existing.id));
@@ -471,9 +477,17 @@ export class CatalogService {
   }
 
   async updateCategory(id: string, dto: UpdateCategoryDto) {
+    const [existing] = await this.db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Category not found');
+
     const updateData: Partial<typeof categories.$inferInsert> = {};
     if (dto.name !== undefined) updateData.name = dto.name.trim();
-    if (dto.imageUrl !== undefined) updateData.imageUrl = dto.imageUrl?.trim() || null;
+    if (dto.imageUrl !== undefined) {
+      updateData.imageUrl = dto.imageUrl?.trim() || null;
+      if (existing.imageUrl && existing.imageUrl !== updateData.imageUrl) {
+        await this.uploads?.deleteMedia(existing.imageUrl);
+      }
+    }
     if (dto.parentId !== undefined) {
       const parentId =
         dto.parentId && typeof dto.parentId === 'string' && dto.parentId !== 'none' && dto.parentId.trim() !== ''
@@ -563,6 +577,10 @@ export class CatalogService {
       await this.db
         .delete(products)
         .where(inArray(products.id, prodIds));
+
+      for (const p of allProducts) {
+        await this.uploads?.deleteMedia(p.imageUrl);
+      }
     }
 
     // 3. Detach stores from categories: vendor-owned products pointing to these categories
@@ -576,19 +594,32 @@ export class CatalogService {
       .where(inArray(categorySuggestions.categoryId, allCatIds));
 
     // 5. Clean up any product suggestions referencing this category or its subcategories
+    const suggestionsToDelete = await this.db
+      .select({ imageUrl: productSuggestions.imageUrl })
+      .from(productSuggestions)
+      .where(inArray(productSuggestions.categoryId, allCatIds));
     await this.db
       .delete(productSuggestions)
       .where(inArray(productSuggestions.categoryId, allCatIds));
+    for (const sugg of suggestionsToDelete) {
+      if (sugg.imageUrl) {
+        await this.uploads?.deleteMedia(sugg.imageUrl);
+      }
+    }
 
     // 6. Delete subcategories if any
     if (subcats.length > 0) {
       await this.db
         .delete(categories)
         .where(inArray(categories.id, subcats.map((s) => s.id)));
+      for (const s of subcats) {
+        await this.uploads?.deleteMedia(s.imageUrl);
+      }
     }
 
     // 7. Delete the category itself
     await this.db.delete(categories).where(eq(categories.id, id));
+    await this.uploads?.deleteMedia(cat.imageUrl);
     return {
       success: true,
       message: `Category "${cat.name}", ${subcats.length} subcategories, and ${allProducts.length} products deleted successfully.`,
@@ -671,6 +702,9 @@ export class CatalogService {
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
+    const [existing] = await this.db.select().from(products).where(eq(products.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Product not found');
+
     const updateData = {
       ...dto,
       ...(dto.brand !== undefined ? { brand: dto.brand || null } : {}),
@@ -681,6 +715,9 @@ export class CatalogService {
       ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice ?? null } : {}),
       ...(dto.sellingPrice !== undefined ? { sellingPrice: dto.sellingPrice ?? null } : {}),
     };
+    if (dto.imageUrl !== undefined && existing.imageUrl && existing.imageUrl !== (dto.imageUrl || null)) {
+      await this.uploads?.deleteMedia(existing.imageUrl);
+    }
     const [row] = await this.db.update(products).set(updateData).where(eq(products.id, id)).returning();
     if (!row) throw new NotFoundException('Product not found');
     return row;
@@ -728,6 +765,7 @@ export class CatalogService {
 
     // 4. Delete the product
     await this.db.delete(products).where(eq(products.id, id));
+    await this.uploads?.deleteMedia(prod.imageUrl);
     return { success: true, message: `Product "${prod.name}" deleted successfully.` };
   }
 
@@ -964,6 +1002,9 @@ export class CatalogService {
       category.templateCategoryId ?? category.parentId ?? (await this.businessTypeRoot(vendor.businessType)).id;
     await this.db.update(products).set({ categoryId: fallback }).where(eq(products.categoryId, category.id));
     await this.db.delete(categories).where(eq(categories.id, category.id));
+    if (category.imageUrl) {
+      await this.uploads?.deleteMedia(category.imageUrl);
+    }
     return { success: true, message: `Category "${category.name}" deleted.` };
   }
 
@@ -1125,6 +1166,9 @@ export class CatalogService {
     const changes = productDetailChanges(product, details, (id) => id === currentShopCategory);
     if (Object.keys(changes).length === 0) return product;
     if (product.ownerVendorId === vendor.id) {
+      if (changes.imageUrl !== undefined && product.imageUrl && product.imageUrl !== changes.imageUrl) {
+        await this.uploads?.deleteMedia(product.imageUrl);
+      }
       const [updated] = await this.db.update(products).set(changes).where(eq(products.id, product.id)).returning();
       return updated;
     }
@@ -1349,7 +1393,12 @@ export class CatalogService {
         .from(groceryOrderItems)
         .where(eq(groceryOrderItems.productId, product.id))
         .limit(1);
-      if (!orderItem) await this.db.delete(products).where(eq(products.id, product.id));
+      if (!orderItem) {
+        await this.db.delete(products).where(eq(products.id, product.id));
+        if (product.imageUrl) {
+          await this.uploads?.deleteMedia(product.imageUrl);
+        }
+      }
       // Kept for its past orders: no longer one of the item's sizes.
       else if (product.variantGroupId) {
         await this.db
@@ -2000,6 +2049,9 @@ export class CatalogService {
 
   async updateRestaurant(vendorId: string, dto: UpdateRestaurantDto) {
     const restaurant = await this.getOrCreateRestaurant(vendorId);
+    if (dto.imageUrl !== undefined && restaurant.imageUrl && restaurant.imageUrl !== dto.imageUrl) {
+      await this.uploads?.deleteMedia(restaurant.imageUrl);
+    }
     const [updated] = await this.db
       .update(restaurants)
       .set(dto)
@@ -2053,7 +2105,16 @@ export class CatalogService {
 
   async deleteMenuCategory(vendorId: string, id: string) {
     await this.requireOwnMenuCategory(vendorId, id);
+    const items = await this.db
+      .select({ imageUrl: menuItems.imageUrl })
+      .from(menuItems)
+      .where(eq(menuItems.menuCategoryId, id));
     await this.db.delete(menuCategories).where(eq(menuCategories.id, id));
+    for (const item of items) {
+      if (item.imageUrl) {
+        await this.uploads?.deleteMedia(item.imageUrl);
+      }
+    }
   }
 
   async listMenuItems(vendorId: string, menuCategoryId?: string) {
@@ -2119,7 +2180,14 @@ export class CatalogService {
   }
 
   async updateMenuItem(vendorId: string, id: string, dto: UpdateMenuItemDto) {
-    await this.requireOwnMenuItem(vendorId, id);
+    const existing = await this.requireOwnMenuItem(vendorId, id);
+    if (
+      dto.imageUrl !== undefined &&
+      existing.imageUrl &&
+      existing.imageUrl !== (dto.imageUrl || null)
+    ) {
+      await this.uploads?.deleteMedia(existing.imageUrl);
+    }
     const { addons, variants, mealSlots, ...fields } = dto;
     const updateData = {
       ...fields,
@@ -2140,8 +2208,11 @@ export class CatalogService {
   }
 
   async deleteMenuItem(vendorId: string, id: string) {
-    await this.requireOwnMenuItem(vendorId, id);
+    const item = await this.requireOwnMenuItem(vendorId, id);
     await this.db.delete(menuItems).where(eq(menuItems.id, id));
+    if (item.imageUrl) {
+      await this.uploads?.deleteMedia(item.imageUrl);
+    }
   }
 
   private async replaceAddons(menuItemId: string, addons?: MenuItemAddonInput[]) {
@@ -2454,7 +2525,7 @@ export class CatalogService {
 
   // ---------- Admin Vendor Management (CRUD & Welcome Email) ----------
 
-  async listVendorsAdmin() {
+  async listVendorsAdmin(opts: { page?: number; limit?: number } = {}) {
     const rows = await this.db
       .select({
         vendor: vendors,
@@ -2492,7 +2563,7 @@ export class CatalogService {
       // ignore
     }
 
-    return rows.map(({ vendor, user, restaurantImageUrl }) => ({
+    const results = rows.map(({ vendor, user, restaurantImageUrl }) => ({
       id: vendor.id,
       userId: vendor.userId,
       businessName: vendor.businessName,
@@ -2500,6 +2571,7 @@ export class CatalogService {
       phone: user.phone,
       email: user.email,
       type: vendor.type,
+      businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
       shopAddress: vendor.shopAddress,
       gstNumber: vendor.gstNumber,
       aadhaarNumber: vendor.aadhaarNumber,
@@ -2507,7 +2579,7 @@ export class CatalogService {
       bankIfsc: vendor.bankIfsc,
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: vendor.isOpen ? ('active' as const) : ('inactive' as const),
       isOpen: vendor.isOpen,
       isOpenNow: isVendorOpenNow(vendor),
       businessHours: vendor.businessHours,
@@ -2523,6 +2595,24 @@ export class CatalogService {
       imageUrl: vendor.imageUrl || restaurantImageUrl || null,
       createdAt: vendor.createdAt,
     }));
+
+    if (opts.page && opts.limit) {
+      const page = opts.page;
+      const limit = opts.limit;
+      const offset = (page - 1) * limit;
+      const sliced = results.slice(offset, offset + limit);
+      return {
+        vendors: sliced,
+        pagination: {
+          page,
+          limit,
+          total: results.length,
+          totalPages: Math.ceil(results.length / limit),
+        },
+      };
+    }
+
+    return results;
   }
 
   async getAdminVendor(id: string) {
@@ -3010,7 +3100,12 @@ export class CatalogService {
           if (dto.name !== undefined) prodUpdates.name = dto.name.trim();
           if (dto.description !== undefined) prodUpdates.description = dto.description?.trim() || null;
           if (dto.unit !== undefined) prodUpdates.unit = dto.unit.trim();
-          if (dto.imageUrl !== undefined) prodUpdates.imageUrl = dto.imageUrl?.trim() || null;
+          if (dto.imageUrl !== undefined) {
+            prodUpdates.imageUrl = dto.imageUrl?.trim() || null;
+            if (prod.imageUrl && prod.imageUrl !== prodUpdates.imageUrl) {
+              await this.uploads?.deleteMedia(prod.imageUrl);
+            }
+          }
           if (dto.categoryId !== undefined) prodUpdates.categoryId = dto.categoryId;
 
           if (Object.keys(prodUpdates).length > 0) {
@@ -3057,7 +3152,7 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
     if (restaurant) {
       const [mi] = await this.db
-        .select({ id: menuItems.id, price: menuItems.price })
+        .select({ id: menuItems.id, price: menuItems.price, imageUrl: menuItems.imageUrl })
         .from(menuItems)
         .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
         .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
@@ -3068,7 +3163,12 @@ export class CatalogService {
         if (dto.name !== undefined) miUpdates.name = dto.name.trim();
         if (dto.description !== undefined) miUpdates.description = dto.description?.trim() || null;
         if (dto.price !== undefined) miUpdates.price = dto.price;
-        if (dto.imageUrl !== undefined) miUpdates.imageUrl = dto.imageUrl?.trim() || null;
+        if (dto.imageUrl !== undefined) {
+          miUpdates.imageUrl = dto.imageUrl?.trim() || null;
+          if (mi.imageUrl && mi.imageUrl !== miUpdates.imageUrl) {
+            await this.uploads?.deleteMedia(mi.imageUrl);
+          }
+        }
         if (dto.isVeg !== undefined) miUpdates.isVeg = dto.isVeg;
         if (dto.isAvailable !== undefined) miUpdates.isAvailable = dto.isAvailable;
         if (dto.commissionPct !== undefined) miUpdates.commissionPct = dto.commissionPct;
@@ -3119,6 +3219,9 @@ export class CatalogService {
           .limit(1);
         if (!ordered) {
           await this.db.delete(products).where(eq(products.id, prod.id));
+          if (prod.imageUrl) {
+            await this.uploads?.deleteMedia(prod.imageUrl);
+          }
         }
       }
       return { success: true };
@@ -3128,7 +3231,7 @@ export class CatalogService {
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.vendorId, vendorId)).limit(1);
     if (restaurant) {
       const [mi] = await this.db
-        .select({ id: menuItems.id })
+        .select({ id: menuItems.id, imageUrl: menuItems.imageUrl })
         .from(menuItems)
         .innerJoin(menuCategories, eq(menuItems.menuCategoryId, menuCategories.id))
         .where(and(eq(menuItems.id, itemId), eq(menuCategories.restaurantId, restaurant.id)))
@@ -3136,6 +3239,9 @@ export class CatalogService {
 
       if (mi) {
         await this.db.delete(menuItems).where(eq(menuItems.id, mi.id));
+        if (mi.imageUrl) {
+          await this.uploads?.deleteMedia(mi.imageUrl);
+        }
         return { success: true };
       }
     }
@@ -3225,6 +3331,7 @@ export class CatalogService {
         businessName: dto.businessName.trim(),
         ownerName: dto.ownerName.trim(),
         type: dto.type,
+        businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
         shopAddress: dto.shopAddress?.trim() || null,
         gstNumber: dto.gstNumber?.trim() || null,
         aadhaarNumber: dto.aadhaarNumber?.trim() || null,
@@ -3385,6 +3492,7 @@ export class CatalogService {
     if (dto.businessName !== undefined) updateFields.businessName = dto.businessName;
     if (dto.ownerName !== undefined) updateFields.ownerName = dto.ownerName;
     if (dto.type !== undefined) updateFields.type = dto.type;
+    if (dto.businessType !== undefined) updateFields.businessType = dto.businessType;
     if (dto.shopAddress !== undefined) updateFields.shopAddress = dto.shopAddress;
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
     if (dto.pickupLat !== undefined && dto.pickupLng !== undefined) {
@@ -3410,6 +3518,9 @@ export class CatalogService {
     if (dto.upiId !== undefined) updateFields.upiId = dto.upiId ? dto.upiId.trim() : null;
     if (dto.imageUrl !== undefined) {
       updateFields.imageUrl = dto.imageUrl ? dto.imageUrl.trim() : null;
+      if (v.imageUrl && v.imageUrl !== updateFields.imageUrl) {
+        await this.uploads?.deleteMedia(v.imageUrl);
+      }
       await this.db.update(restaurants).set({ imageUrl: updateFields.imageUrl }).where(eq(restaurants.vendorId, id));
     }
 
@@ -3536,7 +3647,17 @@ export class CatalogService {
     }
 
     // 2. Delete KYC documents belonging to this vendor user
+    const kycDocs = await this.db.select().from(kycDocuments).where(eq(kycDocuments.userId, v.userId));
     await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, v.userId));
+    for (const doc of kycDocs) {
+      await this.uploads?.deleteMedia(doc.publicId || doc.secureUrl);
+    }
+    if (v.imageUrl) {
+      await this.uploads?.deleteMedia(v.imageUrl);
+    }
+    if (restaurant?.imageUrl) {
+      await this.uploads?.deleteMedia(restaurant.imageUrl);
+    }
 
     // 3. Revoke auth tokens
     await this.db

@@ -105,6 +105,10 @@ export declare class DeliveryOrderController {
     }>;
     verifyDelivery(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: VerifyDeliveryDto): Promise<{
         ok: boolean;
+        alreadyDelivered: boolean;
+    } | {
+        ok: boolean;
+        alreadyDelivered?: undefined;
     }>;
     reportNotHandedOver(user: JwtAccessPayload, type: 'grocery' | 'food', id: string, dto: ReportNotHandedOverDto): Promise<{
         success: boolean;

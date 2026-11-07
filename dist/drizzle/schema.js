@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.vendorWithdrawals = exports.settlements = exports.customerDeliveryFeeTiers = exports.customerFreeDeliveryBonus = exports.newCustomerDeliverySettings = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
-exports.platformSettings = exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.scratchCards = exports.foodOrderRatings = void 0;
+exports.settlements = exports.deliveryFreeThresholdTiers = exports.customerDeliveryFeeTiers = exports.customerFreeDeliveryBonus = exports.newCustomerDeliverySettings = exports.riderPayoutTiers = exports.categorySuggestions = exports.productSuggestions = exports.productSuggestionStatusEnum = exports.revenueConfig = exports.revenueConfigScopeEnum = exports.notificationLog = exports.notificationStatusEnum = exports.notificationChannelEnum = exports.deviceTokens = exports.devicePlatformEnum = exports.payments = exports.paymentStatusEnum = exports.paymentProviderEnum = exports.deliveryAssignments = exports.deliveryAssignmentOutcomeEnum = exports.orderStatusHistory = exports.foodOrderItems = exports.foodOrders = exports.allocationAttempts = exports.groceryOrderItems = exports.groceryOrders = exports.actorRoleEnum = exports.allocationOutcomeEnum = exports.orderStatusEnum = exports.menuItemVariants = exports.menuItemAddons = exports.menuItems = exports.menuCategories = exports.restaurants = exports.vendorProducts = exports.products = exports.productStatusEnum = exports.categories = exports.deliveryPartners = exports.vendors = exports.vendorTypeEnum = exports.kycDocuments = exports.kycDocumentStatusEnum = exports.otpCodes = exports.addresses = exports.authTokens = exports.users = exports.userStatusEnum = exports.userRoleEnum = void 0;
+exports.platformSettings = exports.withdrawalRequests = exports.walletTransactions = exports.wallets = exports.vendorDiscountRedemptions = exports.vendorDiscounts = exports.banners = exports.coupons = exports.areaManagers = exports.scratchCards = exports.foodOrderRatings = exports.vendorWithdrawals = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.userRoleEnum = (0, pg_core_1.pgEnum)('user_role', [
@@ -531,6 +531,13 @@ exports.customerDeliveryFeeTiers = (0, pg_core_1.pgTable)('customer_delivery_fee
     fromKm: (0, pg_core_1.doublePrecision)('from_km').notNull(),
     toKm: (0, pg_core_1.doublePrecision)('to_km'),
     amount: (0, pg_core_1.doublePrecision)('amount').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+exports.deliveryFreeThresholdTiers = (0, pg_core_1.pgTable)('delivery_free_threshold_tiers', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    fromKm: (0, pg_core_1.doublePrecision)('from_km').notNull(),
+    toKm: (0, pg_core_1.doublePrecision)('to_km'),
+    minOrderAmount: (0, pg_core_1.doublePrecision)('min_order_amount').notNull(),
     createdAt: (0, pg_core_1.timestamp)('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 exports.settlements = (0, pg_core_1.pgTable)('settlements', {

@@ -8,10 +8,16 @@ import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, U
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 import { UpdateCatalogFeaturesDto } from './dto/catalog-features.dto';
 import { GrocerySizesService } from './grocery-sizes.service';
+import { BusinessTypesService, BusinessTypeItem, HomeTabItem } from './business-types.service';
 export declare class AdminCatalogController {
     private readonly catalog;
     private readonly grocerySizes;
-    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService);
+    private readonly businessTypes;
+    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService, businessTypes: BusinessTypesService);
+    listBusinessTypes(): Promise<BusinessTypeItem[]>;
+    updateBusinessTypes(user: JwtAccessPayload, body: any): Promise<BusinessTypeItem[]>;
+    listHomeTabs(): Promise<HomeTabItem[]>;
+    updateHomeTabs(user: JwtAccessPayload, body: any): Promise<HomeTabItem[]>;
     getCatalogFeatures(): Promise<{
         grocerySizes: boolean;
     }>;
@@ -756,7 +762,7 @@ export declare class AdminCatalogController {
         success: boolean;
         message: string;
     }>;
-    listVendors(): Promise<{
+    listVendors(page?: string, limit?: string): Promise<{
         id: string;
         userId: string;
         businessName: string;
@@ -764,6 +770,7 @@ export declare class AdminCatalogController {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -771,7 +778,7 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -791,7 +798,51 @@ export declare class AdminCatalogController {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     getVendor(id: string): Promise<{
         id: string;
         userId: string;
@@ -894,6 +945,7 @@ export declare class AdminCatalogController {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -901,7 +953,7 @@ export declare class AdminCatalogController {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -921,7 +973,51 @@ export declare class AdminCatalogController {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     updateVendor(id: string, dto: UpdateAdminVendorDto, user?: JwtAccessPayload): Promise<{
         id: string;
         userId: string;

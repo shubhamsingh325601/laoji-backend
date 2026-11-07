@@ -642,10 +642,16 @@ let DeliveryService = class DeliveryService {
     async verifyDelivery(userId, type, orderId, otp) {
         const partner = await this.requirePartner(userId);
         const order = await this.requireOwnActiveOrder(type, orderId, partner.id);
-        if (order.status !== 'out_for_delivery') {
-            throw new common_1.BadRequestException('Order must be out for delivery before it can be marked delivered');
+        if (order.status === 'delivered') {
+            return { ok: true, alreadyDelivered: true };
         }
-        if (!order.deliveryOtp || order.deliveryOtp !== otp) {
+        const validDeliveryStatuses = ['delivery_assigned', 'handed_over', 'picked_up', 'out_for_delivery'];
+        if (!validDeliveryStatuses.includes(order.status)) {
+            throw new common_1.BadRequestException(`Order cannot be confirmed while status is "${order.status}"`);
+        }
+        const cleanInputOtp = String(otp ?? '').trim();
+        const cleanStoredOtp = String(order.deliveryOtp ?? '').trim();
+        if (!cleanStoredOtp || cleanStoredOtp !== cleanInputOtp) {
             const key = `otp-attempts:${orderId}`;
             const attempts = DeliveryService_1.otpAttempts.get(key) ?? { count: 0, firstAt: Date.now() };
             if (Date.now() - attempts.firstAt > 60_000) {
@@ -658,7 +664,7 @@ let DeliveryService = class DeliveryService {
                     throw new common_1.BadRequestException('Too many incorrect OTP attempts — please wait 60 seconds and try again');
                 }
             }
-            throw new common_1.BadRequestException('Incorrect OTP');
+            throw new common_1.BadRequestException('Incorrect OTP. Please check the 6-digit code with the customer.');
         }
         DeliveryService_1.otpAttempts.delete(`otp-attempts:${orderId}`);
         await this.completeDelivery(type, orderId, order, userId, { role: 'delivery_partner', userId });

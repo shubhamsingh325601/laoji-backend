@@ -17,6 +17,7 @@ import type { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuCategoryDto, U
 import { NotificationService } from '../notification/notification.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { RevenueConfigService } from '../revenue/revenue-config.service';
+import { UploadsService } from '../uploads/uploads.service';
 type VendorRef = {
     id: string;
     businessType: string;
@@ -25,9 +26,10 @@ export declare class CatalogService {
     private readonly db;
     private readonly notifications;
     private readonly vendorDiscounts;
+    private readonly uploads?;
     private readonly revenueConfig?;
     private readonly grocerySizes?;
-    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService, revenueConfig?: RevenueConfigService | undefined, grocerySizes?: GrocerySizesService | undefined);
+    constructor(db: Db, notifications: NotificationService, vendorDiscounts: VendorDiscountsService, uploads?: UploadsService | undefined, revenueConfig?: RevenueConfigService | undefined, grocerySizes?: GrocerySizesService | undefined);
     private resolveVendorCommissionPct;
     getVendorByUserId(userId: string): Promise<{
         commissionPct: number;
@@ -106,12 +108,12 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
-        type: "grocery" | "restaurant" | "both";
         id: string;
         createdAt: Date;
         userId: string;
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1641,6 +1643,8 @@ export declare class CatalogService {
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        hasVeg: boolean;
+        hasNonVeg: boolean;
         type: "grocery" | "restaurant" | "both";
         displayOrder: number;
         distanceKm: number;
@@ -2926,7 +2930,10 @@ export declare class CatalogService {
         reviewedAt: Date | null;
         createdAt: Date;
     }>;
-    listVendorsAdmin(): Promise<{
+    listVendorsAdmin(opts?: {
+        page?: number;
+        limit?: number;
+    }): Promise<{
         id: string;
         userId: string;
         businessName: string;
@@ -2934,6 +2941,7 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -2941,7 +2949,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -2961,7 +2969,51 @@ export declare class CatalogService {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     getAdminVendor(id: string): Promise<{
         id: string;
         userId: string;
@@ -3112,6 +3164,7 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -3119,7 +3172,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -3139,7 +3192,51 @@ export declare class CatalogService {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     updateAdminVendor(id: string, dto: UpdateAdminVendorDto, adminUserId?: string): Promise<{
         id: string;
         userId: string;

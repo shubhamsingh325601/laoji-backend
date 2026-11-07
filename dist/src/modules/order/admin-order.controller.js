@@ -27,8 +27,14 @@ let AdminOrderController = class AdminOrderController {
     constructor(orders) {
         this.orders = orders;
     }
-    listAll(includeUnpaid) {
-        return this.orders.listAllOrdersForAdmin({ includeUnpaid: includeUnpaid === 'true' });
+    listAll(includeUnpaid, page, limit) {
+        const pageNum = page ? parseInt(page, 10) : undefined;
+        const limitNum = limit ? parseInt(limit, 10) : undefined;
+        return this.orders.listAllOrdersForAdmin({
+            includeUnpaid: includeUnpaid === 'true',
+            page: pageNum && pageNum > 0 ? pageNum : undefined,
+            limit: limitNum && limitNum > 0 ? limitNum : undefined,
+        });
     }
     customerAddresses(customerId) {
         return this.orders.listCustomerAddressesForAdmin(customerId);
@@ -67,8 +73,10 @@ exports.AdminOrderController = AdminOrderController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('includeUnpaid')),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], AdminOrderController.prototype, "listAll", null);
 __decorate([

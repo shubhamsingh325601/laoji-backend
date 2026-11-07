@@ -1335,7 +1335,7 @@ export class OrderService {
   // Orders whose checkout was never completed (online payment still pending/failed)
   // are hidden by default — they are abandoned carts, not real orders. Admin can still
   // see them on the Payments page, or here with includeUnpaid.
-  async listAllOrdersForAdmin(opts: { includeUnpaid?: boolean } = {}) {
+  async listAllOrdersForAdmin(opts: { includeUnpaid?: boolean; page?: number; limit?: number } = {}) {
     const grocery = await this.db
       .select()
       .from(groceryOrders)
@@ -1376,29 +1376,54 @@ export class OrderService {
     const attachedGrocery = await this.attachGroceryItems(grocery);
     const attachedFood = await this.attachFoodItems(food);
 
+    const mappedGrocery = attachedGrocery.map((o) => {
+      const { deliveryOtp: _otp, ...rest } = o;
+      const cust = customerMap.get(o.customerId);
+      return {
+        ...rest,
+        type: 'grocery' as const,
+        customerName: cust?.name || cust?.phone || 'Customer',
+        customerPhone: cust?.phone || '',
+        paymentProvider: o.paymentMethod || undefined,
+      };
+    });
+
+    const mappedFood = attachedFood.map((o) => {
+      const { deliveryOtp: _otp, ...rest } = o;
+      const cust = customerMap.get(o.customerId);
+      return {
+        ...rest,
+        type: 'food' as const,
+        customerName: cust?.name || cust?.phone || 'Customer',
+        customerPhone: cust?.phone || '',
+        paymentProvider: o.paymentMethod || undefined,
+      };
+    });
+
+    const total = mappedGrocery.length + mappedFood.length;
+    let paginatedGrocery = mappedGrocery;
+    let paginatedFood = mappedFood;
+
+    if (opts.page && opts.limit) {
+      const offset = (opts.page - 1) * opts.limit;
+      // Combine sorted by createdAt, slice, then partition back
+      const combined = [...mappedGrocery, ...mappedFood].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      const sliced = combined.slice(offset, offset + opts.limit);
+      paginatedGrocery = sliced.filter((o) => o.type === 'grocery');
+      paginatedFood = sliced.filter((o) => o.type === 'food');
+    }
+
     return {
-      grocery: attachedGrocery.map((o) => {
-        const { deliveryOtp: _otp, ...rest } = o;
-        const cust = customerMap.get(o.customerId);
-        return {
-          ...rest,
-          type: 'grocery' as const,
-          customerName: cust?.name || cust?.phone || 'Customer',
-          customerPhone: cust?.phone || '',
-          paymentProvider: o.paymentMethod || undefined,
-        };
-      }),
-      food: attachedFood.map((o) => {
-        const { deliveryOtp: _otp, ...rest } = o;
-        const cust = customerMap.get(o.customerId);
-        return {
-          ...rest,
-          type: 'food' as const,
-          customerName: cust?.name || cust?.phone || 'Customer',
-          customerPhone: cust?.phone || '',
-          paymentProvider: o.paymentMethod || undefined,
-        };
-      }),
+      grocery: paginatedGrocery,
+      food: paginatedFood,
+      pagination: {
+        page: opts.page || 1,
+        limit: opts.limit || total,
+        total,
+        totalPages: opts.limit ? Math.ceil(total / opts.limit) : 1,
+      },
     };
   }
 
@@ -1617,7 +1642,7 @@ export class OrderService {
         : await this.createFoodOrder(customerId, dto as CreateFoodOrderDto, actor);
 
     // An idempotent replay returns the existing order — don't initiate payment twice.
-    if (created.paymentStatus === 'pending') {
+    if (!created.paymentStatus || created.paymentStatus === 'pending') {
       await this.payments.initiate(type, created.id, customerId, paymentMethod === 'cod' ? 'cod' : 'online');
       if (paymentMethod === 'paid') await this.payments.confirmByCustomer(type, created.id, customerId);
     }

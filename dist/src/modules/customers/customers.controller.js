@@ -8,6 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CustomersController = void 0;
 const common_1 = require("@nestjs/common");
@@ -17,15 +20,22 @@ let CustomersController = class CustomersController {
     constructor(customersService) {
         this.customersService = customersService;
     }
-    async getCustomers() {
-        return this.customersService.getCustomersWithStats();
+    async getCustomers(page, limit) {
+        const pageNum = page ? parseInt(page, 10) : undefined;
+        const limitNum = limit ? parseInt(limit, 10) : undefined;
+        return this.customersService.getCustomersWithStats({
+            page: pageNum && pageNum > 0 ? pageNum : undefined,
+            limit: limitNum && limitNum > 0 ? limitNum : undefined,
+        });
     }
 };
 exports.CustomersController = CustomersController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], CustomersController.prototype, "getCustomers", null);
 exports.CustomersController = CustomersController = __decorate([

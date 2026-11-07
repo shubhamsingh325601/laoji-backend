@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { vendorRegisteredAdminPush } from '../notification/templates/push/vendor-onboarding';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -48,6 +49,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     @Optional() private readonly notifications?: NotificationService,
+    @Optional() private readonly uploads?: UploadsService,
   ) {}
 
   async requestOtp(phone: string, role: OtpRole): Promise<{ devOtp?: string }> {
@@ -873,6 +875,13 @@ export class AuthService {
             .set({ isOpen: false })
             .where(eq(restaurants.id, restaurant.id));
         }
+
+        if (vendor.imageUrl) {
+          await this.uploads?.deleteMedia(vendor.imageUrl);
+        }
+        if (restaurant?.imageUrl) {
+          await this.uploads?.deleteMedia(restaurant.imageUrl);
+        }
       }
     } else if (user.role === 'delivery_partner') {
       await this.db
@@ -882,7 +891,11 @@ export class AuthService {
     }
 
     // Delete KYC documents belonging to this user
+    const kycDocs = await this.db.select().from(kycDocuments).where(eq(kycDocuments.userId, userId));
     await this.db.delete(kycDocuments).where(eq(kycDocuments.userId, userId));
+    for (const doc of kycDocs) {
+      await this.uploads?.deleteMedia(doc.publicId || doc.secureUrl);
+    }
 
     await this.db
       .update(users)

@@ -1,4 +1,4 @@
-export declare const BANNER_PLACEMENTS: readonly ["home", "promo", "order"];
+export declare const BANNER_PLACEMENTS: readonly ["home", "promo", "order", "splash"];
 export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
 export declare class CreateBannerDto {
     title: string;

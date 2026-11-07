@@ -19,6 +19,7 @@ exports.UploadsModule = UploadsModule = __decorate([
         imports: [notification_module_1.NotificationModule],
         controllers: [uploads_controller_1.UploadsController],
         providers: [uploads_service_1.UploadsService],
+        exports: [uploads_service_1.UploadsService],
     })
 ], UploadsModule);
 //# sourceMappingURL=uploads.module.js.map

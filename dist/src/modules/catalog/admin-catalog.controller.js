@@ -27,12 +27,29 @@ const admin_vendor_dto_1 = require("./dto/admin-vendor.dto");
 const admin_vendor_item_dto_1 = require("./dto/admin-vendor-item.dto");
 const catalog_features_dto_1 = require("./dto/catalog-features.dto");
 const grocery_sizes_service_1 = require("./grocery-sizes.service");
+const business_types_service_1 = require("./business-types.service");
 let AdminCatalogController = class AdminCatalogController {
     catalog;
     grocerySizes;
-    constructor(catalog, grocerySizes) {
+    businessTypes;
+    constructor(catalog, grocerySizes, businessTypes) {
         this.catalog = catalog;
         this.grocerySizes = grocerySizes;
+        this.businessTypes = businessTypes;
+    }
+    listBusinessTypes() {
+        return this.businessTypes.getBusinessTypes();
+    }
+    updateBusinessTypes(user, body) {
+        const list = Array.isArray(body) ? body : body.types || body.businessTypes || [];
+        return this.businessTypes.updateBusinessTypes(list, user.sub);
+    }
+    listHomeTabs() {
+        return this.businessTypes.getHomeTabs();
+    }
+    updateHomeTabs(user, body) {
+        const list = Array.isArray(body) ? body : body.tabs || [];
+        return this.businessTypes.updateHomeTabs(list, user.sub);
     }
     async getCatalogFeatures() {
         return { grocerySizes: await this.grocerySizes.isEnabled() };
@@ -64,8 +81,13 @@ let AdminCatalogController = class AdminCatalogController {
     deleteProduct(id) {
         return this.catalog.deleteProduct(id);
     }
-    listVendors() {
-        return this.catalog.listVendorsAdmin();
+    listVendors(page, limit) {
+        const pageNum = page ? parseInt(page, 10) : undefined;
+        const limitNum = limit ? parseInt(limit, 10) : undefined;
+        return this.catalog.listVendorsAdmin({
+            page: pageNum && pageNum > 0 ? pageNum : undefined,
+            limit: limitNum && limitNum > 0 ? limitNum : undefined,
+        });
     }
     getVendor(id) {
         return this.catalog.getAdminVendor(id);
@@ -129,6 +151,34 @@ let AdminCatalogController = class AdminCatalogController {
     }
 };
 exports.AdminCatalogController = AdminCatalogController;
+__decorate([
+    (0, common_1.Get)('business-types'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "listBusinessTypes", null);
+__decorate([
+    (0, common_1.Put)('business-types'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "updateBusinessTypes", null);
+__decorate([
+    (0, common_1.Get)('home-tabs'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "listHomeTabs", null);
+__decorate([
+    (0, common_1.Put)('home-tabs'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], AdminCatalogController.prototype, "updateHomeTabs", null);
 __decorate([
     (0, common_1.Get)('catalog/features'),
     __metadata("design:type", Function),
@@ -201,8 +251,10 @@ __decorate([
 ], AdminCatalogController.prototype, "deleteProduct", null);
 __decorate([
     (0, common_1.Get)('vendors'),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AdminCatalogController.prototype, "listVendors", null);
 __decorate([
@@ -364,6 +416,7 @@ exports.AdminCatalogController = AdminCatalogController = __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('admin'),
     __metadata("design:paramtypes", [catalog_service_1.CatalogService,
-        grocery_sizes_service_1.GrocerySizesService])
+        grocery_sizes_service_1.GrocerySizesService,
+        business_types_service_1.BusinessTypesService])
 ], AdminCatalogController);
 //# sourceMappingURL=admin-catalog.controller.js.map

@@ -4,6 +4,7 @@ export declare class CreateAdminVendorDto {
     phone: string;
     email?: string;
     type: 'grocery' | 'restaurant' | 'both';
+    businessType?: string;
     shopAddress?: string;
     pickupLat?: number;
     pickupLng?: number;
@@ -25,6 +26,7 @@ export declare class UpdateAdminVendorDto {
     phone?: string;
     email?: string;
     type?: 'grocery' | 'restaurant' | 'both';
+    businessType?: string;
     shopAddress?: string;
     pickupLat?: number;
     pickupLng?: number;

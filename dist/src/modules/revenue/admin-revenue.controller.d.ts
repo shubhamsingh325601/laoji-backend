@@ -69,6 +69,22 @@ export declare class AdminRevenueController {
     setDeliveryFeeTiers(dto: SetRiderPayoutTiersDto): Promise<{
         tiers: import("./rider-payout.service").RiderPayoutTier[];
     }>;
+    listFreeThresholdTiers(): Promise<{
+        tiers: {
+            fromKm: number;
+            toKm: number | null;
+            minOrderAmount: number;
+        }[];
+    }>;
+    setFreeThresholdTiers(body: {
+        tiers: unknown;
+    }): Promise<{
+        tiers: {
+            fromKm: number;
+            toKm: number | null;
+            minOrderAmount: number;
+        }[];
+    }>;
     listSettlements(): Promise<{
         id: string;
         type: "grocery" | "food";
