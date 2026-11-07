@@ -2,6 +2,7 @@ import { BadRequestException, Controller, Get, Param, Query, UseInterceptors } f
 import { ResponseCacheInterceptor } from '../../common/cache/response-cache.interceptor';
 import { CatalogService } from './catalog.service';
 import { GrocerySizesService } from './grocery-sizes.service';
+import { BusinessTypesService } from './business-types.service';
 
 function parseCoord(lat?: string, lng?: string): { lat: number; lng: number } {
   let latNum = Number(lat);
@@ -24,7 +25,18 @@ export class PublicCatalogController {
   constructor(
     private readonly catalog: CatalogService,
     private readonly grocerySizes: GrocerySizesService,
+    private readonly businessTypes: BusinessTypesService,
   ) {}
+
+  @Get('business-types')
+  businessTypesList() {
+    return this.businessTypes.getPublicBusinessTypes();
+  }
+
+  @Get('home-tabs')
+  homeTabsList() {
+    return this.businessTypes.getHomeTabs();
+  }
 
   // Switches apps read to decide whether to show newer catalog UI (e.g. size chips).
   @Get('features')

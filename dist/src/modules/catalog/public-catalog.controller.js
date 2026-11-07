@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const response_cache_interceptor_1 = require("../../common/cache/response-cache.interceptor");
 const catalog_service_1 = require("./catalog.service");
 const grocery_sizes_service_1 = require("./grocery-sizes.service");
+const business_types_service_1 = require("./business-types.service");
 function parseCoord(lat, lng) {
     let latNum = Number(lat);
     let lngNum = Number(lng);
@@ -32,9 +33,17 @@ function parseCoord(lat, lng) {
 let PublicCatalogController = class PublicCatalogController {
     catalog;
     grocerySizes;
-    constructor(catalog, grocerySizes) {
+    businessTypes;
+    constructor(catalog, grocerySizes, businessTypes) {
         this.catalog = catalog;
         this.grocerySizes = grocerySizes;
+        this.businessTypes = businessTypes;
+    }
+    businessTypesList() {
+        return this.businessTypes.getPublicBusinessTypes();
+    }
+    homeTabsList() {
+        return this.businessTypes.getHomeTabs();
     }
     async features() {
         return { grocerySizes: await this.grocerySizes.isEnabled() };
@@ -66,6 +75,18 @@ let PublicCatalogController = class PublicCatalogController {
     }
 };
 exports.PublicCatalogController = PublicCatalogController;
+__decorate([
+    (0, common_1.Get)('business-types'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PublicCatalogController.prototype, "businessTypesList", null);
+__decorate([
+    (0, common_1.Get)('home-tabs'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PublicCatalogController.prototype, "homeTabsList", null);
 __decorate([
     (0, common_1.Get)('features'),
     __metadata("design:type", Function),
@@ -133,6 +154,7 @@ exports.PublicCatalogController = PublicCatalogController = __decorate([
     (0, common_1.UseInterceptors)(response_cache_interceptor_1.ResponseCacheInterceptor),
     (0, common_1.Controller)('catalog'),
     __metadata("design:paramtypes", [catalog_service_1.CatalogService,
-        grocery_sizes_service_1.GrocerySizesService])
+        grocery_sizes_service_1.GrocerySizesService,
+        business_types_service_1.BusinessTypesService])
 ], PublicCatalogController);
 //# sourceMappingURL=public-catalog.controller.js.map

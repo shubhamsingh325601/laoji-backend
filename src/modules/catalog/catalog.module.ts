@@ -9,11 +9,12 @@ import { VendorMenuController } from './vendor-menu.controller';
 import { PublicCatalogController } from './public-catalog.controller';
 import { VendorScheduleService } from './vendor-schedule.service';
 import { GrocerySizesService } from './grocery-sizes.service';
+import { BusinessTypesService } from './business-types.service';
 
 @Module({
   imports: [NotificationModule, VendorDiscountsModule, RevenueModule],
   controllers: [AdminCatalogController, VendorCatalogController, VendorMenuController, PublicCatalogController],
-  providers: [CatalogService, VendorScheduleService, GrocerySizesService],
-  exports: [CatalogService],
+  providers: [CatalogService, VendorScheduleService, GrocerySizesService, BusinessTypesService],
+  exports: [CatalogService, BusinessTypesService],
 })
 export class CatalogModule {}

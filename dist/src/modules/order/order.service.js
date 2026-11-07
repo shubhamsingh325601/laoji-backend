@@ -1046,29 +1046,47 @@ let OrderService = class OrderService {
         ]));
         const attachedGrocery = await this.attachGroceryItems(grocery);
         const attachedFood = await this.attachFoodItems(food);
+        const mappedGrocery = attachedGrocery.map((o) => {
+            const { deliveryOtp: _otp, ...rest } = o;
+            const cust = customerMap.get(o.customerId);
+            return {
+                ...rest,
+                type: 'grocery',
+                customerName: cust?.name || cust?.phone || 'Customer',
+                customerPhone: cust?.phone || '',
+                paymentProvider: o.paymentMethod || undefined,
+            };
+        });
+        const mappedFood = attachedFood.map((o) => {
+            const { deliveryOtp: _otp, ...rest } = o;
+            const cust = customerMap.get(o.customerId);
+            return {
+                ...rest,
+                type: 'food',
+                customerName: cust?.name || cust?.phone || 'Customer',
+                customerPhone: cust?.phone || '',
+                paymentProvider: o.paymentMethod || undefined,
+            };
+        });
+        const total = mappedGrocery.length + mappedFood.length;
+        let paginatedGrocery = mappedGrocery;
+        let paginatedFood = mappedFood;
+        if (opts.page && opts.limit) {
+            const offset = (opts.page - 1) * opts.limit;
+            const combined = [...mappedGrocery, ...mappedFood].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const sliced = combined.slice(offset, offset + opts.limit);
+            paginatedGrocery = sliced.filter((o) => o.type === 'grocery');
+            paginatedFood = sliced.filter((o) => o.type === 'food');
+        }
         return {
-            grocery: attachedGrocery.map((o) => {
-                const { deliveryOtp: _otp, ...rest } = o;
-                const cust = customerMap.get(o.customerId);
-                return {
-                    ...rest,
-                    type: 'grocery',
-                    customerName: cust?.name || cust?.phone || 'Customer',
-                    customerPhone: cust?.phone || '',
-                    paymentProvider: o.paymentMethod || undefined,
-                };
-            }),
-            food: attachedFood.map((o) => {
-                const { deliveryOtp: _otp, ...rest } = o;
-                const cust = customerMap.get(o.customerId);
-                return {
-                    ...rest,
-                    type: 'food',
-                    customerName: cust?.name || cust?.phone || 'Customer',
-                    customerPhone: cust?.phone || '',
-                    paymentProvider: o.paymentMethod || undefined,
-                };
-            }),
+            grocery: paginatedGrocery,
+            food: paginatedFood,
+            pagination: {
+                page: opts.page || 1,
+                limit: opts.limit || total,
+                total,
+                totalPages: opts.limit ? Math.ceil(total / opts.limit) : 1,
+            },
         };
     }
     async getOrderTimelineForAdmin(type, id) {

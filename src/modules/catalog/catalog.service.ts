@@ -2435,7 +2435,7 @@ export class CatalogService {
 
   // ---------- Admin Vendor Management (CRUD & Welcome Email) ----------
 
-  async listVendorsAdmin() {
+  async listVendorsAdmin(opts: { page?: number; limit?: number } = {}) {
     const rows = await this.db
       .select({
         vendor: vendors,
@@ -2473,7 +2473,7 @@ export class CatalogService {
       // ignore
     }
 
-    return rows.map(({ vendor, user, restaurantImageUrl }) => ({
+    const results = rows.map(({ vendor, user, restaurantImageUrl }) => ({
       id: vendor.id,
       userId: vendor.userId,
       businessName: vendor.businessName,
@@ -2481,6 +2481,7 @@ export class CatalogService {
       phone: user.phone,
       email: user.email,
       type: vendor.type,
+      businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
       shopAddress: vendor.shopAddress,
       gstNumber: vendor.gstNumber,
       aadhaarNumber: vendor.aadhaarNumber,
@@ -2488,7 +2489,7 @@ export class CatalogService {
       bankIfsc: vendor.bankIfsc,
       upiId: vendor.upiId,
       kycStatus: vendor.kycStatus,
-      activity: vendor.isOpen ? 'active' : 'inactive',
+      activity: vendor.isOpen ? ('active' as const) : ('inactive' as const),
       isOpen: vendor.isOpen,
       isOpenNow: isVendorOpenNow(vendor),
       businessHours: vendor.businessHours,
@@ -2504,6 +2505,24 @@ export class CatalogService {
       imageUrl: vendor.imageUrl || restaurantImageUrl || null,
       createdAt: vendor.createdAt,
     }));
+
+    if (opts.page && opts.limit) {
+      const page = opts.page;
+      const limit = opts.limit;
+      const offset = (page - 1) * limit;
+      const sliced = results.slice(offset, offset + limit);
+      return {
+        vendors: sliced,
+        pagination: {
+          page,
+          limit,
+          total: results.length,
+          totalPages: Math.ceil(results.length / limit),
+        },
+      };
+    }
+
+    return results;
   }
 
   async getAdminVendor(id: string) {
@@ -3206,6 +3225,7 @@ export class CatalogService {
         businessName: dto.businessName.trim(),
         ownerName: dto.ownerName.trim(),
         type: dto.type,
+        businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
         shopAddress: dto.shopAddress?.trim() || null,
         gstNumber: dto.gstNumber?.trim() || null,
         aadhaarNumber: dto.aadhaarNumber?.trim() || null,
@@ -3366,6 +3386,7 @@ export class CatalogService {
     if (dto.businessName !== undefined) updateFields.businessName = dto.businessName;
     if (dto.ownerName !== undefined) updateFields.ownerName = dto.ownerName;
     if (dto.type !== undefined) updateFields.type = dto.type;
+    if (dto.businessType !== undefined) updateFields.businessType = dto.businessType;
     if (dto.shopAddress !== undefined) updateFields.shopAddress = dto.shopAddress;
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
     if (dto.pickupLat !== undefined && dto.pickupLng !== undefined) {

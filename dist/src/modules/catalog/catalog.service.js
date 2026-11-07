@@ -1852,7 +1852,7 @@ let CatalogService = class CatalogService {
         }
         return updated;
     }
-    async listVendorsAdmin() {
+    async listVendorsAdmin(opts = {}) {
         const rows = await this.db
             .select({
             vendor: schema_1.vendors,
@@ -1885,7 +1885,7 @@ let CatalogService = class CatalogService {
         }
         catch {
         }
-        return rows.map(({ vendor, user, restaurantImageUrl }) => ({
+        const results = rows.map(({ vendor, user, restaurantImageUrl }) => ({
             id: vendor.id,
             userId: vendor.userId,
             businessName: vendor.businessName,
@@ -1893,6 +1893,7 @@ let CatalogService = class CatalogService {
             phone: user.phone,
             email: user.email,
             type: vendor.type,
+            businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
             shopAddress: vendor.shopAddress,
             gstNumber: vendor.gstNumber,
             aadhaarNumber: vendor.aadhaarNumber,
@@ -1916,6 +1917,22 @@ let CatalogService = class CatalogService {
             imageUrl: vendor.imageUrl || restaurantImageUrl || null,
             createdAt: vendor.createdAt,
         }));
+        if (opts.page && opts.limit) {
+            const page = opts.page;
+            const limit = opts.limit;
+            const offset = (page - 1) * limit;
+            const sliced = results.slice(offset, offset + limit);
+            return {
+                vendors: sliced,
+                pagination: {
+                    page,
+                    limit,
+                    total: results.length,
+                    totalPages: Math.ceil(results.length / limit),
+                },
+            };
+        }
+        return results;
     }
     async getAdminVendor(id) {
         const [row] = await this.db
@@ -2548,6 +2565,7 @@ let CatalogService = class CatalogService {
             businessName: dto.businessName.trim(),
             ownerName: dto.ownerName.trim(),
             type: dto.type,
+            businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
             shopAddress: dto.shopAddress?.trim() || null,
             gstNumber: dto.gstNumber?.trim() || null,
             aadhaarNumber: dto.aadhaarNumber?.trim() || null,
@@ -2701,6 +2719,8 @@ let CatalogService = class CatalogService {
             updateFields.ownerName = dto.ownerName;
         if (dto.type !== undefined)
             updateFields.type = dto.type;
+        if (dto.businessType !== undefined)
+            updateFields.businessType = dto.businessType;
         if (dto.shopAddress !== undefined)
             updateFields.shopAddress = dto.shopAddress;
         if (dto.deliveryRadiusKm !== undefined)

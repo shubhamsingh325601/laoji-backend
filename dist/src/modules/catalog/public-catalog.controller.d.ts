@@ -1,9 +1,13 @@
 import { CatalogService } from './catalog.service';
 import { GrocerySizesService } from './grocery-sizes.service';
+import { BusinessTypesService } from './business-types.service';
 export declare class PublicCatalogController {
     private readonly catalog;
     private readonly grocerySizes;
-    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService);
+    private readonly businessTypes;
+    constructor(catalog: CatalogService, grocerySizes: GrocerySizesService, businessTypes: BusinessTypesService);
+    businessTypesList(): Promise<import("./business-types.service").BusinessTypeItem[]>;
+    homeTabsList(): Promise<import("./business-types.service").HomeTabItem[]>;
     features(): Promise<{
         grocerySizes: boolean;
     }>;
@@ -29,8 +33,8 @@ export declare class PublicCatalogController {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
+        ownerVendorId: string | null;
         unit: string;
         size: string | null;
         wholesalePrice: number | null;
@@ -198,8 +202,8 @@ export declare class PublicCatalogController {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             wholesalePrice: number | null;

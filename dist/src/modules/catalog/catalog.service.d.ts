@@ -106,12 +106,12 @@ export declare class CatalogService {
         createdAt: Date;
     }>;
     upsertVendorProfile(userId: string, dto: UpsertVendorProfileDto): Promise<{
-        type: "grocery" | "restaurant" | "both";
         id: string;
         createdAt: Date;
         userId: string;
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1206,9 +1206,9 @@ export declare class CatalogService {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -1318,8 +1318,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1332,17 +1332,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }[]>;
     private listingView;
     private listingResponse;
@@ -1362,8 +1362,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1376,17 +1376,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto): Promise<{
         commissionPct: any;
@@ -1398,8 +1398,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1412,17 +1412,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private vendorSizesToSave;
     private saveVendorSizes;
@@ -1437,8 +1437,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1451,17 +1451,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     restockVendorProduct(vendorId: string, id: string, qty: number): Promise<{
         commissionPct: any;
@@ -1473,8 +1473,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1487,17 +1487,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorProduct(vendorId: string, id: string): Promise<{
         success: boolean;
@@ -1512,8 +1512,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1526,17 +1526,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private requireListingOfProduct;
     updateVendorCustomProduct(vendor: VendorRef, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
@@ -1549,8 +1549,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1563,17 +1563,17 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorCustomProduct(vendorId: string, productId: string): Promise<{
         success: boolean;
@@ -1592,8 +1592,8 @@ export declare class CatalogService {
         status: "active" | "inactive";
         createdAt: Date;
         imageUrl: string | null;
-        ownerVendorId: string | null;
         description: string | null;
+        ownerVendorId: string | null;
         unit: string;
         size: string | null;
         wholesalePrice: number | null;
@@ -1739,8 +1739,8 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
-            ownerVendorId: string | null;
             description: string | null;
+            ownerVendorId: string | null;
             unit: string;
             size: string | null;
             wholesalePrice: number | null;
@@ -1875,11 +1875,11 @@ export declare class CatalogService {
         name: string;
         imageUrl: string | null;
         description: string | null;
+        menuCategoryId: string;
         price: number;
+        isVeg: boolean;
         isAvailable: boolean;
         commissionPct: number | null;
-        menuCategoryId: string;
-        isVeg: boolean;
         mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
@@ -1917,15 +1917,15 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
         imageUrl: string | null;
+        vendorId: string;
         categoryId: string;
         unit: string;
         size: string | null;
-        vendorId: string;
         productId: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -2424,9 +2424,9 @@ export declare class CatalogService {
             status: "active" | "inactive";
             createdAt: Date;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -2471,12 +2471,12 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
+        businessType: string;
+        vendorId: string;
+        categoryId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        businessType: string;
-        categoryId: string | null;
-        vendorId: string;
         note: string | null;
     }>;
     listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {
@@ -2926,7 +2926,10 @@ export declare class CatalogService {
         reviewedAt: Date | null;
         createdAt: Date;
     }>;
-    listVendorsAdmin(): Promise<{
+    listVendorsAdmin(opts?: {
+        page?: number;
+        limit?: number;
+    }): Promise<{
         id: string;
         userId: string;
         businessName: string;
@@ -2934,6 +2937,7 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -2941,7 +2945,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -2961,7 +2965,51 @@ export declare class CatalogService {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     getAdminVendor(id: string): Promise<{
         id: string;
         userId: string;
@@ -3112,6 +3160,7 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -3119,7 +3168,7 @@ export declare class CatalogService {
         bankIfsc: string | null;
         upiId: string | null;
         kycStatus: "pending" | "verified" | "rejected";
-        activity: string;
+        activity: "active" | "inactive";
         isOpen: boolean;
         isOpenNow: boolean;
         businessHours: {
@@ -3139,7 +3188,51 @@ export declare class CatalogService {
         discountPct: number;
         imageUrl: string | null;
         createdAt: Date;
-    }[]>;
+    }[] | {
+        vendors: {
+            id: string;
+            userId: string;
+            businessName: string;
+            ownerName: string;
+            phone: string | null;
+            email: string | null;
+            type: "grocery" | "restaurant" | "both";
+            businessType: string;
+            shopAddress: string | null;
+            gstNumber: string | null;
+            aadhaarNumber: string | null;
+            bankAccount: string | null;
+            bankIfsc: string | null;
+            upiId: string | null;
+            kycStatus: "pending" | "verified" | "rejected";
+            activity: "active" | "inactive";
+            isOpen: boolean;
+            isOpenNow: boolean;
+            businessHours: {
+                day: number;
+                isOpen: boolean;
+                openTime: string;
+                closeTime: string;
+            }[] | null;
+            showInApp: boolean;
+            displayOrder: number;
+            deliveryRadiusKm: number;
+            pickupLat: number;
+            pickupLng: number;
+            locationIsDefault: boolean;
+            commissionPct: number;
+            cashbackPct: number;
+            discountPct: number;
+            imageUrl: string | null;
+            createdAt: Date;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
     updateAdminVendor(id: string, dto: UpdateAdminVendorDto, adminUserId?: string): Promise<{
         id: string;
         userId: string;

@@ -806,10 +806,23 @@ export class DeliveryService {
   async verifyDelivery(userId: string, type: OrderType, orderId: string, otp: string) {
     const partner = await this.requirePartner(userId);
     const order = await this.requireOwnActiveOrder(type, orderId, partner.id);
-    if (order.status !== 'out_for_delivery') {
-      throw new BadRequestException('Order must be out for delivery before it can be marked delivered');
+
+    // If order is already delivered, return success (prevents double-tap errors)
+    if (order.status === 'delivered') {
+      return { ok: true, alreadyDelivered: true };
     }
-    if (!order.deliveryOtp || order.deliveryOtp !== otp) {
+
+    // Allow delivery confirmation if order is anywhere in active delivery cycle
+    // (picked_up, handed_over, delivery_assigned, or out_for_delivery)
+    const validDeliveryStatuses = ['delivery_assigned', 'handed_over', 'picked_up', 'out_for_delivery'];
+    if (!validDeliveryStatuses.includes(order.status)) {
+      throw new BadRequestException(`Order cannot be confirmed while status is "${order.status}"`);
+    }
+
+    const cleanInputOtp = String(otp ?? '').trim();
+    const cleanStoredOtp = String(order.deliveryOtp ?? '').trim();
+
+    if (!cleanStoredOtp || cleanStoredOtp !== cleanInputOtp) {
       // Rate-limit: count recent failed OTP attempts stored in orderStatusHistory
       // (we reuse the existing infra — a failed attempt is just a noop, we track
       // it in memory via a simple in-process counter keyed on orderId).
@@ -826,7 +839,7 @@ export class DeliveryService {
           throw new BadRequestException('Too many incorrect OTP attempts — please wait 60 seconds and try again');
         }
       }
-      throw new BadRequestException('Incorrect OTP');
+      throw new BadRequestException('Incorrect OTP. Please check the 6-digit code with the customer.');
     }
     // Clear attempt counter on success
     DeliveryService.otpAttempts.delete(`otp-attempts:${orderId}`);

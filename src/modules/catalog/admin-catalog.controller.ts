@@ -13,6 +13,7 @@ import { CreateAdminVendorDto, ReorderVendorsDto, ResetAdminVendorPasswordDto, U
 import { CreateAdminVendorItemDto, UpdateAdminVendorItemDto, BulkDeleteAdminVendorItemsDto } from './dto/admin-vendor-item.dto';
 import { UpdateCatalogFeaturesDto } from './dto/catalog-features.dto';
 import { GrocerySizesService } from './grocery-sizes.service';
+import { BusinessTypesService, BusinessTypeItem, HomeTabItem } from './business-types.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -21,7 +22,30 @@ export class AdminCatalogController {
   constructor(
     private readonly catalog: CatalogService,
     private readonly grocerySizes: GrocerySizesService,
+    private readonly businessTypes: BusinessTypesService,
   ) {}
+
+  @Get('business-types')
+  listBusinessTypes() {
+    return this.businessTypes.getBusinessTypes();
+  }
+
+  @Put('business-types')
+  updateBusinessTypes(@CurrentUser() user: JwtAccessPayload, @Body() body: any) {
+    const list = Array.isArray(body) ? body : body.types || body.businessTypes || [];
+    return this.businessTypes.updateBusinessTypes(list, user.sub);
+  }
+
+  @Get('home-tabs')
+  listHomeTabs() {
+    return this.businessTypes.getHomeTabs();
+  }
+
+  @Put('home-tabs')
+  updateHomeTabs(@CurrentUser() user: JwtAccessPayload, @Body() body: any) {
+    const list = Array.isArray(body) ? body : body.tabs || [];
+    return this.businessTypes.updateHomeTabs(list, user.sub);
+  }
 
   @Get('catalog/features')
   async getCatalogFeatures() {
@@ -77,8 +101,13 @@ export class AdminCatalogController {
   // restaurant names. Full vendor management (KYC status, hours, etc.) is
   // its own not-yet-built screen, not part of Phase 4's order-list ask.
   @Get('vendors')
-  listVendors() {
-    return this.catalog.listVendorsAdmin();
+  listVendors(@Query('page') page?: string, @Query('limit') limit?: string) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.catalog.listVendorsAdmin({
+      page: pageNum && pageNum > 0 ? pageNum : undefined,
+      limit: limitNum && limitNum > 0 ? limitNum : undefined,
+    });
   }
 
   @Get('vendors/:id')
