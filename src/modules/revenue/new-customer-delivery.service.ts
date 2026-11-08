@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, ilike, inArray, notInArray, or } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
@@ -57,6 +57,9 @@ const NOT_COUNTED = ['failed', 'cancelled'] as const;
 
 @Injectable()
 export class NewCustomerDeliveryService {
+  private readonly logger = new Logger(NewCustomerDeliveryService.name);
+  private warnedMissingFreeThresholdTable = false;
+
   constructor(@Inject(DRIZZLE) private readonly db: Db) {}
 
   // ---------- Offer settings ----------
@@ -188,8 +191,19 @@ export class NewCustomerDeliveryService {
 
   /** Per-distance free-delivery threshold. Empty = single global threshold from revenue_config. */
   async listFreeThresholdTiers(): Promise<{ fromKm: number; toKm: number | null; minOrderAmount: number }[]> {
-    const rows = await this.db.select().from(deliveryFreeThresholdTiers).orderBy(asc(deliveryFreeThresholdTiers.fromKm));
-    return rows.map((r) => ({ fromKm: r.fromKm, toKm: r.toKm, minOrderAmount: r.minOrderAmount }));
+    try {
+      const rows = await this.db.select().from(deliveryFreeThresholdTiers).orderBy(asc(deliveryFreeThresholdTiers.fromKm));
+      return rows.map((r) => ({ fromKm: r.fromKm, toKm: r.toKm, minOrderAmount: r.minOrderAmount }));
+    } catch (error) {
+      if (!isMissingFreeThresholdTable(error)) throw error;
+      if (!this.warnedMissingFreeThresholdTable) {
+        this.logger.warn(
+          'delivery_free_threshold_tiers is missing; using the global free-delivery threshold. Apply migration 0022_delivery_free_threshold_tiers.sql.',
+        );
+        this.warnedMissingFreeThresholdTable = true;
+      }
+      return [];
+    }
   }
 
   async replaceFreeThresholdTiers(tiers: unknown): Promise<{ fromKm: number; toKm: number | null; minOrderAmount: number }[]> {
@@ -246,4 +260,22 @@ export class NewCustomerDeliveryService {
     const hit = sorted.find((t, i) => (i === 0 || distanceKm > t.fromKm) && (t.toKm === null || distanceKm <= t.toKm));
     return (hit ?? sorted[sorted.length - 1]).minOrderAmount;
   }
+}
+
+function isMissingFreeThresholdTable(error: unknown): boolean {
+  let current = error;
+  const visited = new Set<object>();
+  while (typeof current === 'object' && current !== null && !visited.has(current)) {
+    visited.add(current);
+    const candidate = current as { code?: unknown; message?: unknown; cause?: unknown };
+    if (
+      candidate.code === '42P01' &&
+      typeof candidate.message === 'string' &&
+      candidate.message.includes('delivery_free_threshold_tiers')
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
 }

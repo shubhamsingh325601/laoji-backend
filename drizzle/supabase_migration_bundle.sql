@@ -197,3 +197,12 @@ ON CONFLICT ("key") DO NOTHING;
 INSERT INTO "platform_settings" ("key", "value", "description")
 VALUES ('referral_reward_max_amount', '15', 'Refer & earn: maximum rupees a single referral can pay the referrer')
 ON CONFLICT ("key") DO NOTHING;
+
+-- 12. Per-distance free-delivery thresholds
+CREATE TABLE IF NOT EXISTS "delivery_free_threshold_tiers" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "from_km" double precision NOT NULL,
+  "to_km" double precision,
+  "min_order_amount" double precision NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
