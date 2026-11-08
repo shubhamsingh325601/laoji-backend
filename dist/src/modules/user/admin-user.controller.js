@@ -19,6 +19,7 @@ const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const user_service_1 = require("./user.service");
 const admin_user_dto_1 = require("./dto/admin-user.dto");
+const address_dto_1 = require("./dto/address.dto");
 let AdminUserController = class AdminUserController {
     users;
     constructor(users) {
@@ -35,6 +36,12 @@ let AdminUserController = class AdminUserController {
     }
     update(id, dto) {
         return this.users.updateUser(id, dto);
+    }
+    updateAddress(customerId, addressId, dto) {
+        return this.users.updateCustomerAddress(customerId, addressId, dto);
+    }
+    deleteAddress(customerId, addressId) {
+        return this.users.deleteCustomerAddress(customerId, addressId);
     }
     delete(id) {
         return this.users.deleteUser(id);
@@ -71,6 +78,23 @@ __decorate([
     __metadata("design:paramtypes", [String, admin_user_dto_1.UpdateAdminUserDto]),
     __metadata("design:returntype", void 0)
 ], AdminUserController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/addresses/:addressId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('addressId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, address_dto_1.UpdateAddressDto]),
+    __metadata("design:returntype", void 0)
+], AdminUserController.prototype, "updateAddress", null);
+__decorate([
+    (0, common_1.Delete)(':id/addresses/:addressId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('addressId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AdminUserController.prototype, "deleteAddress", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

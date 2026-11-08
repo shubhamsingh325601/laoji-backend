@@ -72,6 +72,13 @@ let AdminRevenueController = class AdminRevenueController {
     async setDeliveryFeeTiers(dto) {
         return { tiers: await this.newCustomerDelivery.replaceFeeTiers(dto.tiers) };
     }
+    async listFreeThresholdTiers() {
+        return { tiers: await this.newCustomerDelivery.listFreeThresholdTiers() };
+    }
+    async setFreeThresholdTiers(body) {
+        const saved = await this.newCustomerDelivery.replaceFreeThresholdTiers(body.tiers ?? []);
+        return { tiers: saved };
+    }
     listSettlements() {
         return this.settlements.listAllForAdmin();
     }
@@ -145,6 +152,19 @@ __decorate([
     __metadata("design:paramtypes", [SetRiderPayoutTiersDto]),
     __metadata("design:returntype", Promise)
 ], AdminRevenueController.prototype, "setDeliveryFeeTiers", null);
+__decorate([
+    (0, common_1.Get)('delivery-free-threshold-tiers'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminRevenueController.prototype, "listFreeThresholdTiers", null);
+__decorate([
+    (0, common_1.Put)('delivery-free-threshold-tiers'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminRevenueController.prototype, "setFreeThresholdTiers", null);
 __decorate([
     (0, common_1.Get)('settlements'),
     __metadata("design:type", Function),

@@ -11,6 +11,28 @@ export declare class PublicCatalogController {
     features(): Promise<{
         grocerySizes: boolean;
     }>;
+    mealsUnder99(lat?: string, lng?: string, page?: string, limit?: string): Promise<{
+        items: {
+            id: string;
+            restaurantId: string;
+            restaurantName: string;
+            name: string;
+            description: string;
+            price: number;
+            originalPrice: number | undefined;
+            rating: number;
+            image: string;
+            isVeg: boolean;
+            hasCustomizations: boolean;
+            salesCount: number;
+            openNow: boolean;
+            servedNow: boolean;
+        }[];
+        page: number;
+        limit: number;
+        total: number;
+        hasMore: boolean;
+    }>;
     categories(): Promise<{
         id: string;
         parentId: string | null;
@@ -32,9 +54,9 @@ export declare class PublicCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
+        description: string | null;
         unit: string;
         size: string | null;
         wholesalePrice: number | null;
@@ -80,6 +102,8 @@ export declare class PublicCatalogController {
         ratingAvg: number;
         ratingCount: number;
         isOpen: boolean;
+        hasVeg: boolean;
+        hasNonVeg: boolean;
         type: "grocery" | "restaurant" | "both";
         displayOrder: number;
         distanceKm: number;
@@ -201,9 +225,9 @@ export declare class PublicCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
+            description: string | null;
             unit: string;
             size: string | null;
             wholesalePrice: number | null;

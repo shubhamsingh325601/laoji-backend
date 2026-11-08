@@ -5,6 +5,7 @@ import { DRIZZLE } from '../../config/database.module';
 import {
   customerDeliveryFeeTiers,
   customerFreeDeliveryBonus,
+  deliveryFreeThresholdTiers,
   foodOrders,
   groceryOrders,
   newCustomerDeliverySettings,
@@ -181,5 +182,68 @@ export class NewCustomerDeliveryService {
       .onConflictDoUpdate({ target: customerFreeDeliveryBonus.customerId, set: { extraOrders: extra, updatedAt: new Date() } });
     const [status] = await this.statuses([user], await this.get());
     return status;
+  }
+
+  // ---------- Free delivery threshold tiers ----------
+
+  /** Per-distance free-delivery threshold. Empty = single global threshold from revenue_config. */
+  async listFreeThresholdTiers(): Promise<{ fromKm: number; toKm: number | null; minOrderAmount: number }[]> {
+    const rows = await this.db.select().from(deliveryFreeThresholdTiers).orderBy(asc(deliveryFreeThresholdTiers.fromKm));
+    return rows.map((r) => ({ fromKm: r.fromKm, toKm: r.toKm, minOrderAmount: r.minOrderAmount }));
+  }
+
+  async replaceFreeThresholdTiers(tiers: unknown): Promise<{ fromKm: number; toKm: number | null; minOrderAmount: number }[]> {
+    if (!Array.isArray(tiers) || tiers.length === 0) {
+      // Empty array = clear, fall back to revenue-config global threshold.
+      await this.db.delete(deliveryFreeThresholdTiers);
+      return [];
+    }
+    const validated = this.validateFreeThresholdTiers(tiers);
+    await this.db.transaction(async (tx) => {
+      await tx.delete(deliveryFreeThresholdTiers);
+      await tx.insert(deliveryFreeThresholdTiers).values(validated);
+    });
+    return validated;
+  }
+
+  private validateFreeThresholdTiers(tiers: unknown[]): { fromKm: number; toKm: number | null; minOrderAmount: number }[] {
+    const out = tiers.map((t: any, i) => {
+      const fromKm = Number(t?.fromKm);
+      const toKm = t?.toKm === null || t?.toKm === undefined ? null : Number(t.toKm);
+      const minOrderAmount = Number(t?.minOrderAmount);
+      const label = `Band ${i + 1}`;
+      if (!Number.isFinite(fromKm) || fromKm < 0) throw new BadRequestException(`${label}: "from" km must be 0 or more`);
+      if (toKm !== null && (!Number.isFinite(toKm) || toKm <= fromKm)) {
+        throw new BadRequestException(`${label}: "to" km must be greater than "from" km`);
+      }
+      if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0) {
+        throw new BadRequestException(`${label}: minimum order amount must be 0 or more`);
+      }
+      return { fromKm, toKm, minOrderAmount: Math.round(minOrderAmount * 100) / 100 };
+    });
+    if (out[0].fromKm !== 0) throw new BadRequestException('The first band must start at 0 km');
+    for (let i = 0; i < out.length; i++) {
+      const last = i === out.length - 1;
+      if (last && out[i].toKm !== null) throw new BadRequestException('The last band must have no upper limit');
+      if (!last) {
+        if (out[i].toKm === null) throw new BadRequestException(`Band ${i + 1}: only the last band can have no upper limit`);
+        if (out[i + 1].fromKm !== out[i].toKm) {
+          throw new BadRequestException(`Band ${i + 2} must start at ${out[i].toKm} km — no gaps or overlaps`);
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The free-delivery minimum order amount for this distance, using the admin's
+   * per-band thresholds if set, otherwise falls back to the given globalThreshold.
+   */
+  async freeDeliveryThreshold(distanceKm: number, globalThreshold: number): Promise<number> {
+    const tiers = await this.listFreeThresholdTiers();
+    if (!tiers.length) return globalThreshold;
+    const sorted = [...tiers].sort((a, b) => a.fromKm - b.fromKm);
+    const hit = sorted.find((t, i) => (i === 0 || distanceKm > t.fromKm) && (t.toKm === null || distanceKm <= t.toKm));
+    return (hit ?? sorted[sorted.length - 1]).minOrderAmount;
   }
 }

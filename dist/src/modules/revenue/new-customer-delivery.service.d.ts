@@ -38,4 +38,16 @@ export declare class NewCustomerDeliveryService {
     }>;
     private statuses;
     setExtra(customerId: string, extraOrders: unknown): Promise<CustomerFreeDeliveryStatus>;
+    listFreeThresholdTiers(): Promise<{
+        fromKm: number;
+        toKm: number | null;
+        minOrderAmount: number;
+    }[]>;
+    replaceFreeThresholdTiers(tiers: unknown): Promise<{
+        fromKm: number;
+        toKm: number | null;
+        minOrderAmount: number;
+    }[]>;
+    private validateFreeThresholdTiers;
+    freeDeliveryThreshold(distanceKm: number, globalThreshold: number): Promise<number>;
 }

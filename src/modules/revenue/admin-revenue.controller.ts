@@ -80,6 +80,19 @@ export class AdminRevenueController {
     return { tiers: await this.newCustomerDelivery.replaceFeeTiers(dto.tiers) };
   }
 
+  // Minimum order amount for free delivery, by distance band.
+  // Empty = single global threshold from the revenue_config rule.
+  @Get('delivery-free-threshold-tiers')
+  async listFreeThresholdTiers() {
+    return { tiers: await this.newCustomerDelivery.listFreeThresholdTiers() };
+  }
+
+  @Put('delivery-free-threshold-tiers')
+  async setFreeThresholdTiers(@Body() body: { tiers: unknown }) {
+    const saved = await this.newCustomerDelivery.replaceFreeThresholdTiers(body.tiers ?? []);
+    return { tiers: saved };
+  }
+
   @Get('settlements')
   listSettlements() {
     return this.settlements.listAllForAdmin();

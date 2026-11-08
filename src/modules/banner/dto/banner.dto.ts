@@ -1,8 +1,8 @@
 import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUrl, MaxLength, Min } from 'class-validator';
 
 // home = top carousel, promo = the offer card lower on the home screen,
-// order = order tracking screen.
-export const BANNER_PLACEMENTS = ['home', 'promo', 'order'] as const;
+// order = order tracking screen, splash = full-screen image shown at app launch.
+export const BANNER_PLACEMENTS = ['home', 'promo', 'order', 'splash'] as const;
 export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
 
 export class CreateBannerDto {

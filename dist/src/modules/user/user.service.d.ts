@@ -1,6 +1,7 @@
 import type { Db } from '../../config/database.module';
 import { NotificationService } from '../notification/notification.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import type { UpdateAddressDto } from './dto/address.dto';
 export declare class UserService {
     private readonly db;
     private readonly notifications;
@@ -34,6 +35,19 @@ export declare class UserService {
         recentOrders: any[];
         createdAt: Date;
     }>;
+    updateCustomerAddress(customerId: string, addressId: string, dto: UpdateAddressDto): Promise<{
+        id: string;
+        userId: string;
+        label: string | null;
+        lat: number;
+        lng: number;
+        formattedAddress: string;
+        isDefault: boolean;
+    }>;
+    deleteCustomerAddress(customerId: string, addressId: string): Promise<{
+        ok: boolean;
+    }>;
+    private requireCustomerAddress;
     createUser(dto: CreateAdminUserDto): Promise<{
         id: string;
         name: string | null;

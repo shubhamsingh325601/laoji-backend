@@ -29,6 +29,7 @@ const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const area_manager_module_1 = require("./modules/area-manager/area-manager.module");
 const coupon_module_1 = require("./modules/coupon/coupon.module");
 const banner_module_1 = require("./modules/banner/banner.module");
+const home_tab_module_1 = require("./modules/home-tab/home-tab.module");
 const vendor_discounts_module_1 = require("./modules/vendor-discounts/vendor-discounts.module");
 const wallet_module_1 = require("./modules/wallet/wallet.module");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             area_manager_module_1.AreaManagerModule,
             coupon_module_1.CouponModule,
             banner_module_1.BannerModule,
+            home_tab_module_1.HomeTabModule,
             vendor_discounts_module_1.VendorDiscountsModule,
             wallet_module_1.WalletModule,
         ],

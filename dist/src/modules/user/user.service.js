@@ -173,6 +173,59 @@ let UserService = class UserService {
             createdAt: u.createdAt,
         };
     }
+    async updateCustomerAddress(customerId, addressId, dto) {
+        await this.requireCustomerAddress(customerId, addressId);
+        return this.db.transaction(async (tx) => {
+            if (dto.isDefault === true) {
+                await tx.update(schema_1.addresses).set({ isDefault: false }).where((0, drizzle_orm_1.eq)(schema_1.addresses.userId, customerId));
+            }
+            const [updated] = await tx
+                .update(schema_1.addresses)
+                .set(dto)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.addresses.id, addressId), (0, drizzle_orm_1.eq)(schema_1.addresses.userId, customerId)))
+                .returning();
+            if (!updated)
+                throw new common_1.NotFoundException('Address not found');
+            return updated;
+        });
+    }
+    async deleteCustomerAddress(customerId, addressId) {
+        await this.requireCustomerAddress(customerId, addressId);
+        const [groceryOrder] = await this.db
+            .select({ id: schema_1.groceryOrders.id })
+            .from(schema_1.groceryOrders)
+            .where((0, drizzle_orm_1.eq)(schema_1.groceryOrders.deliveryAddressId, addressId))
+            .limit(1);
+        const [foodOrder] = await this.db
+            .select({ id: schema_1.foodOrders.id })
+            .from(schema_1.foodOrders)
+            .where((0, drizzle_orm_1.eq)(schema_1.foodOrders.deliveryAddressId, addressId))
+            .limit(1);
+        if (groceryOrder || foodOrder) {
+            throw new common_1.ConflictException('This address is used by an order and cannot be deleted. Update it instead.');
+        }
+        await this.db
+            .delete(schema_1.addresses)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.addresses.id, addressId), (0, drizzle_orm_1.eq)(schema_1.addresses.userId, customerId)));
+        return { ok: true };
+    }
+    async requireCustomerAddress(customerId, addressId) {
+        const [customer] = await this.db
+            .select({ id: schema_1.users.id, role: schema_1.users.role })
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, customerId))
+            .limit(1);
+        if (!customer || customer.role !== 'customer')
+            throw new common_1.NotFoundException('Customer not found');
+        const [address] = await this.db
+            .select()
+            .from(schema_1.addresses)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.addresses.id, addressId), (0, drizzle_orm_1.eq)(schema_1.addresses.userId, customerId)))
+            .limit(1);
+        if (!address)
+            throw new common_1.NotFoundException('Address not found');
+        return address;
+    }
     async createUser(dto) {
         const role = dto.role ?? 'customer';
         const status = dto.status ?? 'active';

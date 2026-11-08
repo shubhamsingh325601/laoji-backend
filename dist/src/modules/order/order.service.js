@@ -102,6 +102,10 @@ let OrderService = class OrderService {
                 freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
             };
         }
+        const perDistanceThreshold = await this.newCustomerDelivery.freeDeliveryThreshold(distanceKm, revenue.freeDeliveryThreshold);
+        if (perDistanceThreshold !== revenue.freeDeliveryThreshold) {
+            revenue = { ...revenue, freeDeliveryThreshold: perDistanceThreshold };
+        }
         const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
         let baseFee = 0;
         if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {

@@ -1,5 +1,6 @@
 import { UserService } from './user.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import { UpdateAddressDto } from './dto/address.dto';
 export declare class AdminUserController {
     private readonly users;
     constructor(users: UserService);
@@ -69,6 +70,18 @@ export declare class AdminUserController {
         referredBy: string | null;
         referralRewardedAt: Date | null;
         createdAt: Date;
+    }>;
+    updateAddress(customerId: string, addressId: string, dto: UpdateAddressDto): Promise<{
+        id: string;
+        userId: string;
+        label: string | null;
+        lat: number;
+        lng: number;
+        formattedAddress: string;
+        isDefault: boolean;
+    }>;
+    deleteAddress(customerId: string, addressId: string): Promise<{
+        ok: boolean;
     }>;
     delete(id: string): Promise<{
         success: boolean;

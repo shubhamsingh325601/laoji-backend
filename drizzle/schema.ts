@@ -861,6 +861,21 @@ export const customerDeliveryFeeTiers = pgTable('customer_delivery_fee_tiers', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Admin-defined free delivery thresholds by distance band. If a customer's
+// order subtotal meets the threshold for their delivery distance, the fee is
+// waived. Works exactly like customer_delivery_fee_tiers but the "amount"
+// here is the minimum order value that earns free delivery (not the fee
+// itself). A row covers (from_km, to_km]; the first starts at 0 and the last
+// has to_km null. No rows = global freeDeliveryThreshold from revenue_config.
+export const deliveryFreeThresholdTiers = pgTable('delivery_free_threshold_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromKm: doublePrecision('from_km').notNull(),
+  toKm: doublePrecision('to_km'),
+  // Minimum subtotal (₹) for free delivery within this distance band.
+  minOrderAmount: doublePrecision('min_order_amount').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const settlements = pgTable(
   'settlements',
   {
