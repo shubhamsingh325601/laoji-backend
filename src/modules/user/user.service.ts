@@ -1,10 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, desc, eq, ilike, inArray, ne, or, sum } from 'drizzle-orm';
 import type { Db } from '../../config/database.module';
 import { DRIZZLE } from '../../config/database.module';
 import { addresses, authTokens, groceryOrders, foodOrders, kycDocuments, users, wallets } from '../../../drizzle/schema';
 import { NotificationService } from '../notification/notification.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import type { UpdateAddressDto } from './dto/address.dto';
 
 @Injectable()
 export class UserService {
@@ -172,6 +173,62 @@ export class UserService {
       recentOrders: [...groceryList, ...foodList].slice(0, 10),
       createdAt: u.createdAt,
     };
+  }
+
+  async updateCustomerAddress(customerId: string, addressId: string, dto: UpdateAddressDto) {
+    await this.requireCustomerAddress(customerId, addressId);
+    return this.db.transaction(async (tx) => {
+      if (dto.isDefault === true) {
+        await tx.update(addresses).set({ isDefault: false }).where(eq(addresses.userId, customerId));
+      }
+      const [updated] = await tx
+        .update(addresses)
+        .set(dto)
+        .where(and(eq(addresses.id, addressId), eq(addresses.userId, customerId)))
+        .returning();
+      if (!updated) throw new NotFoundException('Address not found');
+      return updated;
+    });
+  }
+
+  async deleteCustomerAddress(customerId: string, addressId: string) {
+    await this.requireCustomerAddress(customerId, addressId);
+
+    const [groceryOrder] = await this.db
+      .select({ id: groceryOrders.id })
+      .from(groceryOrders)
+      .where(eq(groceryOrders.deliveryAddressId, addressId))
+      .limit(1);
+    const [foodOrder] = await this.db
+      .select({ id: foodOrders.id })
+      .from(foodOrders)
+      .where(eq(foodOrders.deliveryAddressId, addressId))
+      .limit(1);
+    if (groceryOrder || foodOrder) {
+      throw new ConflictException('This address is used by an order and cannot be deleted. Update it instead.');
+    }
+
+    await this.db
+      .delete(addresses)
+      .where(and(eq(addresses.id, addressId), eq(addresses.userId, customerId)));
+    return { ok: true };
+  }
+
+  private async requireCustomerAddress(customerId: string, addressId: string) {
+    const [customer] = await this.db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(eq(users.id, customerId))
+      .limit(1);
+    if (!customer || customer.role !== 'customer') throw new NotFoundException('Customer not found');
+
+    const [address] = await this.db
+      .select()
+      .from(addresses)
+      .where(and(eq(addresses.id, addressId), eq(addresses.userId, customerId)))
+      .limit(1);
+    if (!address) throw new NotFoundException('Address not found');
+    return address;
   }
 
   async createUser(dto: CreateAdminUserDto) {

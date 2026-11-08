@@ -4,6 +4,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserService } from './user.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
+import { UpdateAddressDto } from './dto/address.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -29,6 +30,20 @@ export class AdminUserController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateAdminUserDto) {
     return this.users.updateUser(id, dto);
+  }
+
+  @Patch(':id/addresses/:addressId')
+  updateAddress(
+    @Param('id') customerId: string,
+    @Param('addressId') addressId: string,
+    @Body() dto: UpdateAddressDto,
+  ) {
+    return this.users.updateCustomerAddress(customerId, addressId, dto);
+  }
+
+  @Delete(':id/addresses/:addressId')
+  deleteAddress(@Param('id') customerId: string, @Param('addressId') addressId: string) {
+    return this.users.deleteCustomerAddress(customerId, addressId);
   }
 
   @Delete(':id')
