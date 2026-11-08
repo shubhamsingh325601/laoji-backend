@@ -79,6 +79,9 @@ let OrderService = class OrderService {
             .limit(1);
         if (!address)
             throw new common_1.BadRequestException('Delivery address not found');
+        if (!address.lat || !address.lng) {
+            throw new common_1.BadRequestException('Your delivery address is missing location coordinates — please edit and re-save your address');
+        }
         const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng, [], customerId);
         if (!candidate) {
             throw new common_1.BadRequestException('No vendor can currently fulfill this cart within your delivery area — try adjusting your cart or address');
@@ -275,6 +278,9 @@ let OrderService = class OrderService {
             .limit(1);
         if (!address)
             throw new common_1.BadRequestException('Delivery address not found');
+        if (!address.lat || !address.lng) {
+            throw new common_1.BadRequestException('Your delivery address is missing location coordinates — please edit and re-save your address');
+        }
         const [restaurant] = await this.db.select().from(schema_1.restaurants).where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, dto.restaurantId)).limit(1);
         if (!restaurant)
             throw new common_1.BadRequestException('Restaurant not available');

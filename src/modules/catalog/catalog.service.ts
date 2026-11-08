@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import type { Db } from '../../config/database.module';
@@ -8,6 +8,7 @@ import {
   authTokens,
   categories,
   categorySuggestions,
+  foodOrderItems,
   foodOrderRatings,
   foodOrders,
   groceryOrderItems,
@@ -1868,6 +1869,194 @@ export class CatalogService {
             };
           }),
       })),
+    };
+  }
+
+  // Curated meals under ₹99:
+  // - Loaded in rounds of 6 items (up to 30 items max / 5 rounds)
+  // - Ranked by sales count (best selling first)
+  // - Vendor diversity: max 3 items per vendor in this section
+  async publicMealsUnder99(lat: number, lng: number, page: number = 1, limit: number = 6) {
+    const MAX_SECTION_ITEMS = 30;
+    const MAX_PER_VENDOR = 3;
+
+    if (page > 5 || (page - 1) * limit >= MAX_SECTION_ITEMS) {
+      return {
+        items: [],
+        page,
+        limit,
+        total: MAX_SECTION_ITEMS,
+        hasMore: false,
+      };
+    }
+
+    const inRadius = await this.vendorsInRadius(lat, lng);
+    if (inRadius.length === 0) {
+      return { items: [], page, limit, total: 0, hasMore: false };
+    }
+
+    const restaurantVendorIds = inRadius.filter((v) => v.type !== 'grocery').map((v) => v.id);
+    if (restaurantVendorIds.length === 0) {
+      return { items: [], page, limit, total: 0, hasMore: false };
+    }
+
+    const restRows = await this.db
+      .select()
+      .from(restaurants)
+      .where(inArray(restaurants.vendorId, restaurantVendorIds));
+    if (restRows.length === 0) {
+      return { items: [], page, limit, total: 0, hasMore: false };
+    }
+
+    const restIds = restRows.map((r) => r.id);
+    const catRows = await this.db
+      .select()
+      .from(menuCategories)
+      .where(inArray(menuCategories.restaurantId, restIds));
+    if (catRows.length === 0) {
+      return { items: [], page, limit, total: 0, hasMore: false };
+    }
+
+    const catIds = catRows.map((c) => c.id);
+    const itemRows = await this.db
+      .select()
+      .from(menuItems)
+      .where(
+        and(
+          inArray(menuItems.menuCategoryId, catIds),
+          eq(menuItems.isAvailable, true),
+          lte(menuItems.price, 99),
+          gt(menuItems.price, 0),
+        ),
+      );
+    if (itemRows.length === 0) {
+      return { items: [], page, limit, total: 0, hasMore: false };
+    }
+
+    const itemIds = itemRows.map((i) => i.id);
+
+    // Sales count for ranking high selling products
+    const salesRows = await this.db
+      .select({
+        menuItemId: foodOrderItems.menuItemId,
+        soldQty: sql<number>`COALESCE(SUM(${foodOrderItems.qty}), 0)::int`,
+      })
+      .from(foodOrderItems)
+      .innerJoin(foodOrders, eq(foodOrderItems.foodOrderId, foodOrders.id))
+      .where(
+        and(
+          inArray(foodOrderItems.menuItemId, itemIds),
+          ne(foodOrders.status, 'cancelled'),
+        ),
+      )
+      .groupBy(foodOrderItems.menuItemId);
+
+    const salesMap = new Map<string, number>(salesRows.map((s) => [s.menuItemId, Number(s.soldQty)]));
+
+    // Customization checks
+    const [addons, variants] = await Promise.all([
+      itemIds.length
+        ? this.db.select({ menuItemId: menuItemAddons.menuItemId }).from(menuItemAddons).where(inArray(menuItemAddons.menuItemId, itemIds))
+        : [],
+      itemIds.length
+        ? this.db.select({ menuItemId: menuItemVariants.menuItemId }).from(menuItemVariants).where(inArray(menuItemVariants.menuItemId, itemIds))
+        : [],
+    ]);
+    const customizationIds = new Set<string>([
+      ...addons.map((a) => a.menuItemId),
+      ...variants.map((v) => v.menuItemId),
+    ]);
+
+    const restMap = new Map(restRows.map((r) => [r.id, r]));
+    const catMap = new Map(catRows.map((c) => [c.id, c.restaurantId]));
+    const vendorMap = new Map(inRadius.map((v) => [v.id, v]));
+    const timingsByRestaurant = new Map(restRows.map((r) => [r.id, effectiveMealTimings(r.mealTimings)]));
+    const now = new Date();
+
+    const discountsByRest = new Map<string, any>();
+    if (this.vendorDiscounts) {
+      await Promise.all(
+        restRows.map(async (r) => {
+          const discs = await this.vendorDiscounts.getActiveDiscountsForVendor(r.vendorId);
+          discountsByRest.set(r.id, discs);
+        }),
+      );
+    }
+
+    const candidates = itemRows
+      .map((item) => {
+        const rId = catMap.get(item.menuCategoryId);
+        if (!rId) return null;
+        const rest = restMap.get(rId);
+        if (!rest) return null;
+        const v = vendorMap.get(rest.vendorId);
+        if (!v || v.showInApp === false) return null;
+
+        const timings = timingsByRestaurant.get(rId) || [];
+        const servedNow = isServedNow(item.mealSlots, timings, now);
+        const discounts = discountsByRest.get(rId) || [];
+        const disc = this.vendorDiscounts
+          ? this.vendorDiscounts.calculateItemDiscount(item.price, discounts, { menuItemId: item.id })
+          : { price: item.price, originalPrice: item.price, discountApplied: false };
+
+        const finalPrice = Math.round(disc.price);
+        if (finalPrice > 99 || finalPrice <= 0) return null;
+
+        const salesCount = salesMap.get(item.id) || 0;
+        const openNow = (v.isOpen ?? false) && isVendorOpenNow(v);
+
+        return {
+          id: item.id,
+          restaurantId: rest.id,
+          restaurantName: rest.name,
+          name: item.name,
+          description: item.description ?? '',
+          price: finalPrice,
+          originalPrice: disc.discountApplied && disc.originalPrice > finalPrice ? Math.round(disc.originalPrice) : undefined,
+          rating: rest.ratingAvg && rest.ratingAvg > 0 ? Math.round(rest.ratingAvg * 10) / 10 : 4.1,
+          image: item.imageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500',
+          isVeg: item.isVeg !== false,
+          hasCustomizations: customizationIds.has(item.id),
+          salesCount,
+          openNow,
+          servedNow,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    // Sort: Best selling products first ("in one round load all best high selling products")
+    candidates.sort((a, b) => {
+      if (b.salesCount !== a.salesCount) return b.salesCount - a.salesCount;
+      if (Number(b.servedNow) !== Number(a.servedNow)) return Number(b.servedNow) - Number(a.servedNow);
+      if (Number(b.openNow) !== Number(a.openNow)) return Number(b.openNow) - Number(a.openNow);
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Enforce vendor diversity: Max 3 products per vendor in this section (up to 30 items)
+    const vendorCounts = new Map<string, number>();
+    const sectionItems: typeof candidates = [];
+
+    for (const item of candidates) {
+      const count = vendorCounts.get(item.restaurantId) || 0;
+      if (count < MAX_PER_VENDOR) {
+        vendorCounts.set(item.restaurantId, count + 1);
+        sectionItems.push(item);
+        if (sectionItems.length >= MAX_SECTION_ITEMS) break;
+      }
+    }
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = Math.min(startIndex + limit, MAX_SECTION_ITEMS);
+    const paginatedItems = startIndex < sectionItems.length ? sectionItems.slice(startIndex, endIndex) : [];
+    const hasMore = endIndex < sectionItems.length && endIndex < MAX_SECTION_ITEMS && page < 5;
+
+    return {
+      items: paginatedItems,
+      page,
+      limit,
+      total: sectionItems.length,
+      hasMore,
     };
   }
 

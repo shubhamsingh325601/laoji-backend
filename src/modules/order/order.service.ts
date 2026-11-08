@@ -105,6 +105,11 @@ export class OrderService {
       .where(and(eq(addresses.id, dto.deliveryAddressId), eq(addresses.userId, customerId)))
       .limit(1);
     if (!address) throw new BadRequestException('Delivery address not found');
+    if (!address.lat || !address.lng) {
+      throw new BadRequestException(
+        'Your delivery address is missing location coordinates — please edit and re-save your address',
+      );
+    }
 
     const candidate = await this.allocation.findBestVendor(dto.items, address.lat, address.lng, [], customerId);
     if (!candidate) {
@@ -366,6 +371,11 @@ export class OrderService {
       .where(and(eq(addresses.id, dto.deliveryAddressId), eq(addresses.userId, customerId)))
       .limit(1);
     if (!address) throw new BadRequestException('Delivery address not found');
+    if (!address.lat || !address.lng) {
+      throw new BadRequestException(
+        'Your delivery address is missing location coordinates — please edit and re-save your address',
+      );
+    }
 
     const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, dto.restaurantId)).limit(1);
     if (!restaurant) throw new BadRequestException('Restaurant not available');

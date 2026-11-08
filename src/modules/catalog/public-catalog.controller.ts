@@ -44,6 +44,19 @@ export class PublicCatalogController {
     return { grocerySizes: await this.grocerySizes.isEnabled() };
   }
 
+  @Get('meals-under-99')
+  mealsUnder99(
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const { lat: latNum, lng: lngNum } = parseCoord(lat, lng);
+    const pageNum = Math.max(1, parseInt(page || '1', 10) || 1);
+    const limitNum = Math.min(6, Math.max(1, parseInt(limit || '6', 10) || 6));
+    return this.catalog.publicMealsUnder99(latNum, lngNum, pageNum, limitNum);
+  }
+
   @Get('categories')
   categories() {
     return this.catalog.listCustomerCategories();
