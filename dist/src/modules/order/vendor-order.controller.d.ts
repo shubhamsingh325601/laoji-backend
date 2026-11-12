@@ -223,6 +223,13 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -290,6 +297,13 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -360,6 +374,13 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -427,6 +448,13 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -670,6 +698,14 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            vendorId: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -736,6 +772,14 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            vendorId: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -802,6 +846,14 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            vendorId: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -868,6 +920,14 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            vendorId: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
@@ -934,6 +994,14 @@ export declare class VendorOrderController {
             phone: string;
             vehicleType: string;
         } | null;
+        vendor: {
+            id: string;
+            name: string;
+            vendorId: string;
+            phone: string;
+        } | null;
+        vendorName: string;
+        vendorPhone: string;
         myRating: {
             id: string;
             foodOrderId: string | null;
