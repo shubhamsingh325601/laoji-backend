@@ -654,8 +654,29 @@ export class OrderService {
       .from(foodOrderRatings)
       .where(eq(foodOrderRatings.groceryOrderId, id))
       .limit(1);
+    const [vendorRow] = order.vendorId
+      ? await this.db
+          .select({ id: vendors.id, businessName: vendors.businessName, phone: users.phone })
+          .from(vendors)
+          .leftJoin(users, eq(vendors.userId, users.id))
+          .where(eq(vendors.id, order.vendorId))
+          .limit(1)
+      : [null];
+    const vendorSummary = vendorRow
+      ? { id: vendorRow.id, name: vendorRow.businessName, phone: vendorRow.phone || '' }
+      : null;
     return this.withOtpVisibility(
-      { ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null },
+      {
+        ...order,
+        items,
+        history: await this.enrichHistory(history, requester.role),
+        customer,
+        deliveryPartner,
+        vendor: vendorSummary,
+        vendorName: vendorSummary?.name || '',
+        vendorPhone: vendorSummary?.phone || '',
+        myRating: rating ?? null,
+      },
       requester,
     );
   }
@@ -691,8 +712,30 @@ export class OrderService {
     const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
     const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
     const [rating] = await this.db.select().from(foodOrderRatings).where(eq(foodOrderRatings.foodOrderId, id)).limit(1);
+    const [restaurantRow] = order.restaurantId
+      ? await this.db
+          .select({ id: restaurants.id, name: restaurants.name, vendorId: restaurants.vendorId, phone: users.phone })
+          .from(restaurants)
+          .leftJoin(vendors, eq(restaurants.vendorId, vendors.id))
+          .leftJoin(users, eq(vendors.userId, users.id))
+          .where(eq(restaurants.id, order.restaurantId))
+          .limit(1)
+      : [null];
+    const vendorSummary = restaurantRow
+      ? { id: restaurantRow.id, name: restaurantRow.name, vendorId: restaurantRow.vendorId, phone: restaurantRow.phone || '' }
+      : null;
     return this.withOtpVisibility(
-      { ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null },
+      {
+        ...order,
+        items,
+        history: await this.enrichHistory(history, requester.role),
+        customer,
+        deliveryPartner,
+        vendor: vendorSummary,
+        vendorName: vendorSummary?.name || '',
+        vendorPhone: vendorSummary?.phone || '',
+        myRating: rating ?? null,
+      },
       requester,
     );
   }
@@ -1369,6 +1412,27 @@ export class OrderService {
       ]),
     );
 
+    const groceryVendorIds = [...new Set(grocery.map((o) => o.vendorId).filter((id): id is string => Boolean(id)))];
+    const vendorRows = groceryVendorIds.length
+      ? await this.db
+          .select({ id: vendors.id, name: vendors.businessName, phone: users.phone })
+          .from(vendors)
+          .leftJoin(users, eq(vendors.userId, users.id))
+          .where(inArray(vendors.id, groceryVendorIds))
+      : [];
+    const vendorMap = new Map(vendorRows.map((v) => [v.id, { name: v.name, phone: v.phone || '' }]));
+
+    const foodRestaurantIds = [...new Set(food.map((o) => o.restaurantId).filter((id): id is string => Boolean(id)))];
+    const restaurantRows = foodRestaurantIds.length
+      ? await this.db
+          .select({ id: restaurants.id, name: restaurants.name, phone: users.phone })
+          .from(restaurants)
+          .leftJoin(vendors, eq(restaurants.vendorId, vendors.id))
+          .leftJoin(users, eq(vendors.userId, users.id))
+          .where(inArray(restaurants.id, foodRestaurantIds))
+      : [];
+    const restaurantMap = new Map(restaurantRows.map((r) => [r.id, { name: r.name, phone: r.phone || '' }]));
+
     // deliveryOtp is stripped here the same way withOtpVisibility strips it
     // for the single-order admin timeline view — the list endpoint spreads
     // the raw row and would otherwise leak every order's doorstep code to
@@ -1379,24 +1443,32 @@ export class OrderService {
     const mappedGrocery = attachedGrocery.map((o) => {
       const { deliveryOtp: _otp, ...rest } = o;
       const cust = customerMap.get(o.customerId);
+      const vend = vendorMap.get(o.vendorId);
       return {
         ...rest,
         type: 'grocery' as const,
         customerName: cust?.name || cust?.phone || 'Customer',
         customerPhone: cust?.phone || '',
+        vendorName: vend?.name || '',
+        vendorPhone: vend?.phone || '',
         paymentProvider: o.paymentMethod || undefined,
+        placedAt: o.createdAt,
       };
     });
 
     const mappedFood = attachedFood.map((o) => {
       const { deliveryOtp: _otp, ...rest } = o;
       const cust = customerMap.get(o.customerId);
+      const restSummary = restaurantMap.get(o.restaurantId);
       return {
         ...rest,
         type: 'food' as const,
         customerName: cust?.name || cust?.phone || 'Customer',
         customerPhone: cust?.phone || '',
+        vendorName: restSummary?.name || '',
+        vendorPhone: restSummary?.phone || '',
         paymentProvider: o.paymentMethod || undefined,
+        placedAt: o.createdAt,
       };
     });
 

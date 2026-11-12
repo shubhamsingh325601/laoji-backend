@@ -724,8 +724,8 @@ export declare class AdminCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         categoryId: string;
         unit: string;
@@ -1129,6 +1129,7 @@ export declare class AdminCatalogController {
         id: string;
         name: string;
         vendorId: string;
+        phone: string;
     }[]>;
     listMenuItems(): Promise<{
         id: string;
@@ -1158,8 +1159,8 @@ export declare class AdminCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             categoryId: string;
             unit: string;

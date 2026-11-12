@@ -389,13 +389,30 @@ export class CatalogService {
   }
 
   async listVendorsBasic() {
-    const rows = await this.db.select().from(vendors);
-    return rows.map((v) => ({ id: v.id, businessName: v.businessName, type: v.type }));
+    const rows = await this.db
+      .select({
+        id: vendors.id,
+        businessName: vendors.businessName,
+        type: vendors.type,
+        phone: users.phone,
+      })
+      .from(vendors)
+      .leftJoin(users, eq(vendors.userId, users.id));
+    return rows.map((v) => ({ id: v.id, businessName: v.businessName, type: v.type, phone: v.phone || '' }));
   }
 
   async listRestaurantsBasic() {
-    const rows = await this.db.select().from(restaurants);
-    return rows.map((r) => ({ id: r.id, name: r.name, vendorId: r.vendorId }));
+    const rows = await this.db
+      .select({
+        id: restaurants.id,
+        name: restaurants.name,
+        vendorId: restaurants.vendorId,
+        phone: users.phone,
+      })
+      .from(restaurants)
+      .leftJoin(vendors, eq(restaurants.vendorId, vendors.id))
+      .leftJoin(users, eq(vendors.userId, users.id));
+    return rows.map((r) => ({ id: r.id, name: r.name, vendorId: r.vendorId, phone: r.phone || '' }));
   }
 
   async listMenuItemsBasic() {

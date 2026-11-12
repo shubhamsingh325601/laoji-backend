@@ -292,12 +292,29 @@ let CatalogService = class CatalogService {
         return { success: true, message: 'Vendor account deleted successfully.' };
     }
     async listVendorsBasic() {
-        const rows = await this.db.select().from(schema_1.vendors);
-        return rows.map((v) => ({ id: v.id, businessName: v.businessName, type: v.type }));
+        const rows = await this.db
+            .select({
+            id: schema_1.vendors.id,
+            businessName: schema_1.vendors.businessName,
+            type: schema_1.vendors.type,
+            phone: schema_1.users.phone,
+        })
+            .from(schema_1.vendors)
+            .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id));
+        return rows.map((v) => ({ id: v.id, businessName: v.businessName, type: v.type, phone: v.phone || '' }));
     }
     async listRestaurantsBasic() {
-        const rows = await this.db.select().from(schema_1.restaurants);
-        return rows.map((r) => ({ id: r.id, name: r.name, vendorId: r.vendorId }));
+        const rows = await this.db
+            .select({
+            id: schema_1.restaurants.id,
+            name: schema_1.restaurants.name,
+            vendorId: schema_1.restaurants.vendorId,
+            phone: schema_1.users.phone,
+        })
+            .from(schema_1.restaurants)
+            .leftJoin(schema_1.vendors, (0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, schema_1.vendors.id))
+            .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id));
+        return rows.map((r) => ({ id: r.id, name: r.name, vendorId: r.vendorId, phone: r.phone || '' }));
     }
     async listMenuItemsBasic() {
         const rows = await this.db.select().from(schema_1.menuItems);

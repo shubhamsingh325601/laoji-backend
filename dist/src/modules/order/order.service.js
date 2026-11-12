@@ -504,7 +504,28 @@ let OrderService = class OrderService {
             .from(schema_1.foodOrderRatings)
             .where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.groceryOrderId, id))
             .limit(1);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null }, requester);
+        const [vendorRow] = order.vendorId
+            ? await this.db
+                .select({ id: schema_1.vendors.id, businessName: schema_1.vendors.businessName, phone: schema_1.users.phone })
+                .from(schema_1.vendors)
+                .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
+                .where((0, drizzle_orm_1.eq)(schema_1.vendors.id, order.vendorId))
+                .limit(1)
+            : [null];
+        const vendorSummary = vendorRow
+            ? { id: vendorRow.id, name: vendorRow.businessName, phone: vendorRow.phone || '' }
+            : null;
+        return this.withOtpVisibility({
+            ...order,
+            items,
+            history: await this.enrichHistory(history, requester.role),
+            customer,
+            deliveryPartner,
+            vendor: vendorSummary,
+            vendorName: vendorSummary?.name || '',
+            vendorPhone: vendorSummary?.phone || '',
+            myRating: rating ?? null,
+        }, requester);
     }
     async getFoodOrder(id, requester) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, id)).limit(1);
@@ -537,7 +558,29 @@ let OrderService = class OrderService {
         const customer = await this.customerSummary(order.customerId, order.deliveryAddressId, requester.role);
         const deliveryPartner = await this.getDeliveryPartnerSummary(order.deliveryPartnerId);
         const [rating] = await this.db.select().from(schema_1.foodOrderRatings).where((0, drizzle_orm_1.eq)(schema_1.foodOrderRatings.foodOrderId, id)).limit(1);
-        return this.withOtpVisibility({ ...order, items, history: await this.enrichHistory(history, requester.role), customer, deliveryPartner, myRating: rating ?? null }, requester);
+        const [restaurantRow] = order.restaurantId
+            ? await this.db
+                .select({ id: schema_1.restaurants.id, name: schema_1.restaurants.name, vendorId: schema_1.restaurants.vendorId, phone: schema_1.users.phone })
+                .from(schema_1.restaurants)
+                .leftJoin(schema_1.vendors, (0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, schema_1.vendors.id))
+                .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
+                .where((0, drizzle_orm_1.eq)(schema_1.restaurants.id, order.restaurantId))
+                .limit(1)
+            : [null];
+        const vendorSummary = restaurantRow
+            ? { id: restaurantRow.id, name: restaurantRow.name, vendorId: restaurantRow.vendorId, phone: restaurantRow.phone || '' }
+            : null;
+        return this.withOtpVisibility({
+            ...order,
+            items,
+            history: await this.enrichHistory(history, requester.role),
+            customer,
+            deliveryPartner,
+            vendor: vendorSummary,
+            vendorName: vendorSummary?.name || '',
+            vendorPhone: vendorSummary?.phone || '',
+            myRating: rating ?? null,
+        }, requester);
     }
     async rateFoodOrder(customerId, foodOrderId, dto) {
         const [order] = await this.db.select().from(schema_1.foodOrders).where((0, drizzle_orm_1.eq)(schema_1.foodOrders.id, foodOrderId)).limit(1);
@@ -1048,28 +1091,55 @@ let OrderService = class OrderService {
                 phone: u.phone?.trim() || '',
             },
         ]));
+        const groceryVendorIds = [...new Set(grocery.map((o) => o.vendorId).filter((id) => Boolean(id)))];
+        const vendorRows = groceryVendorIds.length
+            ? await this.db
+                .select({ id: schema_1.vendors.id, name: schema_1.vendors.businessName, phone: schema_1.users.phone })
+                .from(schema_1.vendors)
+                .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
+                .where((0, drizzle_orm_1.inArray)(schema_1.vendors.id, groceryVendorIds))
+            : [];
+        const vendorMap = new Map(vendorRows.map((v) => [v.id, { name: v.name, phone: v.phone || '' }]));
+        const foodRestaurantIds = [...new Set(food.map((o) => o.restaurantId).filter((id) => Boolean(id)))];
+        const restaurantRows = foodRestaurantIds.length
+            ? await this.db
+                .select({ id: schema_1.restaurants.id, name: schema_1.restaurants.name, phone: schema_1.users.phone })
+                .from(schema_1.restaurants)
+                .leftJoin(schema_1.vendors, (0, drizzle_orm_1.eq)(schema_1.restaurants.vendorId, schema_1.vendors.id))
+                .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.vendors.userId, schema_1.users.id))
+                .where((0, drizzle_orm_1.inArray)(schema_1.restaurants.id, foodRestaurantIds))
+            : [];
+        const restaurantMap = new Map(restaurantRows.map((r) => [r.id, { name: r.name, phone: r.phone || '' }]));
         const attachedGrocery = await this.attachGroceryItems(grocery);
         const attachedFood = await this.attachFoodItems(food);
         const mappedGrocery = attachedGrocery.map((o) => {
             const { deliveryOtp: _otp, ...rest } = o;
             const cust = customerMap.get(o.customerId);
+            const vend = vendorMap.get(o.vendorId);
             return {
                 ...rest,
                 type: 'grocery',
                 customerName: cust?.name || cust?.phone || 'Customer',
                 customerPhone: cust?.phone || '',
+                vendorName: vend?.name || '',
+                vendorPhone: vend?.phone || '',
                 paymentProvider: o.paymentMethod || undefined,
+                placedAt: o.createdAt,
             };
         });
         const mappedFood = attachedFood.map((o) => {
             const { deliveryOtp: _otp, ...rest } = o;
             const cust = customerMap.get(o.customerId);
+            const restSummary = restaurantMap.get(o.restaurantId);
             return {
                 ...rest,
                 type: 'food',
                 customerName: cust?.name || cust?.phone || 'Customer',
                 customerPhone: cust?.phone || '',
+                vendorName: restSummary?.name || '',
+                vendorPhone: restSummary?.phone || '',
                 paymentProvider: o.paymentMethod || undefined,
+                placedAt: o.createdAt,
             };
         });
         const total = mappedGrocery.length + mappedFood.length;

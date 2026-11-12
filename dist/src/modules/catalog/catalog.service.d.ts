@@ -111,9 +111,9 @@ export declare class CatalogService {
         id: string;
         createdAt: Date;
         userId: string;
-        type: "grocery" | "restaurant" | "both";
         businessName: string;
         ownerName: string;
+        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -207,11 +207,13 @@ export declare class CatalogService {
         id: string;
         businessName: string;
         type: "grocery" | "restaurant" | "both";
+        phone: string;
     }[]>;
     listRestaurantsBasic(): Promise<{
         id: string;
         name: string;
         vendorId: string;
+        phone: string;
     }[]>;
     listMenuItemsBasic(): Promise<{
         id: string;
@@ -1207,8 +1209,8 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         categoryId: string;
         unit: string;
@@ -1319,8 +1321,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1334,7 +1336,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1345,6 +1346,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }[]>;
     private listingView;
     private listingResponse;
@@ -1363,8 +1365,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1378,7 +1380,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1389,6 +1390,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     createVendorProduct(vendor: VendorRef, dto: CreateGroceryProductDto): Promise<{
         commissionPct: any;
@@ -1399,8 +1401,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1414,7 +1416,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1425,6 +1426,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private vendorSizesToSave;
     private saveVendorSizes;
@@ -1438,8 +1440,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1453,7 +1455,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1464,6 +1465,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     restockVendorProduct(vendorId: string, id: string, qty: number): Promise<{
         commissionPct: any;
@@ -1474,8 +1476,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1489,7 +1491,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1500,6 +1501,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorProduct(vendorId: string, id: string): Promise<{
         success: boolean;
@@ -1513,8 +1515,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1528,7 +1530,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1539,6 +1540,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     private requireListingOfProduct;
     updateVendorCustomProduct(vendor: VendorRef, productId: string, dto: UpdateVendorCustomProductDto): Promise<{
@@ -1550,8 +1552,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1565,7 +1567,6 @@ export declare class CatalogService {
         };
         isOwnProduct: boolean;
         id: string;
-        updatedAt: Date;
         vendorId: string;
         price: number;
         isAvailable: boolean;
@@ -1576,6 +1577,7 @@ export declare class CatalogService {
         lowStockThreshold: number | null;
         restockEta: string | null;
         lastRestockedAt: Date | null;
+        updatedAt: Date;
     }>;
     deleteVendorCustomProduct(vendorId: string, productId: string): Promise<{
         success: boolean;
@@ -1593,8 +1595,8 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
-        description: string | null;
         imageUrl: string | null;
+        description: string | null;
         ownerVendorId: string | null;
         unit: string;
         size: string | null;
@@ -1742,8 +1744,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             unit: string;
             size: string | null;
@@ -1877,13 +1879,13 @@ export declare class CatalogService {
         }[];
         id: string;
         name: string;
-        description: string | null;
-        commissionPct: number | null;
         imageUrl: string | null;
+        description: string | null;
         menuCategoryId: string;
         price: number;
         isVeg: boolean;
         isAvailable: boolean;
+        commissionPct: number | null;
         mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
@@ -1923,13 +1925,13 @@ export declare class CatalogService {
         createdAt: Date;
         imageUrl: string | null;
         vendorId: string;
-        rejectionReason: string | null;
-        reviewedBy: string | null;
-        reviewedAt: Date | null;
         categoryId: string;
         unit: string;
         size: string | null;
         productId: string | null;
+        rejectionReason: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
         id: import("drizzle-orm/pg-core").PgColumn<{
@@ -2159,7 +2161,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2401,7 +2403,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2427,8 +2429,8 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
-            description: string | null;
             imageUrl: string | null;
+            description: string | null;
             ownerVendorId: string | null;
             categoryId: string;
             unit: string;
@@ -2477,10 +2479,10 @@ export declare class CatalogService {
         createdAt: Date;
         businessType: string;
         vendorId: string;
+        categoryId: string | null;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        categoryId: string | null;
         note: string | null;
     }>;
     listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {
@@ -2675,7 +2677,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
         id: string;
         vendorId: string;
         name: string;
@@ -2879,7 +2881,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "orderBy" | "where">;
+    }>, "where" | "orderBy">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
