@@ -22,8 +22,13 @@ export function roundKm(km: number): number {
 export const BUSINESS_TYPES = [
   'grocery',
   'restaurant',
-  'clothing',
   'stationery',
+  'vegetables',
+  'vegetable',
+  'fruits',
+  'dairy',
+  'bakery',
+  'clothing',
   'medical',
   'vegetables_fruits',
   'electronics',
@@ -41,6 +46,12 @@ export const BUSINESS_TYPE_ROOT_CATEGORY: Record<string, string> = {
   stationery: 'Stationery',
   medical: 'Medical',
   vegetables_fruits: 'Fruits & Vegetables',
+  vegetables: 'Vegetables',
+  vegetable: 'Vegetables',
+  fruits: 'Fruits',
+  dairy: 'Dairy & Milk',
+  bakery: 'Bakery & Sweets',
+  bakery_sweets: 'Bakery & Sweets',
   electronics: 'Electronics',
   general: 'General Store',
 };
@@ -59,9 +70,22 @@ export function categoryBusinessType(
   return parent?.businessType ?? 'grocery';
 }
 
-/** A general store can stock anything; other business types see only their own categories. */
+/** A general store can stock anything; other business types see only their own categories. Supports multi-type stores. */
 export function isCategoryVisibleTo(categoryType: string, vendorBusinessType: string): boolean {
-  return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
+  if (!vendorBusinessType) return true;
+  const types = vendorBusinessType
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (types.includes('general') || types.includes('grocery')) return true;
+  const cat = categoryType.toLowerCase();
+  return (
+    types.includes(cat) ||
+    (cat === 'vegetables_fruits' && (types.includes('vegetable') || types.includes('vegetables') || types.includes('fruits'))) ||
+    ((cat === 'vegetable' || cat === 'vegetables' || cat === 'fruits') && types.includes('vegetables_fruits')) ||
+    (cat === 'bakery_sweets' && types.includes('bakery')) ||
+    (cat === 'bakery' && types.includes('bakery_sweets'))
+  );
 }
 
 /**
