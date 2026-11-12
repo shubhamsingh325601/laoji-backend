@@ -724,10 +724,10 @@ export declare class AdminCatalogController {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -771,6 +771,7 @@ export declare class AdminCatalogController {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -808,6 +809,7 @@ export declare class AdminCatalogController {
             email: string | null;
             type: "grocery" | "restaurant" | "both";
             businessType: string;
+            businessTypes: string[];
             shopAddress: string | null;
             gstNumber: string | null;
             aadhaarNumber: string | null;
@@ -851,6 +853,8 @@ export declare class AdminCatalogController {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -918,6 +922,8 @@ export declare class AdminCatalogController {
         phone: string;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -946,6 +952,7 @@ export declare class AdminCatalogController {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -983,6 +990,7 @@ export declare class AdminCatalogController {
             email: string | null;
             type: "grocery" | "restaurant" | "both";
             businessType: string;
+            businessTypes: string[];
             shopAddress: string | null;
             gstNumber: string | null;
             aadhaarNumber: string | null;
@@ -1026,6 +1034,8 @@ export declare class AdminCatalogController {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1148,10 +1158,10 @@ export declare class AdminCatalogController {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;

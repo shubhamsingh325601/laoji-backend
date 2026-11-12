@@ -361,14 +361,15 @@ export declare class DeliveryService {
         name: string;
         phone: string;
         email: string | null;
-        id: string;
-        createdAt: Date;
-        userId: string;
+        kycStatus: "pending" | "verified" | "rejected";
         aadhaarNumber: string | null;
         bankAccount: string | null;
         bankIfsc: string | null;
         upiId: string | null;
-        kycStatus: "pending" | "verified" | "rejected";
+        id: string;
+        createdAt: Date;
+        userId: string;
+        updatedAt: Date;
         vehicleType: string;
         vehicleNumber: string | null;
         vehicleModel: string | null;
@@ -376,7 +377,6 @@ export declare class DeliveryService {
         isOnline: boolean;
         currentLat: number | null;
         currentLng: number | null;
-        updatedAt: Date;
     }>;
     updateAdminPartner(id: string, dto: {
         name?: string;

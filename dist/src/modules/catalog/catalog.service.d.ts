@@ -111,9 +111,9 @@ export declare class CatalogService {
         id: string;
         createdAt: Date;
         userId: string;
+        type: "grocery" | "restaurant" | "both";
         businessName: string;
         ownerName: string;
-        type: "grocery" | "restaurant" | "both";
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -1207,10 +1207,10 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
         categoryId: string;
-        description: string | null;
         unit: string;
         size: string | null;
         mrp: number | null;
@@ -1319,9 +1319,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1335,12 +1335,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1363,9 +1363,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1379,12 +1379,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1399,9 +1399,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1415,12 +1415,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1438,9 +1438,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1454,12 +1454,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1474,9 +1474,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1490,12 +1490,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1513,9 +1513,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1529,12 +1529,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1550,9 +1550,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -1566,12 +1566,12 @@ export declare class CatalogService {
         isOwnProduct: boolean;
         id: string;
         updatedAt: Date;
-        wholesalePrice: number | null;
         vendorId: string;
-        productId: string;
         price: number;
-        stockQty: number;
         isAvailable: boolean;
+        wholesalePrice: number | null;
+        productId: string;
+        stockQty: number;
         offerTag: string | null;
         lowStockThreshold: number | null;
         restockEta: string | null;
@@ -1593,9 +1593,9 @@ export declare class CatalogService {
         name: string;
         status: "active" | "inactive";
         createdAt: Date;
+        description: string | null;
         imageUrl: string | null;
         ownerVendorId: string | null;
-        description: string | null;
         unit: string;
         size: string | null;
         wholesalePrice: number | null;
@@ -1742,9 +1742,9 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
-            description: string | null;
             unit: string;
             size: string | null;
             wholesalePrice: number | null;
@@ -1877,13 +1877,13 @@ export declare class CatalogService {
         }[];
         id: string;
         name: string;
-        imageUrl: string | null;
         description: string | null;
-        price: number;
-        isAvailable: boolean;
         commissionPct: number | null;
+        imageUrl: string | null;
         menuCategoryId: string;
+        price: number;
         isVeg: boolean;
+        isAvailable: boolean;
         mealSlots: string[] | null;
     }>;
     private requireOwnMenuItem;
@@ -1921,14 +1921,14 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
+        imageUrl: string | null;
+        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        imageUrl: string | null;
         categoryId: string;
         unit: string;
         size: string | null;
-        vendorId: string;
         productId: string | null;
     }>;
     listMyProductSuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"product_suggestions", {
@@ -2159,7 +2159,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"product_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"product_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2401,7 +2401,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listProductSuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         categoryName: string;
@@ -2427,10 +2427,10 @@ export declare class CatalogService {
             name: string;
             status: "active" | "inactive";
             createdAt: Date;
+            description: string | null;
             imageUrl: string | null;
             ownerVendorId: string | null;
             categoryId: string;
-            description: string | null;
             unit: string;
             size: string | null;
             mrp: number | null;
@@ -2475,12 +2475,12 @@ export declare class CatalogService {
         name: string;
         status: "pending" | "rejected" | "approved";
         createdAt: Date;
+        businessType: string;
+        vendorId: string;
         rejectionReason: string | null;
         reviewedBy: string | null;
         reviewedAt: Date | null;
-        businessType: string;
         categoryId: string | null;
-        vendorId: string;
         note: string | null;
     }>;
     listMyCategorySuggestions(vendorId: string): Omit<import("drizzle-orm/pg-core").PgSelectBase<"category_suggestions", {
@@ -2675,7 +2675,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }, "single", Record<"category_suggestions", "not-null">, false, "where" | "orderBy", {
+    }, "single", Record<"category_suggestions", "not-null">, false, "orderBy" | "where", {
         id: string;
         vendorId: string;
         name: string;
@@ -2879,7 +2879,7 @@ export declare class CatalogService {
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-    }>, "where" | "orderBy">;
+    }>, "orderBy" | "where">;
     listCategorySuggestions(status?: 'pending' | 'approved' | 'rejected'): Promise<{
         vendorName: string;
         id: string;
@@ -2942,6 +2942,7 @@ export declare class CatalogService {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -2979,6 +2980,7 @@ export declare class CatalogService {
             email: string | null;
             type: "grocery" | "restaurant" | "both";
             businessType: string;
+            businessTypes: string[];
             shopAddress: string | null;
             gstNumber: string | null;
             aadhaarNumber: string | null;
@@ -3022,6 +3024,8 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -3133,6 +3137,8 @@ export declare class CatalogService {
         phone: string;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -3165,6 +3171,7 @@ export declare class CatalogService {
         email: string | null;
         type: "grocery" | "restaurant" | "both";
         businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;
@@ -3202,6 +3209,7 @@ export declare class CatalogService {
             email: string | null;
             type: "grocery" | "restaurant" | "both";
             businessType: string;
+            businessTypes: string[];
             shopAddress: string | null;
             gstNumber: string | null;
             aadhaarNumber: string | null;
@@ -3245,6 +3253,8 @@ export declare class CatalogService {
         phone: string | null;
         email: string | null;
         type: "grocery" | "restaurant" | "both";
+        businessType: string;
+        businessTypes: string[];
         shopAddress: string | null;
         gstNumber: string | null;
         aadhaarNumber: string | null;

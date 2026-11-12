@@ -19,6 +19,7 @@ class CreateAdminVendorDto {
     email;
     type;
     businessType;
+    businessTypes;
     shopAddress;
     pickupLat;
     pickupLng;
@@ -58,6 +59,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "email", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)(['grocery', 'restaurant', 'both']),
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "type", void 0);
@@ -66,6 +68,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateAdminVendorDto.prototype, "businessType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateAdminVendorDto.prototype, "businessTypes", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -144,6 +151,7 @@ class UpdateAdminVendorDto {
     email;
     type;
     businessType;
+    businessTypes;
     shopAddress;
     pickupLat;
     pickupLng;
@@ -198,6 +206,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateAdminVendorDto.prototype, "businessType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], UpdateAdminVendorDto.prototype, "businessTypes", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

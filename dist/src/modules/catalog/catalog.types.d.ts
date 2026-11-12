@@ -1,6 +1,6 @@
 export declare function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number;
 export declare function roundKm(km: number): number;
-export declare const BUSINESS_TYPES: readonly ["grocery", "restaurant", "clothing", "stationery", "medical", "vegetables_fruits", "electronics", "general"];
+export declare const BUSINESS_TYPES: readonly ["grocery", "restaurant", "stationery", "vegetables", "vegetable", "fruits", "dairy", "bakery", "clothing", "medical", "vegetables_fruits", "electronics", "general"];
 export declare const BUSINESS_TYPE_ROOT_CATEGORY: Record<string, string>;
 export declare function categoryBusinessType(category: {
     parentId: string | null;

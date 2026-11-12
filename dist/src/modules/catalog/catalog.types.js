@@ -27,8 +27,13 @@ function roundKm(km) {
 exports.BUSINESS_TYPES = [
     'grocery',
     'restaurant',
-    'clothing',
     'stationery',
+    'vegetables',
+    'vegetable',
+    'fruits',
+    'dairy',
+    'bakery',
+    'clothing',
     'medical',
     'vegetables_fruits',
     'electronics',
@@ -40,6 +45,12 @@ exports.BUSINESS_TYPE_ROOT_CATEGORY = {
     stationery: 'Stationery',
     medical: 'Medical',
     vegetables_fruits: 'Fruits & Vegetables',
+    vegetables: 'Vegetables',
+    vegetable: 'Vegetables',
+    fruits: 'Fruits',
+    dairy: 'Dairy & Milk',
+    bakery: 'Bakery & Sweets',
+    bakery_sweets: 'Bakery & Sweets',
     electronics: 'Electronics',
     general: 'General Store',
 };
@@ -50,7 +61,20 @@ function categoryBusinessType(category, byId) {
     return parent?.businessType ?? 'grocery';
 }
 function isCategoryVisibleTo(categoryType, vendorBusinessType) {
-    return vendorBusinessType === 'general' || categoryType === vendorBusinessType;
+    if (!vendorBusinessType)
+        return true;
+    const types = vendorBusinessType
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+    if (types.includes('general') || types.includes('grocery'))
+        return true;
+    const cat = categoryType.toLowerCase();
+    return (types.includes(cat) ||
+        (cat === 'vegetables_fruits' && (types.includes('vegetable') || types.includes('vegetables') || types.includes('fruits'))) ||
+        ((cat === 'vegetable' || cat === 'vegetables' || cat === 'fruits') && types.includes('vegetables_fruits')) ||
+        (cat === 'bakery_sweets' && types.includes('bakery')) ||
+        (cat === 'bakery' && types.includes('bakery_sweets')));
 }
 exports.DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 };
 exports.DEFAULT_VENDOR_RADIUS_KM = 4;
