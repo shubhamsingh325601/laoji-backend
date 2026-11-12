@@ -2572,6 +2572,10 @@ export class CatalogService {
       email: user.email,
       type: vendor.type,
       businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
+      businessTypes: (vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'))
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
       shopAddress: vendor.shopAddress,
       gstNumber: vendor.gstNumber,
       aadhaarNumber: vendor.aadhaarNumber,
@@ -2684,6 +2688,11 @@ export class CatalogService {
       phone: user.phone,
       email: user.email,
       type: vendor.type,
+      businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
+      businessTypes: (vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'))
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
       shopAddress: vendor.shopAddress,
       gstNumber: vendor.gstNumber,
       aadhaarNumber: vendor.aadhaarNumber,
@@ -3324,14 +3333,34 @@ export class CatalogService {
 
     const kycStat = (dto.kycStatus === 'verified' || dto.kycStatus === 'rejected') ? dto.kycStatus : 'pending';
 
+    let rawTypes: string[] = [];
+    if (dto.businessTypes && Array.isArray(dto.businessTypes) && dto.businessTypes.length > 0) {
+      rawTypes = dto.businessTypes.map((s) => s.trim().toLowerCase()).filter(Boolean);
+    } else if (dto.businessType) {
+      rawTypes = dto.businessType.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    } else if (dto.type === 'restaurant') {
+      rawTypes = ['restaurant'];
+    } else {
+      rawTypes = ['grocery'];
+    }
+
+    const businessTypeStr = rawTypes.join(',');
+
+    let derivedType: 'grocery' | 'restaurant' | 'both' = dto.type || 'grocery';
+    const hasRestaurant = rawTypes.includes('restaurant');
+    const hasOthers = rawTypes.some((t) => t !== 'restaurant');
+    if (hasRestaurant && hasOthers) derivedType = 'both';
+    else if (hasRestaurant) derivedType = 'restaurant';
+    else if (hasOthers) derivedType = 'grocery';
+
     const [vendor] = await this.db
       .insert(vendors)
       .values({
         userId: user.id,
         businessName: dto.businessName.trim(),
         ownerName: dto.ownerName.trim(),
-        type: dto.type,
-        businessType: dto.businessType ?? (dto.type === 'restaurant' ? 'restaurant' : 'grocery'),
+        type: derivedType,
+        businessType: businessTypeStr,
         shopAddress: dto.shopAddress?.trim() || null,
         gstNumber: dto.gstNumber?.trim() || null,
         aadhaarNumber: dto.aadhaarNumber?.trim() || null,
@@ -3428,6 +3457,11 @@ export class CatalogService {
       phone,
       email,
       type: vendor.type,
+      businessType: vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'),
+      businessTypes: (vendor.businessType || (vendor.type === 'restaurant' ? 'restaurant' : 'grocery'))
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
       shopAddress: vendor.shopAddress,
       gstNumber: vendor.gstNumber,
       aadhaarNumber: vendor.aadhaarNumber,
@@ -3491,8 +3525,27 @@ export class CatalogService {
     const updateFields: any = {};
     if (dto.businessName !== undefined) updateFields.businessName = dto.businessName;
     if (dto.ownerName !== undefined) updateFields.ownerName = dto.ownerName;
-    if (dto.type !== undefined) updateFields.type = dto.type;
-    if (dto.businessType !== undefined) updateFields.businessType = dto.businessType;
+    if (dto.businessTypes !== undefined || dto.businessType !== undefined) {
+      let rawTypes: string[] = [];
+      if (dto.businessTypes && Array.isArray(dto.businessTypes)) {
+        rawTypes = dto.businessTypes.map((s) => s.trim().toLowerCase()).filter(Boolean);
+      } else if (dto.businessType) {
+        rawTypes = dto.businessType.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      }
+
+      if (rawTypes.length > 0) {
+        updateFields.businessType = rawTypes.join(',');
+        const hasRestaurant = rawTypes.includes('restaurant');
+        const hasOthers = rawTypes.some((t) => t !== 'restaurant');
+        if (hasRestaurant && hasOthers) updateFields.type = 'both';
+        else if (hasRestaurant) updateFields.type = 'restaurant';
+        else updateFields.type = 'grocery';
+      } else if (dto.businessType !== undefined) {
+        updateFields.businessType = dto.businessType;
+      }
+    } else if (dto.type !== undefined) {
+      updateFields.type = dto.type;
+    }
     if (dto.shopAddress !== undefined) updateFields.shopAddress = dto.shopAddress;
     if (dto.deliveryRadiusKm !== undefined) updateFields.radiusKm = dto.deliveryRadiusKm;
     if (dto.pickupLat !== undefined && dto.pickupLng !== undefined) {
