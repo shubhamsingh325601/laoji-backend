@@ -445,6 +445,16 @@ export class PaymentService {
   }
   // ---------- Admin: payment settings (Customer UPI VPA & Payee Name) ----------
 
+  // Admin test: builds the same link as checkout for a throwaway reference.
+  // Nothing is stored and no order or payment row is created, so a test can
+  // never mark anything paid.
+  async buildTestLink(amount: number): Promise<{ upiDeepLink: string; amount: number; upiId: string; payeeName: string }> {
+    const ref = `TEST${Date.now()}`;
+    const upiDeepLink = await this.upi.buildLink(ref, amount, `Laoji test ${ref.slice(-6)}`);
+    const { upiId, payeeName } = await this.getPaymentSettings();
+    return { upiDeepLink, amount, upiId, payeeName };
+  }
+
   async getPaymentSettings(): Promise<{ upiId: string; payeeName: string }> {
     let upiId = this.config.get<string>('UPI_VPA') || '8005949152-3@ybl';
     let payeeName = this.config.get<string>('UPI_PAYEE_NAME') || 'Laoji';
