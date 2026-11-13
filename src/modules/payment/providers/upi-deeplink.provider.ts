@@ -32,6 +32,16 @@ export class UpiDeepLinkProvider implements PaymentProvider {
   ) {}
 
   async initiate({ orderId, amount }: PaymentInitiateParams): Promise<PaymentInitiateResult> {
+    return {
+      status: 'pending',
+      upiDeepLink: await this.buildLink(orderId, amount, `Laoji Order ${orderId.slice(0, 8).toUpperCase()}`),
+      providerRef: orderId,
+    };
+  }
+
+  // The exact link a real checkout produces. Also used by the admin "test payment"
+  // tool, which has no order behind it.
+  async buildLink(orderId: string, amount: number, note: string): Promise<string> {
     let vpa = this.config.get<string>('UPI_VPA') || '8005949152-3@ybl';
     let payeeName = this.config.get<string>('UPI_PAYEE_NAME') || 'Laoji';
 
@@ -66,18 +76,17 @@ export class UpiDeepLinkProvider implements PaymentProvider {
       pa: vpa,
       pn: payeeName,
       am: amount.toFixed(2),
-      tr: orderId,
-      tn: `Laoji Order ${orderId.slice(0, 8).toUpperCase()}`,
+      // NPCI caps `tr` at 35 characters; a dashed UUID is 36, which some UPI apps
+      // (Google Pay, PhonePe) refuse. Dashes dropped = 32. Nothing reads `tr` back:
+      // payments are matched by providerRef (the order id), not by this value.
+      tr: orderId.replace(/-/g, ''),
+      tn: note,
       cu: 'INR',
     };
     const query = Object.entries(params)
       .map(([key, value]) => `${key}=${encodeURIComponent(value).replace(/%40/g, '@')}`)
       .join('&');
-    return {
-      status: 'pending',
-      upiDeepLink: `upi://pay?${query}`,
-      providerRef: orderId,
-    };
+    return `upi://pay?${query}`;
   }
 
   async verify(_params: PaymentVerifyParams): Promise<PaymentVerifyResult> {

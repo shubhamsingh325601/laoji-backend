@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -27,6 +27,15 @@ export class AdminPaymentController {
   @Put('settings')
   putSettings(@CurrentUser() user: JwtAccessPayload, @Body() dto: UpdatePaymentSettingsDto) {
     return this.payments.updatePaymentSettings(dto, user.sub);
+  }
+
+  @Post('test-link')
+  testLink(@Body() body: { amount?: number }) {
+    const amount = Number(body?.amount ?? 1);
+    if (!Number.isFinite(amount) || amount < 1 || amount > 100) {
+      throw new BadRequestException('Test amount must be between ₹1 and ₹100.');
+    }
+    return this.payments.buildTestLink(Math.round(amount * 100) / 100);
   }
 
   @Get('pending')
