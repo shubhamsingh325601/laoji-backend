@@ -56,14 +56,21 @@ export class SettlementService {
     if (!order) return null;
     const riderPayout = await this.riderPayouts.forOrder(type, orderId);
 
+    // Rounded to paise so payout + platform share always add back up to the subtotal.
+    const vendorPayout = Math.round((order.subtotal - order.platformCommission) * 100) / 100;
+    // Whatever the customer paid beyond vendor, rider and commission is Laoji's:
+    // delivery fee minus rider pay, minus any platform-funded discount.
+    const deliveryMargin =
+      Math.round((order.total - vendorPayout - riderPayout - order.platformCommission) * 100) / 100;
+
     const [settlement] = await this.db
       .insert(settlements)
       .values({
         ...(type === 'grocery' ? { groceryOrderId: orderId } : { foodOrderId: orderId }),
-        // Rounded to paise so payout + platform share always add back up to the subtotal.
-        vendorPayout: Math.round((order.subtotal - order.platformCommission) * 100) / 100,
+        vendorPayout,
         deliveryPayout: riderPayout,
         platformShare: order.platformCommission,
+        deliveryMargin,
         commissionPctSnapshot: order.commissionPct,
       })
       .returning();
@@ -214,6 +221,7 @@ export class SettlementService {
       vendorPayout: s.vendorPayout,
       deliveryPayout: s.deliveryPayout,
       platformShare: s.platformShare,
+      deliveryMargin: s.deliveryMargin,
       commissionPctSnapshot: s.commissionPctSnapshot,
       createdAt: s.createdAt,
     };
