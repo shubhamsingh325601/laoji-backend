@@ -885,7 +885,7 @@ export const settlements = pgTable(
     vendorPayout: doublePrecision('vendor_payout').notNull(),
     deliveryPayout: doublePrecision('delivery_payout').notNull(),
     platformShare: doublePrecision('platform_share').notNull(),
-    // Delivery fee on the order (the customer's delivery charge), counted as
+    // Delivery fee the customer actually paid (a free-delivery voucher waives it), counted as
     // Laoji earning. Laoji earning = platform_share + delivery_margin. The
     // rider's pay is tracked separately in delivery_payout.
     deliveryMargin: doublePrecision('delivery_margin').notNull().default(0),

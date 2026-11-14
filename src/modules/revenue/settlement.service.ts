@@ -58,8 +58,16 @@ export class SettlementService {
 
     // Rounded to paise so payout + platform share always add back up to the subtotal.
     const vendorPayout = Math.round((order.subtotal - order.platformCommission) * 100) / 100;
-    // The delivery charge counts as Laoji earning; rider pay is tracked separately.
-    const deliveryMargin = Math.round(order.deliveryFee * 100) / 100;
+    // The delivery charge the customer actually paid counts as Laoji earning; rider pay
+    // is tracked separately. A free-delivery voucher waives the fee, so it is not collected.
+    let collectedFee = order.deliveryFee;
+    if (order.couponCode) {
+      const [coupon] = await this.db.select().from(coupons).where(eq(coupons.code, order.couponCode)).limit(1);
+      if (coupon?.discountType === 'free_delivery') {
+        collectedFee = Math.max(0, order.deliveryFee - (order.discount ?? 0));
+      }
+    }
+    const deliveryMargin = Math.round(collectedFee * 100) / 100;
 
     const [settlement] = await this.db
       .insert(settlements)
