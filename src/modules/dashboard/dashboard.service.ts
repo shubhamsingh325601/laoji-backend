@@ -320,7 +320,7 @@ export class DashboardService {
       cancelledOrders: [...grocery, ...food].filter((o) => o.status === 'cancelled' || o.status === 'failed').length,
       grossSales: sum(delivered.map((o) => o.total)),
       vendorEarnings: sum(rows.map((r) => r.vendorPayout)),
-      platformEarnings: sum(rows.map((r) => r.platformShare)),
+      platformEarnings: sum(rows.map((r) => r.platformShare + r.deliveryMargin)),
       totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
       pendingWithdrawal: Math.round(pendingWithdrawal * 100) / 100,
       remainingBalance,

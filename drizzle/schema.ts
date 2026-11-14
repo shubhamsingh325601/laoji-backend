@@ -885,6 +885,11 @@ export const settlements = pgTable(
     vendorPayout: doublePrecision('vendor_payout').notNull(),
     deliveryPayout: doublePrecision('delivery_payout').notNull(),
     platformShare: doublePrecision('platform_share').notNull(),
+    // Laoji's cut of delivery: what the customer paid in total, minus vendor
+    // payout, rider payout and commission. Negative when a platform-funded
+    // voucher or a low fee doesn't cover the rider. Laoji earning =
+    // platform_share + delivery_margin.
+    deliveryMargin: doublePrecision('delivery_margin').notNull().default(0),
     commissionPctSnapshot: doublePrecision('commission_pct_snapshot').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
