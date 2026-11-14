@@ -58,10 +58,8 @@ export class SettlementService {
 
     // Rounded to paise so payout + platform share always add back up to the subtotal.
     const vendorPayout = Math.round((order.subtotal - order.platformCommission) * 100) / 100;
-    // Whatever the customer paid beyond vendor, rider and commission is Laoji's:
-    // delivery fee minus rider pay, minus any platform-funded discount.
-    const deliveryMargin =
-      Math.round((order.total - vendorPayout - riderPayout - order.platformCommission) * 100) / 100;
+    // The delivery charge counts as Laoji earning; rider pay is tracked separately.
+    const deliveryMargin = Math.round(order.deliveryFee * 100) / 100;
 
     const [settlement] = await this.db
       .insert(settlements)
