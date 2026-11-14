@@ -24,11 +24,16 @@ import {
   menuItemVariants,
   menuItems,
   orderStatusHistory,
+  payments,
   products,
   restaurants,
+  scratchCards,
+  settlements,
   users,
+  vendorDiscountRedemptions,
   vendorProducts,
   vendors,
+  walletTransactions,
 } from '../../../drizzle/schema';
 import { AllocationService } from '../allocation/allocation.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -2103,5 +2108,92 @@ export class OrderService {
     } catch (err) {
       console.error('[OrderService] recordPendingAffiliateCommission failed:', err);
     }
+  }
+
+  /**
+   * Delete any order by admin.
+   * Completely removes the order along with its associated items, assignments,
+   * status history, payments, settlements, ratings, and scratch cards.
+   */
+  async deleteOrderByAdmin(adminUserId: string, type: 'grocery' | 'food', orderId: string) {
+    const table = type === 'grocery' ? groceryOrders : foodOrders;
+    const [order] = await this.db.select().from(table).where(eq(table.id, orderId)).limit(1);
+    if (!order) throw new NotFoundException('Order not found');
+
+    // 1. Cancel pending affiliate commissions if any
+    try {
+      await this.wallet.cancelPendingCommission(type, orderId);
+    } catch (err) {
+      console.warn('[OrderService] deleteOrderByAdmin: cancelPendingCommission error', err);
+    }
+
+    // 2. Clear or unlink wallet transactions
+    try {
+      await this.db
+        .delete(walletTransactions)
+        .where(and(eq(walletTransactions.orderId, orderId), eq(walletTransactions.status, 'pending')));
+      await this.db
+        .update(walletTransactions)
+        .set({ orderId: null })
+        .where(eq(walletTransactions.orderId, orderId));
+    } catch (err) {
+      console.warn('[OrderService] deleteOrderByAdmin: walletTransactions cleanup error', err);
+    }
+
+    // 3. Delete scratch cards
+    try {
+      await this.db.delete(scratchCards).where(eq(scratchCards.orderId, orderId));
+    } catch (err) {
+      console.warn('[OrderService] deleteOrderByAdmin: scratchCards cleanup error', err);
+    }
+
+    // 4. Delete vendor discount redemptions
+    try {
+      await this.db.delete(vendorDiscountRedemptions).where(eq(vendorDiscountRedemptions.orderId, orderId));
+    } catch (err) {
+      console.warn('[OrderService] deleteOrderByAdmin: vendorDiscountRedemptions cleanup error', err);
+    }
+
+    // 5. Delete order line items and allocation attempts
+    if (type === 'grocery') {
+      await this.db.delete(groceryOrderItems).where(eq(groceryOrderItems.groceryOrderId, orderId));
+      await this.db.delete(allocationAttempts).where(eq(allocationAttempts.groceryOrderId, orderId));
+    } else {
+      await this.db.delete(foodOrderItems).where(eq(foodOrderItems.foodOrderId, orderId));
+    }
+
+    // 6. Delete other cascade references
+    await this.db
+      .delete(foodOrderRatings)
+      .where(type === 'grocery' ? eq(foodOrderRatings.groceryOrderId, orderId) : eq(foodOrderRatings.foodOrderId, orderId));
+    await this.db
+      .delete(settlements)
+      .where(type === 'grocery' ? eq(settlements.groceryOrderId, orderId) : eq(settlements.foodOrderId, orderId));
+    await this.db
+      .delete(payments)
+      .where(type === 'grocery' ? eq(payments.groceryOrderId, orderId) : eq(payments.foodOrderId, orderId));
+    await this.db
+      .delete(deliveryAssignments)
+      .where(type === 'grocery' ? eq(deliveryAssignments.groceryOrderId, orderId) : eq(deliveryAssignments.foodOrderId, orderId));
+    await this.db
+      .delete(orderStatusHistory)
+      .where(type === 'grocery' ? eq(orderStatusHistory.groceryOrderId, orderId) : eq(orderStatusHistory.foodOrderId, orderId));
+
+    // 7. Delete the order record itself
+    await this.db.delete(table).where(eq(table.id, orderId));
+
+    return { success: true, id: orderId, type };
+  }
+
+  async deleteOrderById(adminUserId: string, orderId: string) {
+    const [grocery] = await this.db.select().from(groceryOrders).where(eq(groceryOrders.id, orderId)).limit(1);
+    if (grocery) {
+      return this.deleteOrderByAdmin(adminUserId, 'grocery', orderId);
+    }
+    const [food] = await this.db.select().from(foodOrders).where(eq(foodOrders.id, orderId)).limit(1);
+    if (food) {
+      return this.deleteOrderByAdmin(adminUserId, 'food', orderId);
+    }
+    throw new NotFoundException('Order not found');
   }
 }

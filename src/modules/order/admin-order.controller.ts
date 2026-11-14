@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -96,5 +96,22 @@ export class AdminOrderController {
     @Body() dto: ChangeOrderVendorDto,
   ) {
     return this.orders.changeOrderVendor(user.sub, type, id, dto);
+  }
+
+  @Delete(':type/:id')
+  deleteOrder(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('type') type: 'grocery' | 'food',
+    @Param('id') id: string,
+  ) {
+    return this.orders.deleteOrderByAdmin(user.sub, type, id);
+  }
+
+  @Delete(':id')
+  deleteOrderWithoutType(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
+    return this.orders.deleteOrderById(user.sub, id);
   }
 }
