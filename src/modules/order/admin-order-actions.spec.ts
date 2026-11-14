@@ -93,7 +93,16 @@ describe('Admin Order Actions (Accept & Restore)', () => {
       insert: jest.fn().mockReturnValue({
         values: jest.fn().mockResolvedValue([]),
       }),
-      update: jest.fn(),
+      update: jest.fn().mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            returning: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+      delete: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue([]),
+      }),
     };
     mockAllocation = {
       findBestVendor: jest.fn(),
@@ -643,6 +652,72 @@ describe('Admin Order Actions (Accept & Restore)', () => {
       await expect(
         orderService.changeOrderVendor(adminUserId, 'grocery', groceryOrderId, { vendorId }),
       ).rejects.toThrow('Order is already assigned to this vendor');
+    });
+  });
+
+  describe('Admin Delete Order', () => {
+    it('deletes a grocery order and cleans up all related records', async () => {
+      const order = { ...mockGroceryOrder };
+      setupMockDb({ order });
+
+      const deletedTables: any[] = [];
+      mockDb.delete.mockImplementation((table: any) => {
+        deletedTables.push(table);
+        return {
+          where: jest.fn().mockResolvedValue([]),
+        };
+      });
+
+      const result = await orderService.deleteOrderByAdmin(adminUserId, 'grocery', groceryOrderId);
+
+      expect(result).toEqual({ success: true, id: groceryOrderId, type: 'grocery' });
+      expect(mockDb.delete).toHaveBeenCalled();
+      expect(deletedTables).toContain(groceryOrders);
+      expect(mockWallet.cancelPendingCommission).toHaveBeenCalledWith('grocery', groceryOrderId);
+    });
+
+    it('deletes a food order and cleans up all related records', async () => {
+      const order = { ...mockFoodOrder };
+      setupMockDb({ order });
+
+      const deletedTables: any[] = [];
+      mockDb.delete.mockImplementation((table: any) => {
+        deletedTables.push(table);
+        return {
+          where: jest.fn().mockResolvedValue([]),
+        };
+      });
+
+      const result = await orderService.deleteOrderByAdmin(adminUserId, 'food', foodOrderId);
+
+      expect(result).toEqual({ success: true, id: foodOrderId, type: 'food' });
+      expect(mockDb.delete).toHaveBeenCalled();
+      expect(deletedTables).toContain(foodOrders);
+      expect(mockWallet.cancelPendingCommission).toHaveBeenCalledWith('food', foodOrderId);
+    });
+
+    it('auto-resolves type and deletes order using deleteOrderById', async () => {
+      const order = { ...mockGroceryOrder };
+      setupMockDb({ order });
+
+      const result = await orderService.deleteOrderById(adminUserId, groceryOrderId);
+
+      expect(result).toEqual({ success: true, id: groceryOrderId, type: 'grocery' });
+      expect(mockDb.delete).toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException if order does not exist', async () => {
+      mockDb.select.mockImplementation(() => {
+        const chain: any = {};
+        chain.from = jest.fn().mockReturnValue(chain);
+        chain.where = jest.fn().mockReturnValue(chain);
+        chain.limit = jest.fn().mockResolvedValue([]);
+        return chain;
+      });
+
+      await expect(
+        orderService.deleteOrderByAdmin(adminUserId, 'grocery', 'non-existent-order'),
+      ).rejects.toThrow('Order not found');
     });
   });
 });
