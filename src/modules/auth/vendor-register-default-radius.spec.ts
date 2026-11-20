@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { DEFAULT_VENDOR_RADIUS_KM } from '../catalog/catalog.types';
 
-// A vendor signing up in the app gets the 4 km default delivery radius, set by
+// A vendor signing up in the app gets the 10 km default delivery radius, set by
 // the server whatever the app sends (older builds send 2000). An existing
 // vendor's radius, often set by an admin, is never touched by signing up again
 // or by a profile edit.
@@ -75,8 +75,8 @@ const profile = {
 };
 
 describe('Vendor signup delivery radius', () => {
-  it('is 4 km', () => {
-    expect(DEFAULT_VENDOR_RADIUS_KM).toBe(4);
+  it('is 10 km', () => {
+    expect(DEFAULT_VENDOR_RADIUS_KM).toBe(10);
   });
 
   describe('POST /auth/vendor/register', () => {
@@ -84,7 +84,7 @@ describe('Vendor signup delivery radius', () => {
       ['the current app (4)', 4],
       ['an older app build (2000)', 2000],
       ['no radius', undefined],
-    ])('stores 4 km for a new vendor sending %s', async (_label, radiusKm) => {
+    ])('stores 10 km for a new vendor sending %s', async (_label, radiusKm) => {
       const { db, inserts } = fakeDb({});
       const auth = new AuthService(db as any, jwt as any, config as any);
 
@@ -94,10 +94,10 @@ describe('Vendor signup delivery radius', () => {
       });
 
       const vendor = inserts.find((i) => i.table === 'vendors');
-      expect(vendor?.values.radiusKm).toBe(4);
+      expect(vendor?.values.radiusKm).toBe(10);
       expect(vendor?.values.pickupLat).toBe(signup.pickupLat);
       expect(vendor?.values.pickupLng).toBe(signup.pickupLng);
-      expect((res.vendor as Row).radiusKm).toBe(4);
+      expect((res.vendor as Row).radiusKm).toBe(10);
     });
 
     it('turns away a phone that already has a store, leaving its radius alone', async () => {
@@ -125,7 +125,7 @@ describe('Vendor signup delivery radius', () => {
 
   describe('POST /vendors/me', () => {
     it.each([2000, undefined])(
-      'creates a missing store profile with 4 km (app sent %s)',
+      'creates a missing store profile with 10 km (app sent %s)',
       async (radiusKm) => {
         const { db, inserts } = fakeDb({});
         const catalog = new CatalogService(db as any, {} as any, {} as any);
@@ -137,7 +137,7 @@ describe('Vendor signup delivery radius', () => {
 
         expect(
           inserts.find((i) => i.table === 'vendors')?.values.radiusKm,
-        ).toBe(4);
+        ).toBe(10);
       },
     );
 

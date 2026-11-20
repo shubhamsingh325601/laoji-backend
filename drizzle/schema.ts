@@ -1191,3 +1191,50 @@ export const platformSettings = pgTable('platform_settings', {
 });
 
 
+
+// Places Laoji delivers to. A customer's drop point must fall inside an active
+// area's circle (centre + radius_km) to order. Admin edits these; Sangod is
+// seeded at 10 km.
+export const serviceAreas = pgTable('service_areas', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 120 }).notNull(),
+  centerLat: doublePrecision('center_lat').notNull(),
+  centerLng: doublePrecision('center_lng').notNull(),
+  radiusKm: doublePrecision('radius_km').notNull().default(10),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Smallest item subtotal checkout accepts, by pickup-to-drop distance band.
+// Same shape as delivery_free_threshold_tiers. No rows = revenue_config's
+// min_order_value for every distance.
+export const deliveryMinOrderTiers = pgTable('delivery_min_order_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromKm: doublePrecision('from_km').notNull(),
+  toKm: doublePrecision('to_km'),
+  minOrderAmount: doublePrecision('min_order_amount').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row: pricing rules that used to be hardcoded constants.
+export const pricingSettings = pgTable('pricing_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  // Drops farther than this from the service area's centre pay the outer fee.
+  outerZoneRadiusKm: doublePrecision('outer_zone_radius_km').notNull().default(2),
+  outerZoneFee: doublePrecision('outer_zone_fee').notNull().default(15),
+  // Beyond this distance free delivery needs at least long_distance_free_min.
+  longDistanceKm: doublePrecision('long_distance_km').notNull().default(5),
+  longDistanceFreeMin: doublePrecision('long_distance_free_min').notNull().default(200),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Launch splash per app ('customer' | 'vendor' | 'rider'), managed in Admin.
+export const splashSettings = pgTable('splash_settings', {
+  app: varchar('app', { length: 20 }).primaryKey(),
+  enabled: boolean('enabled').notNull().default(true),
+  imageUrl: text('image_url'),
+  durationMs: integer('duration_ms').notNull().default(2800),
+  skippable: boolean('skippable').notNull().default(true),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

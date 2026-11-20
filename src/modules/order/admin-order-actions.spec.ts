@@ -156,6 +156,8 @@ describe('Admin Order Actions (Accept & Restore)', () => {
       mockVendorDiscounts,
       mockWallet,
       { offerFor: jest.fn().mockResolvedValue({ applied: false, remaining: 0 }), feeForDistance: jest.fn().mockResolvedValue(null) } as any,
+      {} as any,
+      {} as any,
     );
   });
 

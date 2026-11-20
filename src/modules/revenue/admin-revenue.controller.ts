@@ -9,6 +9,7 @@ import { RevenueConfigService } from './revenue-config.service';
 import { SettlementService } from './settlement.service';
 import { RiderPayoutService } from './rider-payout.service';
 import { NewCustomerDeliveryService } from './new-customer-delivery.service';
+import { PricingService } from './pricing.service';
 import { CreateRevenueConfigDto } from './dto/create-revenue-config.dto';
 
 class SetRiderPayoutTiersDto {
@@ -26,6 +27,7 @@ export class AdminRevenueController {
     private readonly settlements: SettlementService,
     private readonly riderPayout: RiderPayoutService,
     private readonly newCustomerDelivery: NewCustomerDeliveryService,
+    private readonly pricing: PricingService,
   ) {}
 
   @Post('revenue-config')
@@ -91,6 +93,33 @@ export class AdminRevenueController {
   async setFreeThresholdTiers(@Body() body: { tiers: unknown }) {
     const saved = await this.newCustomerDelivery.replaceFreeThresholdTiers(body.tiers ?? []);
     return { tiers: saved };
+  }
+
+  // Minimum order by distance band. Empty = revenue_config's single minimum.
+  @Get('delivery-min-order-tiers')
+  async listMinOrderTiers() {
+    return { tiers: await this.pricing.listMinOrderTiers() };
+  }
+
+  @Put('delivery-min-order-tiers')
+  async setMinOrderTiers(@Body() body: { tiers: unknown }) {
+    return { tiers: await this.pricing.replaceMinOrderTiers(body.tiers ?? []) };
+  }
+
+  // Outer-zone fee and long-distance rule.
+  @Get('pricing-settings')
+  getPricingSettings() {
+    return this.pricing.getSettings();
+  }
+
+  @Put('pricing-settings')
+  setPricingSettings(@Body() body: unknown) {
+    return this.pricing.saveSettings(body);
+  }
+
+  @Get('pricing/preview')
+  previewPricing(@Query('distanceKm') distanceKm: string, @Query('subtotal') subtotal: string, @Query('outerZone') outerZone?: string) {
+    return this.pricing.preview(Number(distanceKm), Number(subtotal), outerZone === 'true');
   }
 
   @Get('settlements')

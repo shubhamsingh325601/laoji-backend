@@ -56,7 +56,9 @@ import { NewCustomerDeliveryService } from '../revenue/new-customer-delivery.ser
 import { CouponService } from '../coupon/coupon.service';
 import { VendorDiscountsService } from '../vendor-discounts/vendor-discounts.service';
 import { WalletService } from '../wallet/wallet.service';
-import { haversineKm, isOutsideCoreZone, isVendorOpenNow, OUTER_ZONE_DELIVERY_FEE, roundKm } from '../catalog/catalog.types';
+import { DEFAULT_PICKUP, haversineKm, isVendorOpenNow, roundKm } from '../catalog/catalog.types';
+import { PricingService } from '../revenue/pricing.service';
+import { ServiceAreaService } from '../service-area/service-area.service';
 import { describeMealSlots, effectiveMealTimings, isServedNow } from '../catalog/meal-slots';
 import type { CreateGroceryOrderDto } from './dto/create-grocery-order.dto';
 import type { CreateFoodOrderDto } from './dto/create-food-order.dto';
@@ -65,10 +67,6 @@ import type { ChangeOrderVendorDto } from './dto/change-order-vendor.dto';
 
 // A checkout counts as a real order only once payment is satisfied (online paid, or COD chosen),
 // or it was and has since moved into the refund flow. Vendors and admin only hear about these.
-// Orders delivered farther than this pay delivery unless the subtotal reaches the minimum.
-const LONG_DISTANCE_KM = 5;
-const LONG_DISTANCE_FREE_DELIVERY_MIN = 200;
-
 const CONFIRMED_PAYMENT_STATUSES = ['paid', 'pending_cod', 'collected', 'refund_pending', 'refunded'];
 
 const STATUS_SEQUENCE =['vendor_accepted', 'preparing', 'ready', 'handed_over'] as const;
@@ -87,6 +85,8 @@ export class OrderService {
     private readonly vendorDiscounts: VendorDiscountsService,
     private readonly wallet: WalletService,
     private readonly newCustomerDelivery: NewCustomerDeliveryService,
+    private readonly pricing: PricingService,
+    private readonly serviceAreas: ServiceAreaService,
   ) {
     this.payments.onPaymentSatisfied.subscribe(({ type, orderId }) => {
       this.handlePaymentSatisfied(type, orderId).catch((err) => {
@@ -151,35 +151,20 @@ export class OrderService {
     vendorId: string | undefined,
     dropoff: { lat: number; lng: number },
   ) {
-    const outerZone = isOutsideCoreZone(dropoff.lat, dropoff.lng);
-    // Beyond LONG_DISTANCE_KM the order must reach LONG_DISTANCE_FREE_DELIVERY_MIN
-    // for free delivery, whatever lower threshold the vendor's rule sets.
-    if (distanceKm > LONG_DISTANCE_KM) {
-      revenue = {
-        ...revenue,
-        freeDeliveryThreshold: Math.max(revenue.freeDeliveryThreshold, LONG_DISTANCE_FREE_DELIVERY_MIN),
-      };
-    }
-    // If the admin has set per-distance free-delivery thresholds, use those
-    // instead of the single global threshold in the revenue config.
-    const perDistanceThreshold = await this.newCustomerDelivery.freeDeliveryThreshold(
-      distanceKm,
-      revenue.freeDeliveryThreshold,
-    );
-    if (perDistanceThreshold !== revenue.freeDeliveryThreshold) {
-      revenue = { ...revenue, freeDeliveryThreshold: perDistanceThreshold };
-    }
+    // The drop must be inside an active service area (admin → Service areas).
+    const area = await this.serviceAreas.assertCovered(dropoff.lat, dropoff.lng);
+    const pricingSettings = await this.pricing.getSettings();
+    // The outer-zone ring is measured from the covering area's centre.
+    const centre = area ?? { centerLat: DEFAULT_PICKUP.lat, centerLng: DEFAULT_PICKUP.lng };
+    const outerZone =
+      haversineKm(centre.centerLat, centre.centerLng, dropoff.lat, dropoff.lng) > pricingSettings.outerZoneRadiusKm;
     // A customer's first few orders within the admin-set distance get free delivery.
     // Otherwise the admin's km ranges set the fee (revenue-config fees if none are saved).
     const offer = await this.newCustomerDelivery.offerFor(customerId, distanceKm);
-    let baseFee = 0;
-    if (!offer.applied && subtotal < revenue.freeDeliveryThreshold) {
-      baseFee =
-        (await this.newCustomerDelivery.feeForDistance(distanceKm)) ??
-        this.revenueConfig.calculateDeliveryFee(revenue, subtotal, distanceKm);
-    }
-    // A fee of 0 (free-delivery threshold or new-customer offer) stays free.
-    const deliveryFee = outerZone && baseFee > 0 ? OUTER_ZONE_DELIVERY_FEE : baseFee;
+    // Min order, free-delivery threshold and fee all come from admin-set bands.
+    const quote = await this.pricing.deliveryQuote({ revenue, distanceKm, subtotal, outerZone, offerApplied: offer.applied });
+    revenue = quote.revenue;
+    const deliveryFee = quote.deliveryFee;
     const ctx = { subtotal, deliveryFee, userId: customerId, vendorId, noFreeDeliveryVoucher: outerZone };
     let code = couponCode?.trim().toUpperCase() ?? '';
     let autoApplied = false;

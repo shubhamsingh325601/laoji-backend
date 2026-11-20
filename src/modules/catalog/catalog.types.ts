@@ -100,7 +100,7 @@ export const DEFAULT_PICKUP = { lat: 24.924, lng: 76.283 } as const;
  * sets it, not the app: builds up to 1.0.3 send 2000. Afterwards only an admin
  * changes it (re-registering or editing the profile keeps it).
  */
-export const DEFAULT_VENDOR_RADIUS_KM = 4;
+export const DEFAULT_VENDOR_RADIUS_KM = 10;
 
 // Every fallback point a Vendor app build has sent: Sangod, and Kolhapur
 // city centre before it. Builds up to 1.0.2 also sent it on every profile

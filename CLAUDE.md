@@ -1355,3 +1355,27 @@ payout"); defaults are 0–3 km ₹5, 3–5 km ₹10, 5+ km ₹15. Migration
   amount comes only from distance. The old flat ₹15 fallback for ₹0-fee orders is gone.
 - Not changed, flagged: `DeliveryService.listPartnersAdmin` / `getAdminPartner` still
   return hardcoded `todayEarnings: 450` and `totalDeliveries: 28`.
+
+## Service areas, pricing bands & splash (admin-managed)
+
+Migration `0037_service_areas_pricing_splash` (idempotent; on hosted databases run
+`npx ts-node scripts/migrate-service-areas-pricing-splash.ts`). It seeds Sangod at 10 km.
+
+- **Service areas** (`service_areas`, `src/modules/service-area/`): a centre and radius
+  (default 10 km). `GET /service-areas` (public, cached) feeds the customer app;
+  `/admin/service-areas` CRUD, plus `POST /:id/apply-to-vendors` which sets every vendor
+  shop inside the area to the area's radius (vendors keep their own `radius_km`, which is
+  what held Sangod to 4 km). `OrderService.priceTotals` calls `assertCovered` so quote and
+  checkout refuse a drop outside every active area. **Behaviour change, flagged:** the backend
+  used to leave this to the app. With no active areas nothing is blocked.
+  `DEFAULT_VENDOR_RADIUS_KM` is now 10 (was 4) for new vendors.
+- **Pricing** (`PricingService`): `delivery_min_order_tiers` (minimum order by km band, empty =
+  `revenue_config.min_order_value`) and `pricing_settings` (outer-zone radius/fee, long-distance
+  km/free minimum, which were constants). `PricingService.deliveryQuote` is the one place that
+  works out minimum, free threshold and fee; checkout and `GET /admin/pricing/preview` both use it.
+  The outer zone is measured from the covering area's centre (Sangod centre if none).
+  Not changed, flagged: the free-delivery voucher message still names `CORE_DELIVERY_RADIUS_KM` (2 km).
+- **Splash** (`splash_settings`, `src/modules/splash/`): per app (`customer|vendor|rider`) image,
+  on/off, display time, tap-to-skip. `GET /splash?app=` is public and cached; `configured: false`
+  means the app should keep using the older banner with placement `splash`. Only the customer app
+  reads it so far.

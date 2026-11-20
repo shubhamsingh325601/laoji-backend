@@ -8,6 +8,7 @@ import { RevenueModule } from '../revenue/revenue.module';
 import { CouponModule } from '../coupon/coupon.module';
 import { VendorDiscountsModule } from '../vendor-discounts/vendor-discounts.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { ServiceAreaModule } from '../service-area/service-area.module';
 import { OrderService } from './order.service';
 import { CustomerOrderController } from './customer-order.controller';
 import { VendorOrderController } from './vendor-order.controller';
@@ -24,6 +25,7 @@ import { AdminOrderController } from './admin-order.controller';
     CouponModule,
     VendorDiscountsModule,
     WalletModule,
+    ServiceAreaModule,
   ],
   controllers: [CustomerOrderController, VendorOrderController, AdminOrderController],
   providers: [OrderService],
